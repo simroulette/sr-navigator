@@ -6,6 +6,7 @@
 // Author: Nikita Zabelin
 // ===================================================================
 
+$_SERVER['DOCUMENT_ROOT']='';
 $root="[path]";
 include($root.'_func.php');
 
