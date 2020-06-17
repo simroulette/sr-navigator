@@ -23,18 +23,21 @@ function SendRequest(url)
 			{
 				var str=Request.responseText.split("#!#");
 				if (send!=str[0])
-				{	
+				{
 					if (str[0]){document.getElementById("result_send").innerHTML=str[0]+document.getElementById("result_send").innerHTML;}
 					send=str[0];
 				}
 				if (receive!=str[1])
-				{	
+				{
 					if (str[1]){document.getElementById("result_receive").innerHTML=str[1]+document.getElementById("result_receive").innerHTML;}
-					receive=str[1];	
-				}	
+					receive=str[1];
+				}
 			}
 		}
 	}
 	Request.open("GET", url, true);
 	Request.send(null);
-}function getRequest(){	var com=encodeURIComponent(document.getElementById('command').value.split('\n').join('||'));	document.getElementById('step').value=parseInt(document.getElementById('step').value)+1;	SendRequest('terminal_answer.php?step='+document.getElementById('step').value+'&command='+com+'&device='+document.getElementById('device').value);}
+}
+function getRequest(){
+	var com=encodeURIComponent(document.getElementById('command').value.split('\n').join('||'));	document.getElementById('step').value=parseInt(document.getElementById('step').value)+1;	SendRequest('terminal_answer.php?step='+document.getElementById('step').value+'&command='+com+'&device='+document.getElementById('device').value);
+}
