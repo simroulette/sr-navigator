@@ -7,7 +7,10 @@ $status=1;
 // ---------------------------------------------
 
 sr_header('Онлайн','win_action'); // Output page title and title | Вывод титул и заголовок страницы
-
+?>
+<br>
+<em>Для SR-Train, SR-Box</em>
+<?
 $devices=array();
 $dev=$_GET['device'];
 if ($result = mysqli_query($db, "SELECT * FROM `devices` WHERE `model`<>'SR-Nano-500' AND `model`<>'SR-Nano-1000' ORDER BY `title`")) 

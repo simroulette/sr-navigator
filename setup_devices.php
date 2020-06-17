@@ -102,6 +102,9 @@ if (!$status)
 <option value="SR-Train"<? if ($model=='SR-Train'){echo ' selected=1';}?>>SR-Train</option>
 <option value="SR-Nano-500"<? if ($model=='SR-Nano-500'){echo ' selected=1';}?>>SR-Nano-500</option>
 <option value="SR-Nano-1000"<? if ($model=='SR-Nano-1000'){echo ' selected=1';}?>>SR-Nano-1000</option>
+<option value="SR-Box-One"<? if ($model=='SR-Box-One'){echo ' selected=1';}?>>SR-Box-One</option>
+<option value="SR-Box-Eight"<? if ($model=='SR-Box-Eight'){echo ' selected=1';}?>>SR-Box-Eight</option>
+<option value="SR-Box-Bank"<? if ($model=='SR-Box-Bank'){echo ' selected=1';}?>>SR-Box-Bank</option>
 </select>
 <br>
 <div id="SR-Train" <? if ($model!='SR-Train'){echo 'style="display: none;"';}?>>
