@@ -10,9 +10,9 @@ var receive="";
 var connect=0;
 setInterval(function()
 {
-	SendRequest();
+	SendRequest('terminal_answer.php');
 }, term_int);
-function SendRequest()
+function SendRequest(url)
 {
 	var Request = new XMLHttpRequest();
 	Request.onreadystatechange = function()
@@ -35,6 +35,6 @@ function SendRequest()
 			}
 		}
 	}
-	Request.open("GET", 'terminal_answer.php', true);
+	Request.open("GET", url, true);
 	Request.send(null);
-}function getRequest(){	var com=encodeURIComponent(document.getElementById('command').value.split('\n').join('||'));	document.getElementById('step').value=parseInt(document.getElementById('step').value)+1;	SendRequest('GET','terminal_answer.php?step='+document.getElementById('step').value+'&command='+com+'&device='+document.getElementById('device').value);}
+}function getRequest(){	var com=encodeURIComponent(document.getElementById('command').value.split('\n').join('||'));	document.getElementById('step').value=parseInt(document.getElementById('step').value)+1;	SendRequest('terminal_answer.php?step='+document.getElementById('step').value+'&command='+com+'&device='+document.getElementById('device').value);}
