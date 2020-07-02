@@ -37,9 +37,9 @@ function SendRequest(url)
 	}
 	Request.open("GET", url, true);
 	Request.send(null);
-}
-function getRequest(){
-	var com=encodeURIComponent(document.getElementById('command').value.split('\n').join('||'));
-	document.getElementById('step').value=parseInt(document.getElementById('step').value)+1;
-	SendRequest('terminal_answer.php?step='+document.getElementById('step').value+'&command='+com+'&device='+document.getElementById('device').value);
-}
+}
+function getRequest(){
+	var com=encodeURIComponent(document.getElementById('command').value.split('\n').join('||'));
+	document.getElementById('step').value=parseInt(document.getElementById('step').value)+1;
+	SendRequest('terminal_answer.php?step='+document.getElementById('step').value+'&command='+com+'&device='+document.getElementById('device').value);
+}

@@ -270,7 +270,7 @@ function onlineView($numb)
 //	$numb		Array with phone numbers to receive SMS for
 
 	global $db;
-	if ($result = mysqli_query($db, 'SELECT * FROM `sms_incoming` WHERE `number` IN ('.implode(',',$numb).') ORDER BY `time` DESC LIMIT 10')) 
+	if ($result = mysqli_query($db, 'SELECT * FROM `sms_incoming` WHERE `number` IN ('.implode(',',$numb).') ORDER BY `id` DESC LIMIT 10')) 
 	{
 		while ($row = mysqli_fetch_assoc($result))
 		{
@@ -279,10 +279,11 @@ function onlineView($numb)
 			$txt=preg_replace('!([0-9]{4,20})!','<span class="note" onclick="copy(\'$1\');soundClick();">$1</span>',$txt);
 			$time=$row['time'];
 			$sender=$row['sender'];
+			if (!$id){$id=$row['id']+1;}
 			$s.='<div class="term_answer_item"><div class="answer_left answer_head" style="width: 100px;">'.date('H:i:s d.m',$time).'</div><div class="answer_head">'.$sender.'</div><div class="answer_left answer_fix">'.$number.'</div><div style="margin-left: 120px;">'.$txt.'</div></div>';
 		}
 	}
-	return($s);
+	return(array($s,$id));
 }
 
 // Processing SMS messages before saving them to the database

@@ -13,7 +13,8 @@ if (!$numb=$s[1]){exit();}
 $s=$s[0];
 
 $answer=$number='';
-if ($result = mysqli_query($db, 'SELECT * FROM `sms_incoming` WHERE `number` IN ('.implode(',',$numb).') AND `modified`>'.(int)$_GET['time'].' ORDER BY `time` LIMIT 1')) 
+$id=$_GET['id'];
+if ($result = mysqli_query($db, 'SELECT * FROM `sms_incoming` WHERE `number` IN ('.implode(',',$numb).') AND `id`>='.(int)$id.' ORDER BY `id` LIMIT 1')) 
 {
 	if ($row = mysqli_fetch_assoc($result))
 	{
@@ -23,11 +24,14 @@ if ($result = mysqli_query($db, 'SELECT * FROM `sms_incoming` WHERE `number` IN 
 		$time=$row['time'];
 		$sender=$row['sender'];
 		mysqli_query($db, 'UPDATE `sms_incoming` SET `readed`=1 WHERE `id`='.$row['id']); 
+		$id=$row['id']+1;
 	}
 }
 if (!$_GET['txt'])
 {
 	$answer=onlineView($numb);
+	$id=$answer[1];
+	$answer=$answer[0];
 }
 elseif ($number)
 {
@@ -36,5 +40,5 @@ elseif ($number)
 	$sound='#-#1';
 }
 
-echo $s.'#-#'.time().'#-#'.$answer.$sound;
+echo $s.'#-#'.$id.'#-#'.$answer.$sound;
 ?>

@@ -6,7 +6,6 @@
 // ===================================================================
 
 var noclose=0;
-var time=0;
 
 function menuToggle(x) 
 {
@@ -272,7 +271,7 @@ function getModemStatus()
 				{
 					document.getElementById("table").innerHTML=txt[0];
 				}
-				time=txt[1];
+				id=txt[1];
 				if (txt[2])
 				{
 					document.getElementById('result_receive').innerHTML=txt[2]+document.getElementById('result_receive').innerHTML;
@@ -284,7 +283,7 @@ function getModemStatus()
 			}
 		}
 	}
-	Request.open("GET", 'ajax_modem_status.php?device='+device+'&txt='+txt+'&time='+time, true);
+	Request.open("GET", 'ajax_modem_status.php?device='+device+'&txt='+txt+'&id='+id, true);
 	Request.send(null);
 }
 

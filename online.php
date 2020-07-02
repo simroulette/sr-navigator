@@ -9,6 +9,9 @@ $status=1;
 sr_header('Онлайн','win_action'); // Output page title and title | Вывод титул и заголовок страницы
 ?>
 <br>
+<script>
+var id=0;
+</script>
 <em>Для SR-Train, SR-Box</em>
 <?
 $devices=array();
@@ -71,7 +74,12 @@ $res=onlineTable((int)$_GET['device']);
 <div id="answer"<? if (!$res[3]){echo ' style="display: none;"';}?>>
 Ответ Sim Roulette:
 <div class="icon_cont"><i class="icon-trash" title="Очистить буфер" onclick="document.getElementById('result_receive').innerHTML='<div style=\'display:none\'></div>';"></i></div>
-<div id="result_receive" class="term_answer" style="height: 200px;"><?=onlineView($res[1]);?>
+<div id="result_receive" class="term_answer" style="height: 200px;"><?
+$answer=onlineView($res[1]);
+echo $answer[0].'<script>
+id='.(int)$answer[1].';
+</script>';
+?>
 </div>
 </div>
 

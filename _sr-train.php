@@ -193,8 +193,8 @@ function online_mode($dev, $curRow, $modems)
 	if ($curRow==0){$r=$curRow+1;} else {$r=$curRow-1;}
 
 	sr_command($dev,'row:'.$r.'&&row:'.$curRow.'&&modem>connect'.'&&modem>on');
-	// Requesting all SMS messages at once | Запрашиваем все SMS сразу	
 	$mm=array();
+
 	while (1)
 	{
 		foreach ($mod AS $data)
@@ -227,7 +227,7 @@ function online_mode($dev, $curRow, $modems)
 					{
 						$mm[$a[0]][1]=1;
 					}
-					elseif ($a[0])
+					elseif ($a[1])
 					{
 						if ((int)$a[0])
 						{
@@ -285,12 +285,15 @@ function online_mode($dev, $curRow, $modems)
 									{
 										if ($row2 = mysqli_fetch_assoc($result))
 										{
+											$qry="DELETE `sms_incoming` WHERE `id`=".$row2['id'];
+
 											// Saving to the database | Сохранение в БД
-											$qry="UPDATE `sms_incoming` SET
-											`txt`='".sms_prep($row2['txt'].$sms['txt'])."', 
-											`modified`=".time().",
-											`readed`=0
-											WHERE `id`=".$row2['id'];
+											$qry="INSERT INTO `sms_incoming` SET
+											`number`='".$row['number']."',
+											`sender`='".$sms['sender']."',
+											`time`=".$sms['time'].",
+											`modified`=".$row2['time'].",
+											`txt`='".sms_prep($row2['txt'].$sms['txt'])."'"; 
 											mysqli_query($db,$qry);
 											setlog('[online_mode:'.$dev.'] Added part of the SMS'); // Дописана часть SMS
 											$update=1;
@@ -328,7 +331,7 @@ function online_mode($dev, $curRow, $modems)
 								return($out);
 							}
 						}
-						setlog('[online_mode:'.$dev.'] SMS counter: '.$smsNum);
+						setlog('[online_mode:'.$dev.'] SMS counter: '.$smsNum.', Time: '.(time()-$smsTime[$m]).', Status: '.$mm[$m][1]);
 						if ($smsNum>7 && $smsTime[$m] && $smsTime[$m]<time()-60 && $mm[$m][1]==1)
 						{
 							setlog('[online_mode:'.$dev.'] Deleting all SMS messages from the SIM card');
