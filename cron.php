@@ -40,18 +40,29 @@ if ($result = mysqli_query($db, "SELECT m.*,d.`model`,d.`id` AS device FROM `mod
 				if (strpos($answer,'error:')!==false)
 				{
 					setlog('[CRON:'.$row['device'].'] The device does not respond!'); // Устройство не отвечает
-					exit();
 				}
-				file_put_contents($root."flags/cron_".$row['device'],1); // Setting the employment flag | Установка флага занятости
-				online_mode($row['device'], $curRow, implode(',',$mod));
+				else
+				{
+					file_put_contents($root."flags/cron_".$row['device'],1); // Setting the employment flag | Установка флага занятости
+					online_mode($row['device'], $curRow, implode(',',$mod));
+				}
 			}
 			else
 			{
 				$modems=unserialize($row['modems']);
 				$modem[1]=-1;
 				mysqli_query($db, "REPLACE INTO `modems` SET `device`=".$row['device'].", `modems`='".serialize($modems)."', `time`=".time()); 
-				file_put_contents($root."flags/cron_".$row['device'],1); // Setting the employment flag | Установка флага занятости
-				online_mode($row['device'], $modems);
+
+				$answer=sr_command($row['device'],'version',30); 
+				if (strpos($answer,'error:')!==false)
+				{
+					setlog('[CRON:'.$row['device'].'] The device does not respond!'); // Устройство не отвечает
+				}
+				else
+				{
+					file_put_contents($root."flags/cron_".$row['device'],1); // Setting the employment flag | Установка флага занятости
+					online_mode($row['device'], $modems);
+				}
 			}
 		}
 	        $dev[]=$row['device'];
