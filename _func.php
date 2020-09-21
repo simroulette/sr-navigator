@@ -135,7 +135,8 @@ function sr_footer()
 {
 ?></td></tr>
 <tr><td class="bottom sidebar">© <a href="http://x0.ru">X0 Systems</a>, 2016 — <?=date('Y')?></td>
-<? if ($GLOBALS['set_data']['admin_login']){ ?><td class="bottom" align="right"><div class="extinfo" style="float: left;"><?=$GLOBALS['set_data']['admin_login']?> [<a href="index.php?mode=logout">выход</a>]</div><? } ?></td></tr>
+<td class="bottom" align="right"><? if ($GLOBALS['set_data']['admin_login']){ ?><div class="extinfo" style="float: left;"><?=$GLOBALS['set_data']['admin_login']?> [<a href="index.php?mode=logout">выход</a>]</div><? } ?></td>
+</tr>
 </table>
 </body>
 </html><?
@@ -148,81 +149,146 @@ function onlineTable($dev)
 //	$dev		Device ID
 
 	global $db;
+
 	if ($dev)
 	{
-		if ($result = mysqli_query($db, 'SELECT * FROM `modems`	WHERE `device`='.$dev)) 
+		if ($result = mysqli_query($db, 'SELECT m.*,d.model FROM `modems` m INNER JOIN `devices` d ON d.id='.$dev.' WHERE `device`='.$dev)) 
 		{
 			if ($row = mysqli_fetch_assoc($result))
 			{
 				$modems=unserialize($row['modems']);
-				foreach ($modems AS $key => $status)
+
+				if ($row['model']=='SR-Train')
 				{
-					$curRow=$status[0];
-					if ($status[1]==-3)
+					foreach ($modems AS $key => $status)
+					{
+						$curRow=$status[0];
+						if ($status[1]==-3)
+						{
+							$st='выключен';
+							$bg='CCCCCC';
+						}
+						elseif ($status[1]==-2)
+						{
+							$st='не&nbsp;активен';
+							$bg='FF9900';
+						}
+						elseif ($status[1]==-1)
+						{
+							$st='включение';
+							$bg='99CCFF';
+						}
+						elseif ($status[1]==1)
+						{
+							$st='активен';
+							$bg='82b013';
+						}
+						elseif ($status[1]==2)
+						{
+							$st='поиск сети...';
+							$bg='FF9900';
+						}
+						elseif ($status[1]==3)
+						{
+							$st='сеть не доступна';
+							$bg='FF0000';
+						}
+						elseif ($status[1]==4)
+						{
+							$st='ошибка';
+							$bg='FF0000';
+						}
+						elseif ($status[1]==0)
+						{
+							$st='ошибка';
+							$bg='FF0000';
+						}
+						if (hexdec($bg)>8388607){$color='000';} else {$color='FFF';}
+						$realPlace=$place=$status[0].'-'.$key;
+						if ($key>8){$place=($status[0]+3).'-'.($key-8);}
+						$places[]="'".$place."'";
+						$table[$key]=array(
+						'num'=>$key,
+						'place'=>$place,
+						'status'=>$st,
+						'bg'=>$bg,
+						'color'=>$color,
+						);
+					}
+					if (count($places))
+					{
+						if ($result = mysqli_query($db, 'SELECT c.*,o.title FROM `cards` c LEFT JOIN `operators` o ON o.`id`=c.`operator` WHERE c.`device`='.$row['device'].' AND c.`place` IN ('.implode(',',$places).') ORDER BY c.`place`')) 
+						{
+							while ($row = mysqli_fetch_assoc($result))
+							{
+								$numbers[$row['place']]=$row['number'];
+								$operators[$row['place']]=$row['title'];
+								$numb[]='"'.$row['number'].'"';
+							}
+						}
+					}
+				}
+				else
+				{
+					if ($modems[1]==-3)
 					{
 						$st='выключен';
 						$bg='CCCCCC';
 					}
-					if ($status[1]==-2)
+					elseif ($modems[1]==-2)
 					{
 						$st='не&nbsp;активен';
 						$bg='FF9900';
 					}
-					elseif ($status[1]==-1)
+					elseif ($modems[1]==-1)
 					{
 						$st='включение';
 						$bg='99CCFF';
 					}
-					elseif ($status[1]==1)
+					elseif ($modems[1]==1)
 					{
 						$st='активен';
 						$bg='82b013';
 					}
-					elseif ($status[1]==2)
+					elseif ($modems[1]==2)
 					{
 						$st='поиск сети...';
 						$bg='FF9900';
 					}
-					elseif ($status[1]==3)
+					elseif ($modems[1]==3)
 					{
 						$st='сеть не доступна';
 						$bg='FF0000';
 					}
-					elseif ($status[1]==4)
+					elseif ($modems[1]==4)
 					{
 						$st='ошибка';
 						$bg='FF0000';
 					}
-					elseif ($status[1]==0)
+					elseif ($modems[1]==0)
 					{
 						$st='ошибка';
 						$bg='FF0000';
 					}
 					if (hexdec($bg)>8388607){$color='000';} else {$color='FFF';}
-					$status[0];
-					$realPlace=$place=$status[0].'-'.$key;
-					if ($key>8){$place=($status[0]+3).'-'.($key-8);}
-					$places[]="'".$place."'";
-					$table[$key]=array(
-					'num'=>$key,
-					'place'=>$place,
+					$table[0]=array(
+					'num'=>1,
+					'place'=>$modems[0],
 					'status'=>$st,
 					'bg'=>$bg,
 					'color'=>$color,
 					);
-				}
 
-				if (count($places))
-				{
-					if ($result = mysqli_query($db, 'SELECT c.*,o.title FROM `cards` c LEFT JOIN `operators` o ON o.`id`=c.`operator` WHERE c.`device`='.$row['device'].' AND c.`place` IN ('.implode(',',$places).') ORDER BY c.`place`')) 
+					if ($result = mysqli_query($db, 'SELECT c.*,o.title FROM `cards` c LEFT JOIN `operators` o ON o.`id`=c.`operator` WHERE c.`device`='.$row['device']." AND c.`place`='".$modems[0]."'")) 
 					{
-						while ($row = mysqli_fetch_assoc($result))
+						if ($row = mysqli_fetch_assoc($result))
 						{
 							$numbers[$row['place']]=$row['number'];
 							$operators[$row['place']]=$row['title'];
 							$numb[]='"'.$row['number'].'"';
 						}
 					}
+					$curRow=$modems[0];
 				}
 			}
 		}
@@ -299,6 +365,16 @@ function sms_prep($txt)
 	$txt=str_replace('00BB','»',$txt);
 	$txt=str_replace(' 2013 ',' – ',$txt);
 	return($txt);
+}
+
+// Deleting leading zeros in the SR-Nano disk space designation
+// Удаление лидирующих нулей в обозначение места на диске SR-Nano
+function remove_zero($place)
+{
+//	$place 		Place on SR-Nano
+	$l=$place[0];
+	if (ord($l>57) || (strlen($place)==2 && $place[1]=='0')){return($place);}
+	return($l.(int)substr($place,1,3));
 }
 
 // Deleting old flags

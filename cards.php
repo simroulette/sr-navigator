@@ -140,13 +140,15 @@ if (!$status)
 }
 else
 {
-	sr_header("Список СИМ-карт"); // Output page title and title | Вывод титул и заголовок страницы
-
 	$table=array();
 	$where=array();
+	$limit='';
 	$order='';
-	if (!$_GET['page']){$_GET['page']=1;}
-	$limit=' LIMIT '.((int)$GLOBALS['set_data']['page_limit']*($_GET['page']-1)).','.(int)$GLOBALS['set_data']['page_limit'];
+	if ($_GET['page']!='all')
+	{
+		if (!$_GET['page']){$_GET['page']=1;}
+		$limit=' LIMIT '.((int)$GLOBALS['set_data']['page_limit']*($_GET['page']-1)).','.(int)$GLOBALS['set_data']['page_limit'];
+	}
 	if ($_GET['number'])
 	{
 		$where[]="c.number LIKE '%".(int)$_GET['number']."%'";
@@ -212,7 +214,7 @@ else
 			$total=$row['counter'];	
 		}
 	}
-	if ($result = mysqli_query($db, 'SELECT c.*,o.title AS operator,o.color,d.title AS device_name FROM `cards` c 
+	if ($result = mysqli_query($db, 'SELECT c.*,o.title AS operator,o.id AS operator_id,o.color,d.title AS device_name FROM `cards` c 
 	LEFT JOIN `operators` o ON c.`operator`=o.`id` 
 	LEFT JOIN `devices` d ON c.`device`=d.`id` 
 	'.$where.$order.$limit)) 
@@ -233,8 +235,9 @@ else
 			{
 				$row['status']='';
 			}
+			if ($_GET['page']=='all'){$pnum++;} else {$pnum=$n+$GLOBALS['set_data']['page_limit']*($_GET['page']-1);}
 			$table[]=array(
-				'num'=>$n+$GLOBALS['set_data']['page_limit']*($_GET['page']-1),
+				'num'=>$pnum,
 				'id'=>$row['id'],
 				'number'=>$row['number'],
 				'time'=>date('d.m.Y H:i:s',$row['time']),
@@ -243,6 +246,7 @@ else
 				'device'=>$row['device_name'],
 				'place'=>$row['place'],
 				'operator'=>$row['operator'],
+				'operator_id'=>$row['operator_id'],
 				'status'=>$row['status'],
 				'balance'=>$row['balance'],
 				'bg'=>$row['color'],
@@ -259,6 +263,27 @@ else
 			$devices[$row['id']]=$row['title'];
 		}
 	}
+	if ($_GET['type']=='csv')
+	{
+		header('Content-Type:csv/plain');
+		echo "Номер\tАгрегатор\tID\tМесто\tБаланс\tОператор\tID\tВремя
+";
+		foreach ($table as $data)
+		{
+			if ($data['number']==$data['place'])
+			{
+				echo "Блокировка\t".$data['device']."\t".$data['dev']."\tP:".$data['place']."\t".$data['balance']."\t—\t—\t".$data['time'].'
+';
+			}
+			else
+			{
+				echo '+'.$data['number']."\t".$data['device']."\t".$data['dev']."\tP:".$data['place']."\t".$data['balance']."\t".$data['operator']."\t".$data['operator_id']."\t".$data['time'].'
+';
+			}
+		}
+		exit();
+	}
+	sr_header("Список СИМ-карт"); // Output page title and title | Вывод титул и заголовок страницы
 ?>
 <br>
 <form method="get">
@@ -333,6 +358,7 @@ if ($total>(int)$GLOBALS['set_data']['page_limit'])
 <?
 	}
 ?>
+<option value="all"<? if ($_GET['page']=='all'){echo ' selected=1';}?>>Все</option>
 </select>
 <?
 }
@@ -369,7 +395,13 @@ if ($total>(int)$GLOBALS['set_data']['page_limit'])
 		<tr>
 			<td><input type="checkbox" name="check[<?=$n++?>]" id="check" value="<?=$data['number']?>"></td>
 			<td class="sidebar"><?=$data['num']?></td>
+			<?
+			if ($data['place']!=$data['number']){
+			?>
 			<td><span class="but_win" data-id="win_action" data-title="Управление номером +<?=$data['number']?>" data-type="ajax_card_action.php?id=<?=$data['number']?>" data-height="400" data-width="600">+<?=$data['number']?></span></td>
+			<? } else { ?>
+			<td><em>Карта заблокирована</em></td>
+			<? } ?>
 			<td class="sidebar"><?=$data['device']?></td>
 			<td align="right"><?=$data['place']?></td>
 			<td align="right" class="sidebar"><?=$data['balance']?></td>
@@ -386,7 +418,17 @@ if ($total>(int)$GLOBALS['set_data']['page_limit'])
 <br>
 <input type="submit" name="add" value="Создать пул" style="float:left; margin: 0 10px 10px 0">
 <a href="cards.php?edit=new" class="link" style=" margin: 0 5px 10px 0">Добавить СИМ-карту</a>
-<span class="link but_win" data-id="win_action" data-title="Сканирование диапазона СИМ-карт" data-type="ajax_card_scanner.php" data-height="400" data-width="600">Сканирование диапазона</span>
+<span class="link but_win" data-id="win_action" data-title="Сканирование диапазона СИМ-карт" data-type="ajax_card_scanner.php" data-height="400" data-width="600" style=" margin: 0 5px 10px 0">Сканирование диапазона</span>
+<a class="link" href="<?
+if (strpos($_SERVER['REQUEST_URI'],'?'))
+{
+	echo $_SERVER['REQUEST_URI'].'&type=csv';
+}
+else
+{
+	echo $_SERVER['REQUEST_URI'].'?type=csv';
+}
+?>">Экспорт в CSV</a>
 </form>
 
 <?

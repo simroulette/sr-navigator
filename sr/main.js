@@ -130,7 +130,7 @@ $( window ).resize(function() {
 function winOpen(v)
 {
 		$("body").css("overflow-y","hidden");
-		id='#'+$(v).attr('data-id');
+		wid='#'+$(v).attr('data-id');
 		height=$(v).attr('data-height');
 		width=$(v).attr('data-width');
 		title=$(v).attr('data-title');
@@ -145,7 +145,7 @@ function winOpen(v)
 		}
 		getActions($(v).attr('data-type'));
 		$(".dm-overlay").show();
-		$(id).show();
+		$(wid).show();
 		win_check(1);
 		$(document).mouseup(function (e){
 			var div = $(".dm-modal");
@@ -267,7 +267,11 @@ function getModemStatus()
 			if (Request.responseText)
 			{
 				var txt=Request.responseText.split("#-#");
-				if (txt[0])
+				if (txt[0]=='hide')
+				{
+					document.getElementById("table").innerHTML='';
+				}
+				else if (txt[0])
 				{
 					document.getElementById("table").innerHTML=txt[0];
 				}

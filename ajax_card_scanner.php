@@ -67,7 +67,7 @@ if ($result = mysqli_query($db, 'SELECT * FROM `devices` ORDER BY `title`'))
 	}
 }
 ?>
-Диапазон (*-*) или список (*,*) рядов 
+Диапазон (*-*) или список (*,*) рядов (SR-Train) либо мест (SR-Nano) 
 <input type="text" id="span" maxlength="32" placeholder="Ряд или ряды">
 <div class="sidebar">
 <br>

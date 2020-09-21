@@ -388,9 +388,20 @@ function action_card_create($number,$type)
 				if (!$status){return(array('status'=>0));}
 				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row['device'].",`action`=".$act_id.",`row`=".$place[0].",`place`='".$place[1]."'");
 			}
-			elseif (strpos($row['model'],'SR-Nano')!==false)
+			elseif ($row['model']=='SR-Nano-500')
 			{
-				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row['device'].",`action`=".$act_id.",`place`='".$row['place']."'");
+				$l=$row['place'][0];
+				$p=substr($row['place'],1,3);
+				if (strlen($p)<2){$p='0'.$p;}
+				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row['device'].",`action`=".$act_id.",`place`='".$l.p."'");
+			}		
+			elseif ($row['model']=='SR-Nano-1000')
+			{
+				$l=$row['place'][0];
+				$p=substr($row['place'],1,3);
+				if (strlen($p)<2){$p='00'.$p;}
+				elseif (strlen($p)<3){$p='0'.$p;}
+				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row['device'].",`action`=".$act_id.",`place`='".$l.p."'");
 			}		
 			return(array('status'=>1,'action'=>$act_id));
 		}
@@ -453,7 +464,21 @@ function action_card_scanner($id,$span)
 								$act_id=mysqli_insert_id($db);
 							}		
 							$count++;
-							$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`place`='".$i."'";
+							if ($row['model']=='SR-Nano-500')
+							{
+								$l=$i[0];
+								$p=substr($i,1,3);
+								if (strlen($p)<2){$p='0'.$p;}
+								$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`place`='".$l.$p."'";
+							}		
+							else
+							{
+								$l=$i[0];
+								$p=substr($i,1,3);
+								if (strlen($p)<2){$p='00'.$p;}
+								elseif (strlen($p)<3){$p='0'.$p;}
+								$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`place`='".$l.$p."'";
+							}		
 							mysqli_query($db,$qry);
 						}
 					}
@@ -504,7 +529,19 @@ function action_card_scanner($id,$span)
 							$act_id=mysqli_insert_id($db);
 						}		
 						$count++;
-						$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`place`='".chr($let).$num."'";
+						if ($row['model']=='SR-Nano-500')
+						{
+							$l=chr($let);
+							if ($num<10){$num='0'.$num;}
+							$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`place`='".$l.$num."'";
+						}		
+						else
+						{
+							$l=chr($let);
+							if ($num<10){$num='00'.$num;}
+							elseif ($num<100){$num='0'.$num;}
+							$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`place`='".$l.$num."'";
+						}		
 						mysqli_query($db,$qry);
 					}
 					$qry="UPDATE `devices` SET `status`='waiting' WHERE `id`=".(int)$id;
@@ -725,6 +762,26 @@ function action_pool_create($id,$type)
 				$qry="INSERT INTO `card2action` SET `device`=".$row[$k]['device'].",`action`=".$act_id.",`place`='".$row[$k]['place']."'";
 				mysqli_query($db,$qry);
 			}
+			if ($row[$k]['model']=='SR-Nano-500')
+			{
+				$out=1;
+				$counter++;
+				$l=$row[$k]['place'][0];
+				$p=substr($row[$k]['place'],1,3);
+				if (strlen($p)<2){$p='0'.$p;}
+				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row[$k]['device'].",`action`=".$act_id.",`place`='".$l.p."'");
+			}		
+			elseif ($row[$k]['model']=='SR-Nano-1000')
+			{
+				$out=1;
+				$counter++;
+				$l=$row[$k]['place'][0];
+				$p=substr($row[$k]['place'],1,3);
+				if (strlen($p)<2){$p='00'.$p;}
+				elseif (strlen($p)<3){$p='0'.$p;}
+				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row[$k]['device'].",`action`=".$act_id.",`place`='".$l.p."'");
+			}		
+
 			$qry="UPDATE `actions` SET `count`=".$counter." WHERE `id`=".$act_id;
 			mysqli_query($db,$qry);
 		}
@@ -917,7 +974,7 @@ function get_number($dev,$row,$place,$operator='')
 			$number=$GLOBALS['set_data']['phone_prefix'].$number;
 		}
 		setlog('[get_number:'.$dev.'] Received phone number: '.$number);
-		if ($place==(int)$place) // SR Train
+		if (ord($place[0])<58) // SR Train
 		{
 			if ($place>8)
 			{
@@ -929,8 +986,9 @@ function get_number($dev,$row,$place,$operator='')
 			}
 		}
 		// Clearing a place in the database | Очищаем место в БД
+
 		$qry="DELETE FROM `cards` WHERE
-		`place`='".$place."'";
+		`place`='".($place=remove_zero($place))."'";
 		mysqli_query($db,$qry);
 
 		// Saving the number | Сохраняем номер
@@ -1178,4 +1236,5 @@ function get_sms($dev,$curRow,$place,$operator='')
 	}
 	return($out);
 }
+
 ?>

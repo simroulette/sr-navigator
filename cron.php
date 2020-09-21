@@ -24,26 +24,35 @@ if ($result = mysqli_query($db, "SELECT m.*,d.`model`,d.`id` AS device FROM `mod
 			if ($row['model']=='SR-Train'){include($root."_sr-train.php");}
 			elseif ($row['model']=='SR-Nano-500' || $row['model']=='SR-Nano-1000'){include($root."_sr-nano.php");}
 			unlink($root.'flags/stop_'.$row['device']);
-			$modems=unserialize($row['modems']);
-			$mod=array();
-		        foreach ($modems AS $key =>$data)
+			if ($row['model']=='SR-Train')
 			{
-				$data[1]=-1;
-				$mod[]=$key;
-				$curRow=$data[0];
-				$modems[$key]=$data;
+				$modems=unserialize($row['modems']);
+				$mod=array();
+			        foreach ($modems AS $key =>$data)
+				{
+					$data[1]=-1;
+					$mod[]=$key;
+					$curRow=$data[0];
+					$modems[$key]=$data;
+				}
+				mysqli_query($db, "REPLACE INTO `modems` SET `device`=".$row['device'].", `modems`='".serialize($modems)."', `time`=".time()); 
+				$answer=sr_command($row['device'],'version',30); 
+				if (strpos($answer,'error:')!==false)
+				{
+					setlog('[CRON:'.$row['device'].'] The device does not respond!'); // Устройство не отвечает
+					exit();
+				}
+				file_put_contents($root."flags/cron_".$row['device'],1); // Setting the employment flag | Установка флага занятости
+				online_mode($row['device'], $curRow, implode(',',$mod));
 			}
-			mysqli_query($db, "REPLACE INTO `modems` SET `device`=".$row['device'].", `modems`='".serialize($modems)."', `time`=".time()); 
-
-			$answer=sr_command($row['device'],'version',30); 
-			if (strpos($answer,'error:')!==false)
+			else
 			{
-				setlog('[CRON:'.$row['device'].'] The device does not respond!'); // Устройство не отвечает
-				exit();
+				$modems=unserialize($row['modems']);
+				$modem[1]=-1;
+				mysqli_query($db, "REPLACE INTO `modems` SET `device`=".$row['device'].", `modems`='".serialize($modems)."', `time`=".time()); 
+				file_put_contents($root."flags/cron_".$row['device'],1); // Setting the employment flag | Установка флага занятости
+				online_mode($row['device'], $modems);
 			}
-			file_put_contents($root."flags/cron_".$row['device'],1); // Setting the employment flag | Установка флага занятости
-
-			online_mode($row['device'], $curRow, implode(',',$mod));
 		}
 	        $dev[]=$row['device'];
 	}

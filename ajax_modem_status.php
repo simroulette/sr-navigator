@@ -9,7 +9,11 @@
 include("_func.php");
 
 $s=onlineTable((int)$_GET['device']);
-if (!$numb=$s[1]){exit();}
+if (!$numb=$s[1])
+{
+	echo 'hide#-#'.$id.'#-#';
+	exit();
+}
 $s=$s[0];
 
 $answer=$number='';

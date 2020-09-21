@@ -12,11 +12,10 @@ sr_header('Онлайн','win_action'); // Output page title and title | Выв�
 <script>
 var id=0;
 </script>
-<em>Для SR-Train, SR-Box</em>
 <?
 $devices=array();
 $dev=$_GET['device'];
-if ($result = mysqli_query($db, "SELECT * FROM `devices` WHERE `model`<>'SR-Nano-500' AND `model`<>'SR-Nano-1000' ORDER BY `title`")) 
+if ($result = mysqli_query($db, "SELECT * FROM `devices` ORDER BY `title`")) 
 {
 	while ($row = mysqli_fetch_assoc($result))
 	{
@@ -57,7 +56,7 @@ $res=onlineTable((int)$_GET['device']);
 Ряд
 </div>
 <form id="form" onsubmit="onlineCreate(); return false;">
-<input type="text" id="row" value="<?=$res[2]?>" maxlength="5" placeholder="Начальный ряд. Пример: 1 (будут задействованы ряды 1 и 4)">
+<input type="text" id="row" value="<?=$res[2]?>" maxlength="5" placeholder="Начальный ряд, например: 1 (будут задействованы ряды 1 и 4) или место, например: A0">
 </form>
 <div class="sidebar" style="margin-bottom: 10px;"></div>
 <input type="submit" onclick="onlineCreate();return false;" value="Включить" style="padding: 10px; margin: 0 10px 12px 0">

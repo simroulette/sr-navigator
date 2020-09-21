@@ -274,7 +274,6 @@ function online_mode($dev, $curRow, $modems)
 							setlog('[online_mode:'.$dev.'] SMS received: '.$sms['sender'].', '.$sms['time'].', '.$sms['txt']); // Получена SMS
 							// Getting a SIM card number | Получение номера SIM-карты
 							if ($m>8){$p=$m-8;$r=$curRow+3;} else {$p=$m;$r=$curRow;}
-							setlog("SELECT * FROM `cards` WHERE `place`='".$r."-".$p."'");
 							if ($result = mysqli_query($db, "SELECT * FROM `cards` WHERE `place`='".$r."-".$p."'")) 
 							{
 								if ($row = mysqli_fetch_assoc($result))

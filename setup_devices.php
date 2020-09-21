@@ -77,6 +77,8 @@ if ($_GET['edit']) // Editing the device | Редактирование агре
 	}
 	else
 	{
+		$data['time_limit']=600;
+		$data['rows']=20;
 		$modems='1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16';
 	}
 	if ($step==''){$step=1000;}
@@ -120,9 +122,10 @@ if (!$status)
 Длина пути
 <br>
 <input type="text" name="rows" value="<?=(int)$data['rows']?>" maxlength="7">
+<br>
 </div>
 <br>
-Лимит времени для пакетной обработки 2х рядов
+Лимит времени для пакетной обработки 2х рядов (в секундах)
 <br>
 <input type="text" name="time_limit" value="<?=(int)$data['time_limit']?>" maxlength="4">
 <br><br>
