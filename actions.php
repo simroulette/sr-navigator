@@ -69,7 +69,7 @@ ORDER BY a.`time`'))
 				}
 				elseif (strpos($row['model'],'SR-Nano')!==false)
 				{
-					$place.=$row2['place'].',';
+					$place.=remove_zero($row2['place']).', ';
 				}
 			}
 		}
@@ -82,7 +82,7 @@ ORDER BY a.`time`'))
 			'action'=>$row['action'],
 			'device'=>$row['device'],
 			'status_txt'=>$s,
-			'place'=>trim($place,','),
+			'place'=>trim(trim($place,' '),','),
 			'bg'=>$row['color'],
 			'color'=>$color,
 		);

@@ -393,7 +393,7 @@ function action_card_create($number,$type)
 				$l=$row['place'][0];
 				$p=substr($row['place'],1,3);
 				if (strlen($p)<2){$p='0'.$p;}
-				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row['device'].",`action`=".$act_id.",`place`='".$l.p."'");
+				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row['device'].",`action`=".$act_id.",`place`='".$l.$p."'");
 			}		
 			elseif ($row['model']=='SR-Nano-1000')
 			{
@@ -401,7 +401,7 @@ function action_card_create($number,$type)
 				$p=substr($row['place'],1,3);
 				if (strlen($p)<2){$p='00'.$p;}
 				elseif (strlen($p)<3){$p='0'.$p;}
-				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row['device'].",`action`=".$act_id.",`place`='".$l.p."'");
+				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row['device'].",`action`=".$act_id.",`place`='".$l.$p."'");
 			}		
 			return(array('status'=>1,'action'=>$act_id));
 		}
@@ -769,7 +769,7 @@ function action_pool_create($id,$type)
 				$l=$row[$k]['place'][0];
 				$p=substr($row[$k]['place'],1,3);
 				if (strlen($p)<2){$p='0'.$p;}
-				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row[$k]['device'].",`action`=".$act_id.",`place`='".$l.p."'");
+				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row[$k]['device'].",`action`=".$act_id.",`place`='".$l.$p."'");
 			}		
 			elseif ($row[$k]['model']=='SR-Nano-1000')
 			{
@@ -779,7 +779,7 @@ function action_pool_create($id,$type)
 				$p=substr($row[$k]['place'],1,3);
 				if (strlen($p)<2){$p='00'.$p;}
 				elseif (strlen($p)<3){$p='0'.$p;}
-				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row[$k]['device'].",`action`=".$act_id.",`place`='".$l.p."'");
+				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row[$k]['device'].",`action`=".$act_id.",`place`='".$l.$p."'");
 			}		
 
 			$qry="UPDATE `actions` SET `count`=".$counter." WHERE `id`=".$act_id;
