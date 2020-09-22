@@ -755,13 +755,6 @@ function action_pool_create($id,$type)
 					}
 				}
 			}
-			if (strpos($row[$k]['model'],'SR-Nano')!==false)
-			{
-				$out=1;
-				$counter++;
-				$qry="INSERT INTO `card2action` SET `device`=".$row[$k]['device'].",`action`=".$act_id.",`place`='".$row[$k]['place']."'";
-				mysqli_query($db,$qry);
-			}
 			if ($row[$k]['model']=='SR-Nano-500')
 			{
 				$out=1;
@@ -1015,7 +1008,7 @@ function get_balance($dev,$row,$place,$operator='')
 	global $db;
 	$status=0;
 
-	if ($place==(int)$place) // SR-Train
+	if (ord($place[0])<58) // SR-Train
 	{
 		if ($place>8)
 		{
@@ -1028,9 +1021,9 @@ function get_balance($dev,$row,$place,$operator='')
 	}
 
 	// Getting balance request rules | Получение правил запроса баланса
-	if ($result = mysqli_query($db, "SELECT c.*,o.`get_balance`,o.`get_balance_type` FROM `cards` c INNER JOIN `operators` o ON o.`id`=c.`operator` WHERE c.`place`='".$place."'")) 
+	if ($result = mysqli_query($db, "SELECT c.*,o.`get_balance`,o.`get_balance_type` FROM `cards` c INNER JOIN `operators` o ON o.`id`=c.`operator` WHERE c.`place`='".remove_zero($place)."'")) 
 	{
-		if ($row = mysqli_fetch_assoc($result))
+		if ($resRow = mysqli_fetch_assoc($result))
 		{
 			$cardId=$resRow['id'];
 			if (!$getBalance=$resRow['get_balance'])
@@ -1094,6 +1087,7 @@ function get_balance($dev,$row,$place,$operator='')
 				if ($balance=trim(trim($test[1].'.'.$test[3],'.')))
 				{
 					$status=1;
+					break;
 				}
 			}
 		}

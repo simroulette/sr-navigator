@@ -37,7 +37,7 @@ function sim_link($dev, $data, $curRow, $place, $actId, $func)
 			$restart_time=time()+40;
 		}
 		$reconnect++;
-		setlog('[sim_link:'.$dev.'] Getting information about operators');
+		setlog('[sim_link:'.$dev.'] Getting information about Status');
 		sr_command($dev,'modem>send:AT+CREG?'); // Getting status | Запрос статуса подключения 
 		$answer=sr_answer($dev,0,10,'+CREG');
 		if ($answer=='error:no answer')
