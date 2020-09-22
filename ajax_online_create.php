@@ -33,7 +33,7 @@ if ($row['model']=='SR-Train') // SR Train
 }
 else // SR Nano
 {
-	if ($_GET['row'][0]<58)
+	if (ord($_GET['row'][0])<58)
 	{
 		if ($result = mysqli_query($db, 'SELECT `place` FROM `cards` WHERE `number` LIKE "%'.(int)$_GET['row'].'%"')) 
 		{
