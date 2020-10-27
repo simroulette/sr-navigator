@@ -1,63 +1,63 @@
 CREATE TABLE `actions` (
   `id` int(9) NOT NULL,
-  `time` int(11) NOT NULL,
-  `card_number` varchar(15) NOT NULL,
-  `pool_id` int(9) NOT NULL,
-  `device` int(9) NOT NULL,
-  `action` varchar(255) NOT NULL,
-  `count` int(9) NOT NULL,
-  `progress` int(9) NOT NULL,
+  `time` int(11) NOT NULL DEFAULT '0',
+  `card_number` varchar(15) NOT NULL DEFAULT '',
+  `pool_id` int(9) NOT NULL DEFAULT '0',
+  `device` int(9) NOT NULL DEFAULT '0',
+  `action` varchar(255) NOT NULL DEFAULT '',
+  `count` int(9) NOT NULL DEFAULT '0',
+  `progress` int(9) NOT NULL DEFAULT '0',
   `status` enum('inprogress','waiting','') NOT NULL DEFAULT 'waiting',
-  `errors` int(9) NOT NULL
+  `errors` int(9) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `answer` (
   `step` int(9) NOT NULL,
   `answer` text NOT NULL,
-  `device` int(9) NOT NULL,
-  `time` int(11) NOT NULL
+  `device` int(9) NOT NULL DEFAULT '0',
+  `time` int(11) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `card2action` (
   `id` int(9) NOT NULL,
-  `device` int(1) NOT NULL,
-  `action` int(9) NOT NULL,
-  `row` int(9) NOT NULL,
-  `place` varchar(38) NOT NULL
+  `device` int(1) NOT NULL DEFAULT '0',
+  `action` int(9) NOT NULL DEFAULT '0',
+  `row` int(9) NOT NULL DEFAULT '0',
+  `place` varchar(38) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `card2pool` (
   `id` int(9) NOT NULL,
-  `pool` int(9) NOT NULL,
-  `card` varchar(15) NOT NULL
+  `pool` int(9) NOT NULL DEFAULT '0',
+  `card` varchar(15) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `cards` (
   `id` int(9) NOT NULL,
-  `number` varchar(15) NOT NULL,
-  `operator` tinyint(1) NOT NULL,
-  `device` int(9) NOT NULL,
-  `folder` varchar(32) NOT NULL,
+  `number` varchar(15) NOT NULL DEFAULT '',
+  `operator` tinyint(1) NOT NULL DEFAULT '0',
+  `device` int(9) NOT NULL DEFAULT '0',
+  `folder` varchar(32) NOT NULL DEFAULT '',
   `balance` double NOT NULL DEFAULT '0',
-  `place` varchar(6) NOT NULL COMMENT 'Ряд;Место(10;8) или ДорожкаМесто(A0)',
-  `time` int(11) NOT NULL,
+  `place` varchar(6) NOT NULL DEFAULT '' COMMENT 'Ряд;Место(10;8) или ДорожкаМесто(A0)',
+  `time` int(11) NOT NULL DEFAULT '0',
   `status` enum('free','inprogress','waiting') NOT NULL DEFAULT 'free',
-  `time_number` int(11) NOT NULL,
-  `time_balance` int(11) NOT NULL,
-  `time_sms` int(11) NOT NULL,
+  `time_number` int(11) NOT NULL DEFAULT '0',
+  `time_balance` int(11) NOT NULL DEFAULT '0',
+  `time_sms` int(11) NOT NULL DEFAULT '0',
   `comment` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Телефонные номера и места';
 
 CREATE TABLE `devices` (
   `id` int(1) NOT NULL,
-  `title` varchar(60) NOT NULL,
-  `model` enum('SR-Train','SR-Nano-500','SR-Nano-1000') NOT NULL,
-  `token_local` varchar(5) NOT NULL,
-  `token_remote` varchar(10) NOT NULL,
-  `modems` varchar(38) NOT NULL,
-  `ip` varchar(21) NOT NULL,
+  `title` varchar(60) NOT NULL DEFAULT '',
+  `model` enum('','SR-Train','SR-Nano-500','SR-Nano-1000') NOT NULL DEFAULT '',
+  `token_local` varchar(5) NOT NULL DEFAULT '',
+  `token_remote` varchar(10) NOT NULL DEFAULT '',
+  `modems` varchar(38) NOT NULL DEFAULT '',
+  `ip` varchar(21) NOT NULL DEFAULT '',
   `type` enum('client','server') NOT NULL DEFAULT 'client',
-  `time` int(11) NOT NULL,
+  `time` int(11) NOT NULL DEFAULT '0',
   `step` int(9) NOT NULL DEFAULT '100',
   `data` text NOT NULL,
   `status` enum('free','inprogress','waiting') NOT NULL DEFAULT 'free'
@@ -66,37 +66,37 @@ CREATE TABLE `devices` (
 CREATE TABLE `link_incoming` (
   `id` int(9) NOT NULL,
   `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `device` int(9) NOT NULL,
-  `step` int(9) NOT NULL,
+  `device` int(9) NOT NULL DEFAULT '0',
+  `step` int(9) NOT NULL DEFAULT '0',
   `answer` text NOT NULL,
-  `uniq` varchar(8) NOT NULL DEFAULT '0'
+  `uniq` varchar(8) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Ответы устройств';
 
 CREATE TABLE `link_outgoing` (
   `id` int(9) NOT NULL,
   `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `device` int(9) NOT NULL,
-  `step` int(9) NOT NULL,
+  `device` int(9) NOT NULL DEFAULT '0',
+  `step` int(9) NOT NULL DEFAULT '0',
   `command` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Очередь команд для устройств';
 
 CREATE TABLE `modems` (
   `id` int(9) NOT NULL,
-  `time` int(11) NOT NULL,
-  `device` int(9) NOT NULL,
+  `time` int(11) NOT NULL DEFAULT '0',
+  `device` int(9) NOT NULL DEFAULT '0',
   `modems` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `operators` (
   `id` int(9) NOT NULL,
-  `title` varchar(60) NOT NULL,
-  `name` varchar(32) NOT NULL,
-  `color` varchar(6) NOT NULL,
-  `get_number` varchar(32) NOT NULL,
+  `title` varchar(60) NOT NULL DEFAULT '',
+  `name` varchar(32) NOT NULL DEFAULT '',
+  `color` varchar(6) NOT NULL DEFAULT '',
+  `get_number` varchar(32) NOT NULL DEFAULT '',
   `get_number_type` enum('ussd','sms','none') NOT NULL DEFAULT 'none',
-  `get_balance` varchar(32) NOT NULL,
+  `get_balance` varchar(32) NOT NULL DEFAULT '',
   `get_balance_type` enum('ussd','sms','none','') NOT NULL DEFAULT 'none',
-  `time` int(11) NOT NULL
+  `time` int(11) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Сотовые операторы';
 
 INSERT INTO `operators` (`id`, `title`, `name`, `color`, `get_number`, `get_number_type`, `get_balance`, `get_balance_type`, `time`) VALUES
@@ -108,26 +108,26 @@ INSERT INTO `operators` (`id`, `title`, `name`, `color`, `get_number`, `get_numb
 
 CREATE TABLE `pools` (
   `id` int(9) NOT NULL,
-  `title` varchar(32) NOT NULL,
-  `time` int(11) NOT NULL,
+  `title` varchar(32) NOT NULL DEFAULT '',
+  `time` int(11) NOT NULL DEFAULT '0',
   `status` enum('free','inprogress','waiting','') NOT NULL DEFAULT 'free'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `sms_incoming` (
   `id` int(9) NOT NULL,
-  `time` int(11) NOT NULL,
-  `modified` int(11) NOT NULL,
-  `number` varchar(15) NOT NULL,
-  `sender` varchar(15) NOT NULL,
+  `time` int(11) NOT NULL DEFAULT '0',
+  `modified` int(11) NOT NULL DEFAULT '0',
+  `number` varchar(15) NOT NULL DEFAULT '',
+  `sender` varchar(15) NOT NULL DEFAULT '',
   `txt` text NOT NULL,
   `readed` tinyint(1) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Входящие SMS';
 
 CREATE TABLE `users` (
   `id` int(9) NOT NULL,
-  `login` varchar(32) NOT NULL,
-  `pass` varchar(32) NOT NULL,
-  `email` varchar(64) NOT NULL
+  `login` varchar(32) NOT NULL DEFAULT '',
+  `pass` varchar(32) NOT NULL DEFAULT '',
+  `email` varchar(64) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Пользователи';
 
 INSERT INTO `users` (`id`, `login`, `pass`, `email`) VALUES
@@ -135,7 +135,7 @@ INSERT INTO `users` (`id`, `login`, `pass`, `email`) VALUES
 
 CREATE TABLE `values` (
   `id` int(9) NOT NULL,
-  `name` varchar(32) NOT NULL,
+  `name` varchar(32) NOT NULL DEFAULT '',
   `value` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
