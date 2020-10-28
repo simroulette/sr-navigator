@@ -1123,8 +1123,11 @@ function get_sms($dev,$curRow,$place,$operator='')
 	$out=0;
 	$com='';
 
-	setlog('[get_sms:'.$dev.'] Select modem: '.$place);
-	$com='modem>select:'.$place.'&&';
+	if ($place>=1 && $place<=16)
+	{
+		setlog('[get_sms:'.$dev.'] Select modem: '.$place);
+		$com='modem>select:'.$place.'&&';
+	}
 	sr_answer_clear($dev,1); // Clearing the response buffer of the modem | Очистка буфера ответов модема
 	for ($n=1;$n<20;$n++) // Processing 20 SMS memory cells | Обрабатываем 20 ячеек памяти SMS
 	{
@@ -1158,7 +1161,7 @@ function get_sms($dev,$curRow,$place,$operator='')
 		}
 		elseif (strlen($answer)>30)
 		{
-			setlog("[get_sms:'.$dev.'] Preparing an SMS"); // Подготовка SMS
+			setlog('[get_sms:'.$dev.'] Preparing an SMS'); // Подготовка SMS
 	                preg_match('!"(.*)","(.*)","(.*)","(.*)"(.*)OK!Us', $answer, $test);
 			$a=explode(',',$test[4]);
 			$b=explode('/',$a[0]);
@@ -1170,7 +1173,7 @@ function get_sms($dev,$curRow,$place,$operator='')
 	}
 	if (count($sms))
 	{
-		if ($place==(int)$place) // SR Train
+		if (ord($place[0])<58) // SR Train
 		{
 			if ($place>8)
 			{
@@ -1183,7 +1186,7 @@ function get_sms($dev,$curRow,$place,$operator='')
 		}
 
 		// Getting a SIM card number | Получение номера СИМ-карты
-		if ($result = mysqli_query($db, "SELECT * FROM `cards` WHERE `place`='".$place."'")) 
+		if ($result = mysqli_query($db, "SELECT * FROM `cards` WHERE `place`='".remove_zero($place)."'")) 
 		{
 			if ($row = mysqli_fetch_assoc($result))
 			{
