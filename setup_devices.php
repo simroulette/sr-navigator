@@ -40,7 +40,7 @@ if ($_GET['edit']) // Editing the device | Редактирование агре
 			`step`='".(int)$_POST['step']."',
 			`token_local`='".$_POST['token']."',
 			`modems`='".$_POST['modems']."',
-			`data`='".serialize(array('row_begin'=>$_POST['row_begin'],'rows'=>$_POST['rows'],'time_limit'=>$_POST['time_limit']))."',
+			`data`='".serialize(array('row_begin'=>$_POST['row_begin'],'rows'=>$_POST['rows'],'time_limit'=>$_POST['time_limit'],'sleep'=>$_POST['sleep']))."',
 			`ip`='".$_POST['ip']."',
 			`time`='".time()."'
 			WHERE `id`=".(int)$_GET['edit'];
@@ -125,9 +125,13 @@ if (!$status)
 <br>
 </div>
 <br>
-Лимит времени для пакетной обработки 2х рядов (в секундах)
+Лимит времени для обработки SIM-карты(карт) под контактной группой (в секундах)
 <br>
 <input type="text" name="time_limit" value="<?=(int)$data['time_limit']?>" maxlength="4">
+<br><br>
+Пауза между итерациями CRON для слабых хостингов (в секундах)
+<br>
+<input type="text" name="sleep" value="<?=(int)$data['sleep']?>" maxlength="4">
 <br><br>
 Текущий шаг команд (step)
 <br>

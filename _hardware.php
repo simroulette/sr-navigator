@@ -870,12 +870,13 @@ function get_number($dev,$row,$place,$operator='')
 	$status=0;
 	if (!$operator)
 	{
-		sr_command('[get_number:'.$dev.'] Getting the name of the operator');
-		$answer=sr_answer($dev,0,10,'+COPS');
+		sr_command($dev,'modem>send:AT+COPS?'); // Repeated request for the operator name | Повторный запрос названия оператора
+		setlog('[get_number:'.$dev.'] Getting the name of the operator');
+		$answer=sr_answer($dev,0,15,'+COPS');
 		if ($answer=='error:no answer')
 		{
 			sr_command($dev,'modem>send:AT+COPS?'); // Repeated request for the operator name | Повторный запрос названия оператора
-			$answer=sr_answer($dev,0,10,'+COPS');
+			$answer=sr_answer($dev,0,15,'+COPS');
 		}
 		if ($answer && strpos($answer,'error:')===false)
 		{

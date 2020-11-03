@@ -20,6 +20,7 @@ function sim_link($dev, $data, $curRow, $place, $actId, $func)
 	global $root,$db;
 	setlog('[sim_link:'.$dev.'] Start');
 	$time_limit=time()+$data['time_limit'];
+	$sleep=$data['sleep'];
 
 	sr_answer_clear();
 	$connect=time();
@@ -38,6 +39,7 @@ function sim_link($dev, $data, $curRow, $place, $actId, $func)
 		}
 		$reconnect++;
 		setlog('[sim_link:'.$dev.'] Getting information about Status');
+
 		sr_command($dev,'modem>send:AT+CREG?'); // Getting status | Запрос статуса подключения 
 		$answer=sr_answer($dev,0,10,'+CREG');
 		if ($answer=='error:no answer')
@@ -45,6 +47,7 @@ function sim_link($dev, $data, $curRow, $place, $actId, $func)
 			sr_command($dev,'modem>send:AT+CREG?'); // Repeated request for information about the operator | Повторный запрос информации об операторе
 			$answer=sr_answer($dev,0,10,'+CREG');
 		}
+
 		if ($answer && strpos($answer,'error:')===false)
 		{
 			preg_match('!:(.*)OK!Uis', $answer, $test);
@@ -101,11 +104,14 @@ function sim_link($dev, $data, $curRow, $place, $actId, $func)
 				$restart_time=0;			
 			} 
 		}
+
 		elseif ($restart_time<time())
 		{
 			setlog('[sim_link:'.$dev.'] Restarting the modem');
 			sr_command($dev,'modem>send:AT+CFUN=1,1'); // Перезапуск модемов 
 		}
+		setlog('[sim_link:'.$dev.'] Sleep 30'); // Лимит времени исчерпан
+		sleep($sleep);
 	}
 	setlog('[sim_link:'.$dev.'] The time limit is reached!'); // Лимит времени исчерпан
 }
