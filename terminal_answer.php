@@ -55,7 +55,7 @@ if ($result = mysqli_query($db, 'SELECT l.*,unix_timestamp(l.time) AS time, d.ti
 		if (!$answer=$row['answer']){$answer='—';}
 		if ($answer=='1'){$answer.=' <span class="comment">TRUE</span>';}
 		if ($answer=='NULL'){$answer.=' <span class="comment">FALSE</span>';}
-		echo '<div class="term_answer_item"><div class="answer_left answer_head">'.$row['id'].date('H:i:s',$row['time']).'</div><div class="answer_head">'.$row['title'].'</div><div class="answer_left" style="text-align: right;">'.$row['step'].'</div><div>'.$answer.'</div></div>';
+		echo '<div class="term_answer_item"><div class="answer_left answer_head">'.date('H:i:s',$row['time']).'</div><div class="answer_head">'.$row['title'].'</div><div class="answer_left" style="text-align: right;">'.$row['step'].'</div><div>'.$answer.'</div></div>';
 		exit();
 	}
 }
