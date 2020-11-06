@@ -27,7 +27,7 @@ if ($_GET['edit']) // Editing the device | Редактирование агре
 			`token_local`='".$_POST['token']."',
 			`token_remote`='".rand(11111,99999).rand(11111,99999)."',
 			`modems`='".$_POST['modems']."',
-			`data`='".serialize(array('row_begin'=>$_POST['row_begin'],'rows'=>$_POST['rows'],'time_limit'=>$_POST['time_limit']))."',
+			`data`='".serialize(array('row_begin'=>$_POST['row_begin'],'rows'=>$_POST['rows'],'time_limit'=>$_POST['time_limit'],'carrier_limit'=>$_POST['carrier_limit']))."',
 			`ip`='".$_POST['ip']."',
 			`time`='".time()."'";
 		}
@@ -40,7 +40,7 @@ if ($_GET['edit']) // Editing the device | Редактирование агре
 			`step`='".(int)$_POST['step']."',
 			`token_local`='".$_POST['token']."',
 			`modems`='".$_POST['modems']."',
-			`data`='".serialize(array('row_begin'=>$_POST['row_begin'],'rows'=>$_POST['rows'],'time_limit'=>$_POST['time_limit'],'sleep'=>$_POST['sleep']))."',
+			`data`='".serialize(array('row_begin'=>$_POST['row_begin'],'rows'=>$_POST['rows'],'time_limit'=>$_POST['time_limit'],'carrier_limit'=>$_POST['carrier_limit']))."',
 			`ip`='".$_POST['ip']."',
 			`time`='".time()."'
 			WHERE `id`=".(int)$_GET['edit'];
@@ -78,6 +78,7 @@ if ($_GET['edit']) // Editing the device | Редактирование агре
 	else
 	{
 		$data['time_limit']=600;
+		$data['carrier_limit']=60;
 		$data['rows']=20;
 		$modems='1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16';
 	}
@@ -125,13 +126,13 @@ if (!$status)
 <br>
 </div>
 <br>
-Лимит времени для обработки SIM-карты(карт) под контактной группой (в секундах)
+Лимит времени (в секундах) для обработки 1 юнита (1 СИМ-карты SR-Nano, 2х рядов для SR-Train)
 <br>
 <input type="text" name="time_limit" value="<?=(int)$data['time_limit']?>" maxlength="4">
 <br><br>
-Пауза между итерациями CRON для слабых хостингов (в секундах)
+Лимит времени для ожидания ответа устройства (команда Терминала carrier_time)
 <br>
-<input type="text" name="sleep" value="<?=(int)$data['sleep']?>" maxlength="4">
+<input type="text" name="carrier_limit" value="<?=(int)$data['carrier_limit']?>" maxlength="4">
 <br><br>
 Текущий шаг команд (step)
 <br>

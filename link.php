@@ -18,6 +18,7 @@ if ($result = mysqli_query($db, "SELECT * FROM `devices` WHERE `token_remote`='"
 	if ($row = mysqli_fetch_assoc($result))
 	{
 		$id=$row['id'];
+		$data=unserialize($row['data']);
 	}
 	else
 	{
@@ -28,7 +29,7 @@ if ($result = mysqli_query($db, "SELECT * FROM `devices` WHERE `token_remote`='"
 
 $out='RESTART';
 
-if (!file_exists('time-'.$id.'.dat') || file_get_contents('time-'.$id.'.dat')+45>time())
+if (!file_exists('time-'.$id.'.dat') || file_get_contents('time-'.$id.'.dat')+$data['carrier_limit']>time())
 {
 	// Receiving a command that should be send to the device | Получение команды, которую надо отправить на устройство
 	if ($result = mysqli_query($db, 'SELECT *,unix_timestamp(time) AS time FROM `link_outgoing` WHERE `device`='.(int)$id." ORDER BY `id` LIMIT 1")) 
@@ -49,9 +50,15 @@ if (!file_exists('time-'.$id.'.dat') || file_get_contents('time-'.$id.'.dat')+45
 		echo '{data}'.$out;
 	}
 }
-else if (file_exists('time-'.$id.'.dat') && $_GET['data']=='REQUEST')
+elseif (file_exists('time-'.$id.'.dat') && file_get_contents('time-'.$id.'.dat')+$data['carrier_limit']*1.3<time())
 {
-	setlog('device:'.$id.' does not respond! ('.(time()-file_get_contents('time-'.$id.'.dat')).')','link');
+	setlog('device:'.$id.' ready to restart! ('.(time()-file_get_contents('time-'.$id.'.dat')).') '.$_GET['data'],'link');
+	unlink('time-'.$id.'.dat');
+	exit();
+}
+elseif (file_exists('time-'.$id.'.dat') && $_GET['data']=='REQUEST')
+{
+	setlog('device:'.$id.' does not respond! ('.(time()-file_get_contents('time-'.$id.'.dat')).') '.$_GET['data'],'link');
 	exit();
 } 
 
@@ -68,4 +75,5 @@ if ($_GET['data']!='REQUEST')
 }
 
 setlog('device:'.$id.' IN > '.$_GET['step'].' | '.stripslashes($_GET['data']).' OUT > '.$step.' | '.$out,'link');
+setlog(print_r($_GET,1),'test');
 ?>

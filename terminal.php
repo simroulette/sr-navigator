@@ -69,7 +69,9 @@ var term_int=<?=$GLOBALS['set_data']['term_int']?>;
 ?>
 </select>
 <br><br>
-Команда:<div class="icon_cont"><i class="icon-trash" title="Очистить команды" onclick="document.getElementById('command').value='';"></i></div>
+Команда:
+<input type="text" id="command_" name="command_" onclick="getRequest();" style="margin: 6px 0 10px 0;">
+Или список команд:<div class="icon_cont"><i class="icon-trash" title="Очистить команды" onclick="document.getElementById('command').value='';"></i></div>
 <textarea id="command" name="command"></textarea>
 <input type="hidden" id="step" name="step" value="0">
 <br><br>

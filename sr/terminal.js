@@ -40,6 +40,7 @@ function SendRequest(url)
 }
 function getRequest(){
 	var com=encodeURIComponent(document.getElementById('command').value.split('\n').join('||'));
+	var com_=encodeURIComponent(document.getElementById('command_').value);
 	document.getElementById('step').value=parseInt(document.getElementById('step').value)+1;
-	SendRequest('terminal_answer.php?step='+document.getElementById('step').value+'&command='+com+'&device='+document.getElementById('device').value);
+	SendRequest('terminal_answer.php?step='+document.getElementById('step').value+'&command='+com+'&command_='+com_+'&device='+document.getElementById('device').value);
 }

@@ -932,7 +932,8 @@ function get_number($dev,$row,$place,$operator='')
 				setlog('[get_number:'.$dev.'] Getting an SMS #'.$sms); // Получение SMS с номером телефона
 				sr_command($dev,'modem>send:AT+CMGR='.$sms);
 				$answer=str_replace('.','',sr_answer($dev,0,40,'CMGR:'));
-		                preg_match('!([0-9]{10,11})\s{1,10}OK!', $answer, $test);
+//		                preg_match('!([0-9]{10,11})\s{1,10}OK!', $answer, $test);
+		                preg_match('!([0-9]{10,11})!', $answer, $test);
 				if ($number=trim($test[1]))
 				{
 					$status=1;
@@ -967,7 +968,8 @@ function get_number($dev,$row,$place,$operator='')
 		{
 			$number=$GLOBALS['set_data']['phone_prefix'].$number;
 		}
-		setlog('[get_number:'.$dev.'] Received phone number: '.$number);
+		setlog('[get_number:'.$dev.'] Received phone number: '.$number.' Place: '.$place);
+
 		if (ord($place[0])<58) // SR Train
 		{
 			if ($place>8)
@@ -979,6 +981,11 @@ function get_number($dev,$row,$place,$operator='')
 				$place=$row.'-'.$place;
 			}
 		}
+		else
+		{
+			$place=remove_zero($place);
+		}
+
 		// Clearing a place in the database | Очищаем место в БД
 
 		$qry="DELETE FROM `cards` WHERE
@@ -1019,6 +1026,10 @@ function get_balance($dev,$row,$place,$operator='')
 		{
 			$place=$row.'-'.$place;
 		}
+	}
+	else
+	{
+		$place=remove_zero($place);
 	}
 
 	// Getting balance request rules | Получение правил запроса баланса

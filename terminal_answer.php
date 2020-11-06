@@ -18,14 +18,22 @@ if ($_GET['step'])
 			$step=$row['step'];
 		}
 	}
-	$com=explode('||',trim($_GET['command']));
+	if ($_GET['command_'])
+	{
+		$com=array();
+		$com[0]=$_GET['command_'];
+	}
+	else
+	{
+		$com=explode('||',trim($_GET['command']));
+	}
 	$str='';
 	for ($i=0;$i<count($com);$i++)
 	{
 		if ($c=trim($com[$i]))
 		{
 			sr_command((int)$_GET['device'],$c);
-			$str='<div class="term_item" onclick="document.getElementById(\'command\').value=\''.$c.'\';"><div class="answer_left answer_head">'.date('H:i:s').'</div><div class="answer_head">'.$dev.'</div><div class="answer_left" style="text-align: right;">'.$step++.'</div><div>'.$c.'</div></div>'.$str;
+			$str='<div class="term_item" onclick="document.getElementById(\'command_\').value=\''.$c.'\';document.getElementById(\'command\').value=\''.$c.'\';"><div class="answer_left answer_head">'.date('H:i:s').'</div><div class="answer_head">'.$dev.'</div><div class="answer_left" style="text-align: right;">'.$step++.'</div><div>'.$c.'</div></div>'.$str;
 		}
 	}
 	echo $str;
@@ -47,7 +55,7 @@ if ($result = mysqli_query($db, 'SELECT l.*,unix_timestamp(l.time) AS time, d.ti
 		if (!$answer=$row['answer']){$answer='—';}
 		if ($answer=='1'){$answer.=' <span class="comment">TRUE</span>';}
 		if ($answer=='NULL'){$answer.=' <span class="comment">FALSE</span>';}
-		echo '<div class="term_answer_item"><div class="answer_left answer_head">'.date('H:i:s',$row['time']).'</div><div class="answer_head">'.$row['title'].'</div><div class="answer_left" style="text-align: right;">'.$row['step'].'</div><div>'.$answer.'</div></div>';
+		echo '<div class="term_answer_item"><div class="answer_left answer_head">'.$row['id'].date('H:i:s',$row['time']).'</div><div class="answer_head">'.$row['title'].'</div><div class="answer_left" style="text-align: right;">'.$row['step'].'</div><div>'.$answer.'</div></div>';
 		exit();
 	}
 }

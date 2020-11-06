@@ -132,18 +132,31 @@ if ($_GET['edit']) // Editing the Pool | Редактирование Пула
 <br>
 <input type="text" name="title" value="<?=$_POST['title']?>" maxlength="32">
 <br><br>
+
+	<table class="table table_sort table_adaptive">
+		<thead>
+			<tr>
+				<th>№</th>
+				<th>Номер</th>
+				<th>Действие</th>
+			</tr>  
+		</thead>
 <?
 	$n=0;
 	foreach ($_POST['check'] as $data)
 	{
 ?>
+		<tr>
+			<td><?=($n+1)?><input type="hidden" name="check[<?=$n++?>]" value="<?=$data?>"></td>
+			<td>+<?=$data?></td>
+			<td align="center"><span onclick="deleteItem(this);"><i class="icon-trash" title="Удалить номер из пула"></i></span></td>
+		</tr>
+
 	<div>
-	<input type="hidden" name="check[<?=$n++?>]" value="<?=$data?>">
-	+<?=$data?> <span onclick="deleteItem(this);"><i class="icon-trash"></i></span><br>
-	</div>
 <?
 	}	
 ?>
+	</table>
 <br>
 <input type="submit" name="save" value="Сохранить" style="padding: 10px;">
 </form>
@@ -199,7 +212,7 @@ else // List of Pools | Список Пулов
 			<td align="right"><?=$data['count']?></td>
 			<td><?=round($data['balance'],2)?></td>
 			<td><?=$data['time']?></td>
-			<td><a href="pools.php?edit=<?=$data['id']?>"><i class="icon-pencil"></i></a> <a href="pools.php?delete=<?=$data['id']?>"><i class="icon-trash"></i></a></td>
+			<td><a href="pools.php?edit=<?=$data['id']?>"><i class="icon-pencil" title="Редактировать пул"></i></a> <a href="pools.php?delete=<?=$data['id']?>"><i class="icon-trash" title="Удалить пул, но оставить телефонные номера"></i></a></td>
 			<td><?=$data['status']?></td>
 		</tr>
 <?
