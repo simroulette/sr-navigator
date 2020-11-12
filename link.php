@@ -50,7 +50,7 @@ if (!file_exists('time-'.$id.'.dat') || file_get_contents('time-'.$id.'.dat')+$d
 		echo '{data}'.$out;
 	}
 }
-elseif (file_exists('time-'.$id.'.dat') && file_get_contents('time-'.$id.'.dat')+$data['carrier_limit']*1.3<time())
+elseif (file_exists('time-'.$id.'.dat') && file_get_contents('time-'.$id.'.dat')+$data['carrier_limit']*2.3<time())
 {
 	setlog('device:'.$id.' ready to restart! ('.(time()-file_get_contents('time-'.$id.'.dat')).') '.$_GET['data'],'link');
 	unlink('time-'.$id.'.dat');
