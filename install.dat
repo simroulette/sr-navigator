@@ -70,7 +70,7 @@ CREATE TABLE `link_incoming` (
   `step` int(9) NOT NULL DEFAULT '0',
   `answer` text NOT NULL,
   `uniq` varchar(8) NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Ответы устройств';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Ответы агрегаторов';
 
 CREATE TABLE `link_outgoing` (
   `id` int(9) NOT NULL,
@@ -78,7 +78,7 @@ CREATE TABLE `link_outgoing` (
   `device` int(9) NOT NULL DEFAULT '0',
   `step` int(9) NOT NULL DEFAULT '0',
   `command` text NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Очередь команд для устройств';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Очередь команд для агрегаторов';
 
 CREATE TABLE `modems` (
   `id` int(9) NOT NULL,

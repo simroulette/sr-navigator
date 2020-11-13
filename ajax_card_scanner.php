@@ -50,9 +50,9 @@ if ($result = mysqli_query($db, 'SELECT * FROM `devices` ORDER BY `title`'))
 	{
 		$dev=0;
 ?>
-Устройство
+Агрегатор
 <select id="device">
-	<option value="0">— Выберите устройство —</option>
+	<option value="0">— Выберите агрегатор —</option>
 <?
 		foreach ($devices as $id=>$title)
 		{

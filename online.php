@@ -9,7 +9,7 @@ include("_func.php");
 $status=1;
 
 // ---------------------------------------------
-// Список активных сим-карт устройства
+// Список активных сим-карт агрегатора
 // ---------------------------------------------
 
 sr_header('Онлайн','win_action'); // Output page title and title | Вывод титул и заголовок страницы
@@ -35,10 +35,10 @@ if (count($devices)>1)
 ?>
 <div class="sidebar">
 <br>
-Устройство
+Агрегатор
 </div>
 <select id="device" onchange="document.location.href='online.php?device='+this.options[this.options.selectedIndex].value;">
-	<option value="0">— Выберите устройство —</option>
+	<option value="0">— Выберите агрегатор —</option>
 <?
 	foreach ($devices as $id=>$title)
 	{

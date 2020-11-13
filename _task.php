@@ -24,14 +24,14 @@ if ($result = mysqli_query($db, "SELECT c.*,a.`action`,a.`id` AS `id`,a.`pool_id
 			mysqli_query($db,$qry);
 			$qry='DELETE FROM `actions` WHERE `id`='.$action;
 			mysqli_query($db,$qry);
-			setlog('[TASK:'.$dev.'] Deleting the action #'.$action); // Устройство не отвечает
+			setlog('[TASK:'.$dev.'] Deleting the action #'.$action); // Агрегатор не отвечает
 			unlink($root.'flags/cron_'.$dev);
 		}
 		sr_command_clear($dev); // Clearing the command buffer | Очиcтка буфера команд
-		$answer=sr_command($dev,'version',30); 
+		$answer=sr_command($dev,'version',60); 
 		if (strpos($answer,'error:')!==false)
 		{
-			setlog('[TASK:'.$dev.'] The device does not respond!'); // Устройство не отвечает
+			setlog('[TASK:'.$dev.'] The device does not respond!'); // Агрегатор не отвечает
 			unlink($root.'flags/cron_'.$dev);
 			exit();
 		}
@@ -75,7 +75,7 @@ if ($result = mysqli_query($db, "SELECT c.*,a.`action`,a.`id` AS `id`,a.`pool_id
 		mysqli_query($db,$qry);
 		$qry='DELETE FROM `actions` WHERE `id`='.$action;
 		mysqli_query($db,$qry);
-		setlog('[TASK:'.$dev.'] Deleting the action #'.$action); // Устройство не отвечает
+		setlog('[TASK:'.$dev.'] Deleting the action #'.$action); // Агрегатор не отвечает
 
 		if ($pool_id) // Change of status | Смена статуса
 		{

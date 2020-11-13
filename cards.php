@@ -118,7 +118,7 @@ if (!$status)
 ?>
 </select>
 <br><br>
-Устройство (обязательное поле)
+Агрегатор (обязательное поле)
 <br>
 <select name="device">
 <?
@@ -308,10 +308,10 @@ if (count($devices)>1)
 ?>
 <div class="sidebar">
 <br>
-Устройство
+Агрегатор
 </div>
 <select name="device">
-	<option value="0">Все устройства</option>
+	<option value="0">Все агрегаторы</option>
 <?
 	foreach ($devices as $id=>$title)
 	{
@@ -340,7 +340,7 @@ if (count($devices)>1)
 </div>
 <select name="sort">
 <option value="0"<? if (!$_GET['sort']){echo ' selected=1';}?>>По номерам телефонов</option>
-<option value="1"<? if ($_GET['sort']==1){echo ' selected=1';}?>>По устройствам</option>
+<option value="1"<? if ($_GET['sort']==1){echo ' selected=1';}?>>По агрегаторам</option>
 <option value="2"<? if ($_GET['sort']==2){echo ' selected=1';}?>>По местам</option>
 <option value="3"<? if ($_GET['sort']==3){echo ' selected=1';}?>>По балансам</option>
 <option value="4"<? if ($_GET['sort']==4){echo ' selected=1';}?>>По операторам</option>
@@ -384,7 +384,7 @@ if ($total>(int)$GLOBALS['set_data']['page_limit'])
 				<th><input type="checkbox" onclick="SelectGroup(checked,'cards','check')"></th>
 				<th class="sidebar">№</th>
 				<th>Номер</th>
-				<th class="sidebar">Устройство</th>
+				<th class="sidebar">Агрегатор</th>
 				<th style="text-align:right;">Место</th>
 				<th style="text-align:right;" class="sidebar">Баланс</th>
 				<th class="sidebar">Оператор</th>
@@ -399,7 +399,7 @@ if ($total>(int)$GLOBALS['set_data']['page_limit'])
 		{
 ?>
 		<tr>
-			<td><input type="checkbox" name="check[<?=$n++?>]" id="check" value="<?=$data['number']?>"></td>
+			<td><input type="checkbox" name="check[<?=$n++?>]" id="check" value="<?=$data['number'].';'.$data['place'].';'.$data['device']?>"></td>
 			<td class="sidebar"><?=$data['num']?></td>
 			<?
 			if ($data['place']!=$data['number']){
@@ -410,7 +410,7 @@ if ($total>(int)$GLOBALS['set_data']['page_limit'])
 			<? } ?>
 			<td class="sidebar"><?=$data['device']?></td>
 			<td align="right"><?=$data['place']?></td>
-			<td align="right" class="sidebar"><?=$data['balance']?></td>
+			<td align="right" class="sidebar"><?=balance_out($data['balance'],'')?></td>
 			<td<? if ($data['color']){?> style="color: #<?=$data['color']?>; background:#<?=$data['bg']?>"<? } ?> align="center" class="sidebar"><?=$data['operator']?></td>
 			<td class="sidebar"><?=$data['time']?></td>
 			<td><a href="cards.php?edit=<?=$data['id']?>"><i class="icon-pencil"></i></a> <a href="cards.php?delete=<?=$data['number']?>"><i class="icon-trash"></i></a></td>

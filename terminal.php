@@ -62,7 +62,7 @@ var term_int=<?=$GLOBALS['set_data']['term_int']?>;
 <script src="sr/terminal.js" type="text/javascript"></script>
 <form onsubmit="getRequest();return false;">
 <br>
-Устройство
+Агрегатор
 <br>
 <select id="device" name="device">
 <?

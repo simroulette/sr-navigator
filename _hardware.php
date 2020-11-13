@@ -7,7 +7,7 @@
 // ===================================================================
 
 // Deleting device SIM cards from the database table
-// Удаление СИМ-карт устройства из таблицы БД
+// Удаление СИМ-карт агрегатора из таблицы БД
 function dev_truncate($dev)
 {
 //	$dev		Device ID
@@ -19,7 +19,7 @@ function dev_truncate($dev)
 }
 
 // Clearing device responses
-// Очистка ответов устройств
+// Очистка ответов агрегаторов
 function sr_answer_clear($dev=0,$sr=0)
 {
 //	$dev		Device ID
@@ -58,7 +58,7 @@ function sr_command_clear($dev=0)
 }
 
 // Sending a command to the device and receiving a response (optional)
-// Отправка команды устройству и получение ответа (опционально)
+// Отправка команды агрегатору и получение ответа (опционально)
 function sr_command($dev,$command,$wait=0,$transaction_code='',$transaction_time=0)
 {
 //	$dev			Device ID
@@ -105,7 +105,7 @@ function sr_command($dev,$command,$wait=0,$transaction_code='',$transaction_time
 		if ($row = mysqli_fetch_assoc($result))
 		{
 			$step=$s=$row['step'];
-			if ($row['type']=='server') // Accessing the server device | Обращение к устройству-серверу
+			if ($row['type']=='server') // Accessing the server device | Обращение к агрегатору-серверу
 			{
 				$link='http://'.$row['ip'].'/port?data='.$row['token_local'].'||'.$s.'||'.$command;
 			       	$ch = curl_init();
@@ -117,9 +117,9 @@ function sr_command($dev,$command,$wait=0,$transaction_code='',$transaction_time
 		        	$answer = curl_exec($ch);
 			       	curl_close($ch);
 				$answer=explode('#!#',$answer);
-				if ($answer[1]) // Saving the response received from the device | Сохранение полученного от устройства ответа
+				if ($answer[1]) // Saving the response received from the device | Сохранение полученного от агрегатора ответа
 				{
-					if (!$answer[0]) // If there is an out-of-order response from the device, we generate a random number to save as a unique response in the table | Если внеочередной ответ устройства - генерируем случайное число, чтобы сохранить в таблице как уникальный ответ
+					if (!$answer[0]) // If there is an out-of-order response from the device, we generate a random number to save as a unique response in the table | Если внеочередной ответ агрегатора - генерируем случайное число, чтобы сохранить в таблице как уникальный ответ
 					{
 						$uniq=",`uniq`='".rand(1111,9999).rand(1111,9999)."'";
 					} 
@@ -151,10 +151,10 @@ function sr_command($dev,$command,$wait=0,$transaction_code='',$transaction_time
 				return($out);
 			}
 		}
-		else {return('error:device not found');} // Ошибка - Устройство отсутсвует
+		else {return('error:device not found');} // Ошибка - Агрегатор отсутсвует
 	}
 
-	// Accessing the client device | Обращение к устройству-клиенту
+	// Accessing the client device | Обращение к агрегатору-клиенту
 
 	// Save the command to the "link_outgoing" table | Сохраняем команду в таблицу "link_outgoing"
 	if ($c=trim($command))
@@ -170,7 +170,7 @@ function sr_command($dev,$command,$wait=0,$transaction_code='',$transaction_time
 		return('error:no command specified');
 	}
 
-	// Saving the step for the selected device in the "devices" table | Сохраняем шаг (step) для выбранного устройства в таблицу "devices"
+	// Saving the step for the selected device in the "devices" table | Сохраняем шаг (step) для выбранного агрегатора в таблицу "devices"
 	$qry="UPDATE `devices` SET
 	`step`=".$s."
 	WHERE `id`=".(int)$dev;
@@ -192,19 +192,19 @@ function sr_command($dev,$command,$wait=0,$transaction_code='',$transaction_time
 }
 
 // Getting the device response
-// Получение ответа устройства
+// Получение ответа от агрегатора
 function sr_answer($dev,$step=0,$wait=20,$search="") 
 {
 //	$dev		Device ID
 //	$step		Device Step OR 0
 //	$wait		How many seconds to wait for a response
-//	$search		Поиск в ответе устройства
+//	$search		Поиск в ответе агрегатора
 
 	global $db;
 	if (!$dev){return('error:device is not selected');} // Ошибка - Устройство не указано
 	$time=time()+$wait;
 	
-	// Accessing the server device | Обращение к устройству-серверу
+	// Accessing the server device | Обращение к агрегатору-серверу
 	if ($result = mysqli_query($db, "SELECT `ip`,`token_local` FROM `devices` WHERE `type`='server' AND `ip`<>'' AND `id`=".(int)$dev)) 
 	{
 		if ($row = mysqli_fetch_assoc($result))
@@ -239,7 +239,7 @@ function sr_answer($dev,$step=0,$wait=20,$search="")
 				}
 			}
 
-			// Getting from the device | Получаем с устройства
+			// Getting from the device | Полусение ответа
 			$n=0;
 			while ($time>time() || !$n)
 			{
@@ -283,7 +283,7 @@ function sr_answer($dev,$step=0,$wait=20,$search="")
 		}
 	}
 
-	// Accessing the client device | Обращение к устройству-клиенту
+	// Accessing the client device | Обращение к агрегатору-клиенту
 
 	while ($time>time())
 	{
@@ -416,7 +416,7 @@ function action_card_scanner($id,$span)
 //	$span		Span of SIM cards, examples ("0,1", "0-3", "A0,A1", "A10-B20" etc)
 
 	global $db;
-	if (!$id){return(array('status'=>0,'message'=>'Ошибка — Вы не выбрали устройство!'));} // Error - you didn't select a device!
+	if (!$id){return(array('status'=>0,'message'=>'Ошибка — Вы не выбрали агрегатор!'));} // Error - you didn't select a device!
 	$span=trim(strtoupper($span),'-');
 	$span=trim($span,',');
 	$span=trim($span);
@@ -566,7 +566,7 @@ function action_card_scanner($id,$span)
 					{
 						if ($data['rows']<$i || $data['row_begin']>$i)
 						{
-							return(array('status'=>0,'message'=>'Ошибка — Диапазон устройства: '.$data['row_begin'].'...'.$data['rows']));
+							return(array('status'=>0,'message'=>'Ошибка — Диапазон агрегатора: '.$data['row_begin'].'...'.$data['rows']));
 						}
 					}
 					
@@ -618,7 +618,7 @@ function action_card_scanner($id,$span)
 				{
 					if ($data['rows']<$to || $data['row_begin']>$from)
 					{
-						return(array('status'=>0,'message'=>'Ошибка — Диапазон устройства: '.$data['row_begin'].'...'.$data['rows']));
+						return(array('status'=>0,'message'=>'Ошибка — Диапазон агрегатора: '.$data['row_begin'].'...'.$data['rows']));
 					}
 
 					$modems=explode(',',$row['modems']);
@@ -740,7 +740,7 @@ function action_pool_create($id,$type)
 				}
 				$d=$device;
 				$r=$place[0];
-				// Checking whether the current modem is disabled in the device settings | Проверка не отключен ли текущий модем в настройках устройства
+				// Checking whether the current modem is disabled in the device settings | Проверка не отключен ли текущий модем в настройках агрегатора
 				$status=0;
 				for ($i=0;$i<count($modems);$i++)
 				{
@@ -818,7 +818,7 @@ function action_pool_create($id,$type)
 }
 
 // Creating an action for a device
-// Создание задачи для устройства
+// Создание задачи для агрегатора
 function action_device_create($id,$type)
 {
 //	$id		Device ID

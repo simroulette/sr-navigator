@@ -1,10 +1,4 @@
 <?
-// ===================================================================
-// License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
-// Author: Nikita Zabelin
-// ===================================================================
-
 include("_func.php");
 $status=1;
 if ($_GET['delete']) // Deleting a SIM card Pool | Удаление Пула СИМ-карт
@@ -105,11 +99,14 @@ if ($_GET['edit']) // Editing the Pool | Редактирование Пула
 			}
 		}
 		$_POST['check']=array();
-		if ($result = mysqli_query($db, 'SELECT * FROM `card2pool` WHERE `pool`='.(int)$_GET['edit'].' ORDER BY `card`')) 
+		if ($result = mysqli_query($db, 'SELECT p.*,c.`place`,d.`title` FROM `card2pool` p 
+		INNER JOIN `cards` c ON c.`number`=p.`card` 
+		INNER JOIN `devices` d ON d.`id`=c.`device` 
+		WHERE p.`card`<>"" AND p.`pool`='.(int)$_GET['edit'].' ORDER BY p.`card`')) 
 		{
 			while ($row = mysqli_fetch_assoc($result))
 			{
-				$_POST['check'][]=$row['card'];
+				$_POST['check'][]=$row['card'].';'.$row['place'].';'.$row['title'];
 			}
 		}
 	}
@@ -144,6 +141,8 @@ if ($_GET['edit']) // Editing the Pool | Редактирование Пула
 			<tr>
 				<th>№</th>
 				<th>Номер</th>
+				<th>Агрегатор</th>
+				<th>Место</th>
 				<th>Действие</th>
 			</tr>  
 		</thead>
@@ -151,10 +150,13 @@ if ($_GET['edit']) // Editing the Pool | Редактирование Пула
 	$n=0;
 	foreach ($_POST['check'] as $data)
 	{
+		$data=explode(";",$data);
 ?>
 		<tr>
-			<td><?=($n+1)?><input type="hidden" name="check[<?=$n++?>]" value="<?=$data?>"></td>
-			<td>+<?=$data?></td>
+			<td><?=($n+1)?><input type="hidden" name="check[<?=$n++?>]" value="<?=$data[0]?>"></td>
+			<td>+<?=$data[0]?></td>
+			<td><?=$data[2]?></td>
+			<td><?=$data[1]?></td>
 			<td align="center"><span onclick="deleteItem(this);"><i class="icon-trash" title="Удалить номер из пула"></i></span></td>
 		</tr>
 
@@ -216,7 +218,7 @@ else // List of Pools | Список Пулов
 			<td><input type="checkbox" name="check[<?=$n++?>]" id="check" value="<?=$data['id']?>"></td>
 			<td><span class="but_win" data-id="win_action" data-title='Управление пулом "<?=$data['title']?>"' data-type="ajax_pool_action.php?id=<?=$data['id']?>" data-height="400" data-width="600"><?=$data['title']?></span></td>
 			<td align="right"><?=$data['count']?></td>
-			<td><?=round($data['balance'],2)?></td>
+			<td><?=balance_out($data['balance'])?></td>
 			<td><?=$data['time']?></td>
 			<td><a href="pools.php?edit=<?=$data['id']?>"><i class="icon-pencil" title="Редактировать пул"></i></a> <a href="pools.php?delete=<?=$data['id']?>"><i class="icon-trash" title="Удалить пул, но оставить телефонные номера"></i></a></td>
 			<td><?=$data['status']?></td>

@@ -434,6 +434,32 @@ function ts($dev,$file='stop')
 	return(0);
 }
 
+// Preparing the balance
+// Форматирование баланса
+function balance_out($balance,$sign='+')
+{
+//	$balance	Balance
+//	$sign		Sign before the number
+
+	if ($balance>0){$b=$a;}
+	$balance=str_replace('.',',',$balance);
+	$cent=explode(',',$cent);
+	$cent[1]=substr($cent[1].'00',0,2);
+	return($b.str_replace(',',"'",number_format($balance)).'.'.$cent[1]);
+}
+
+
+// Preparing the number
+// Форматирование числа
+function num_out($num) // Вывод числа
+{
+//	$num		Number
+
+	$a=explode(',',round($num,2));
+	$b=str_replace(',',"'",number_format($a[0])).'.'.$a[1];
+	return(rtrim($b,'.'));
+}
+
 // Writing to a log file
 // Запись в лог файл
 function setlog($data,$file='sr')

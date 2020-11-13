@@ -107,7 +107,7 @@ if (!$status)
 Модель (обязательное поле)
 <br>
 <select name="model" onchange="selectDevice(this,'SR-Train;SR-Nano-500;SR-Nano-1000');">
-<option value="0">— Выберите устройство —</option>
+<option value="0">— Выберите модель агрегатора —</option>
 <option value="SR-Train"<? if ($model=='SR-Train'){echo ' selected=1';}?>>SR-Train</option>
 <option value="SR-Nano-500"<? if ($model=='SR-Nano-500'){echo ' selected=1';}?>>SR-Nano-500</option>
 <option value="SR-Nano-1000"<? if ($model=='SR-Nano-1000'){echo ' selected=1';}?>>SR-Nano-1000</option>
@@ -136,7 +136,7 @@ if (!$status)
 <br>
 <input type="text" name="time_limit" value="<?=(int)$data['time_limit']?>" maxlength="4">
 <br><br>
-Лимит времени для ожидания ответа устройства (команда Терминала carrier_time)
+Лимит времени для ожидания ответа агрегатора (команда Терминала carrier_time)
 <br>
 <input type="text" name="carrier_limit" value="<?=(int)$data['carrier_limit']?>" maxlength="4">
 <br><br>
@@ -190,7 +190,7 @@ else // Device list | Список агрегаторов
 	{
 ?>
 <br>
-<table class="table table_adaptive"><tr><th>Устройство</th><th class="sidebar">Модель</th><th class="sidebar">Подключение</th><th class="sidebar">Токен</th><th class="sidebar">Удаленное подключение</th><th>Действие</th><th>Статус</th></tr>  
+<table class="table table_adaptive"><tr><th>Агрегатор</th><th class="sidebar">Модель</th><th class="sidebar">Подключение</th><th class="sidebar">Токен</th><th class="sidebar">Удаленное подключение</th><th>Действие</th><th>Статус</th></tr>  
 <?
 		foreach ($table as $data)
 		{
@@ -199,12 +199,12 @@ else // Device list | Список агрегаторов
 			$link=str_replace('//','/',$_SERVER['SERVER_NAME'].'/'.implode("/",$link).'/link.php?token='.$data['token_remote']);
 ?>
 	<tr>
-		<td><span class="but_win" data-id="win_action" data-title='Управление устройством "<?=$data['title']?>"' data-type="ajax_device_action.php?id=<?=$data['id']?>" data-height="400" data-width="600"><?=$data['title']?></span></td>
+		<td><span class="but_win" data-id="win_action" data-title='Управление агрегатором "<?=$data['title']?>"' data-type="ajax_device_action.php?id=<?=$data['id']?>" data-height="400" data-width="600"><?=$data['title']?></span></td>
 		<td class="sidebar"><?=$data['model']?></td>
 		<td class="sidebar"><?=$data['type']?></td>
 		<td class="sidebar"><?=$data['token_local']?></td>
 		<td class="sidebar"><?=$link?></td>
-		<td><a href="setup_devices.php?edit=<?=$data['id']?>" title="Редактировать настройки устройства"><i class="icon-pencil"></i></a> <a href="setup_devices.php?stop=<?=$data['id']?>" title="Остановить задачи устройства"><i class="icon-stop" style="color: #F00;"></i></a> <a href="setup_devices.php?delete=<?=$data['id']?>" title="Удалить устройство"><i class="icon-trash"></i></a></td>
+		<td><a href="setup_devices.php?edit=<?=$data['id']?>" title="Редактировать настройки агрегатора"><i class="icon-pencil"></i></a> <a href="setup_devices.php?stop=<?=$data['id']?>" title="Остановить задачи агрегатора"><i class="icon-stop" style="color: #F00;"></i></a> <a href="setup_devices.php?delete=<?=$data['id']?>" title="Удалить агрегатор"><i class="icon-trash"></i></a></td>
 		<td id="status_<?=$data['id']?>"><?=$data['status']?></td>
 	</tr>
 <?
@@ -217,13 +217,13 @@ else // Device list | Список агрегаторов
 	{
 ?>
 <br>
-<em>— Нет добавленных устройств!</em>
+<em>— Нет добавленных агрегаторов!</em>
 <br>
 <?
 	}
 ?>
 <br>
-<a href="setup_devices.php?edit=new" class="link">Добавить устройство</a>
+<a href="setup_devices.php?edit=new" class="link">Добавить агрегатор</a>
 
 <script>
 setInterval(function()

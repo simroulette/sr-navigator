@@ -12,7 +12,7 @@ include($root.'_func.php');
 
 if (!$_GET['token'] || strlen($_GET['token'])!=10){exit();} // Token verification | Проверка токена
 
-// Getting the device ID | Получение ID устройства
+// Getting the device ID | Получение ID агрегатора
 if ($result = mysqli_query($db, "SELECT * FROM `devices` WHERE `token_remote`='".(int)$_GET['token']."'")) 
 {
 	if ($row = mysqli_fetch_assoc($result))
@@ -62,10 +62,10 @@ elseif (file_exists('time-'.$id.'.dat') && $_GET['data']=='REQUEST')
 	exit();
 } 
 
-// Saving the response received from the device | Сохранение полученного от устройства ответа
+// Saving the response received from the device | Сохранение полученного от агрегатора ответа
 if ($_GET['data']!='REQUEST')
 {
-	if (!$_GET['step']){$uniq=",`uniq`='".rand(1111,9999).rand(1111,9999)."'";} else {$uniq="";} // If there is an out-of-order response from the device, we generate a random number to save as a unique response in the table | Если внеочередной ответ устройства - генерируем случайное число, чтобы сохранить в таблице как уникальный ответ
+	if (!$_GET['step']){$uniq=",`uniq`='".rand(1111,9999).rand(1111,9999)."'";} else {$uniq="";} // If there is an out-of-order response from the device, we generate a random number to save as a unique response in the table | Если внеочередной ответ агрегатора - генерируем случайное число, чтобы сохранить в таблице как уникальный ответ
 	$qry="INSERT `link_incoming` SET
 	`device`='".$id."',
 	`step`=".(int)$_GET['step'].",

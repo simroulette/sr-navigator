@@ -314,7 +314,7 @@ function onlineCreate()
 	}
 	if (device==0)
 	{
-		alert('Выберите устройство!');
+		alert('Выберите агрегатор!');
 		document.getElementById('device').focus();
 		return;
 	}

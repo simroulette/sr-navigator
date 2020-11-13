@@ -39,7 +39,7 @@ if ($result = mysqli_query($db, "SELECT m.*,d.`model`,d.`id` AS device FROM `mod
 				$answer=sr_command($row['device'],'version',30); 
 				if (strpos($answer,'error:')!==false)
 				{
-					setlog('[CRON:'.$row['device'].'] The device does not respond!'); // Устройство не отвечает
+					setlog('[CRON:'.$row['device'].'] The device does not respond!'); // Агрегатор не отвечает
 				}
 				else
 				{
@@ -56,7 +56,7 @@ if ($result = mysqli_query($db, "SELECT m.*,d.`model`,d.`id` AS device FROM `mod
 				$answer=sr_command($row['device'],'version',30); 
 				if (strpos($answer,'error:')!==false)
 				{
-					setlog('[CRON:'.$row['device'].'] The device does not respond!'); // Устройство не отвечает
+					setlog('[CRON:'.$row['device'].'] The device does not respond!'); // Агрегатор не отвечает
 				}
 				else
 				{

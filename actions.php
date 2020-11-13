@@ -112,9 +112,9 @@ if (count($devices)>1)
 {
 ?>
 <form method="get">
-Устройство
+Агрегатор
 <select name="device">
-<option value="-1">— Выберите устройство —</option>
+<option value="-1">— Выберите агрегатор —</option>
 <?
 	foreach ($devices as $id=>$title)
 	{
@@ -140,7 +140,7 @@ if (count($table))
 				<th><input type="checkbox" onclick="SelectGroup(checked,'sms','check')"></th>
 				<th>№</th>
 				<th>Задача</th>
-				<th>Устройство</th>
+				<th>Агрегатор</th>
 				<th>Места</th>
 				<th>Время</th>
 				<th>Статус</th>

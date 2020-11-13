@@ -153,10 +153,10 @@ if (count($devices)>1)
 ?>
 <div class="sidebar">
 <br>
-Устройство
+Агрегатор
 </div>
 <select name="device">
-	<option value="0">Все устройства</option>
+	<option value="0">Все агрегаторы</option>
 <?
 	foreach ($devices as $id=>$title)
 	{
@@ -186,7 +186,7 @@ if (count($devices)>1)
 </div>
 <select name="sort">
 <option value="0"<? if (!$_GET['sort']){echo ' selected=1';}?>>По номерам телефонов</option>
-<option value="1"<? if ($_GET['sort']==1){echo ' selected=1';}?>>По устройствам</option>
+<option value="1"<? if ($_GET['sort']==1){echo ' selected=1';}?>>По агрегаторам</option>
 <option value="2"<? if ($_GET['sort']==2){echo ' selected=1';}?>>По местам</option>
 <option value="3"<? if ($_GET['sort']==3){echo ' selected=1';}?>>По балансам</option>
 <option value="4"<? if ($_GET['sort']==4){echo ' selected=1';}?>>По операторам</option>
@@ -229,7 +229,7 @@ if (count($table))
 				<th><input type="checkbox" onclick="SelectGroup(checked,'sms','check')"></th>
 				<th class="sidebar">№</th>
 				<th>Номер</th>
-				<th class="sidebar">Устройство</th>
+				<th class="sidebar">Агрегатор</th>
 				<th class="sidebar">Место</th>
 				<th class="sidebar">Оператор</th>
 				<th class="sidebar">Баланс</th>
