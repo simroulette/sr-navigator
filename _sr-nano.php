@@ -8,14 +8,15 @@
 
 // Container function: Selecting a row, connecting contacts, powering modems, checking connections, and performing the following functions                        
 // Функция-контейнер: Выбор ряда, подключение контактов, включение модемов, проверка связи и выполнение перечисленных функций
-function sim_link($dev, $data, $curRow, $place, $actId, $func)
+function sim_link($dev, $data, $curRow, $place, $actId, $func, $adata)
 {
 //	$dev		Device ID
-//	$data		Array with additional data	
+//	$data		Array with additional data from device	
 //	$curRow	        Panel row for positioning 1 modem line
 //	$modems	        List of modems to process
 //	$actId          Action ID
 //	$func     	List of functions to perform
+//	$adata		Array with additional data from action	
 
 	global $root,$db;
 	setlog('[sim_link:'.$dev.'] Start');
@@ -32,10 +33,13 @@ function sim_link($dev, $data, $curRow, $place, $actId, $func)
 		setlog('[sim_link:'.$dev.'] Cicle -> Reconnect:'.$reconnect.', Remaining time:'.($time_limit-time()).' sek.');
 		br($dev,'act_'.$actId.'_stop');
 		br($dev);
-		if (!$reconnect || $reconnect==5)
+		if (!$reconnect || $reconnect==7)
 		{
-			sr_command($dev,'card:'.$place.'&&modem>connect&&modem>on');
+			sr_command($dev,'card:'.$place,20);
+			sr_command($dev,'modem>connect',10);
+			sr_command($dev,'modem>on',10);
 			$restart_time=time()+40;
+			sleep(5);
 		}
 		$reconnect++;
 		setlog('[sim_link:'.$dev.'] Getting information about Status');
@@ -62,7 +66,7 @@ function sim_link($dev, $data, $curRow, $place, $actId, $func)
 					if (!$done[$k])
 					{
 						$f=$a[$k]; 
-						$answer=$f($dev,0,$place);
+						$answer=$f($dev,0,$place,$adata,'');
 						if ($answer)
 						{
 							$done[$k]=1;
@@ -99,7 +103,7 @@ function sim_link($dev, $data, $curRow, $place, $actId, $func)
 				setlog('[sim_link:'.$dev.'] Done!'); // Готово
 				return;
 			} 
-			elseif (($test=='0,0' || $test=='0,4') && $restart_time<time()+30)
+			elseif (($test=='0,0' || $test=='0,4') && $restart_time<time()+20)
 			{
 				$restart_time=0;			
 			} 

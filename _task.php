@@ -8,7 +8,7 @@
 
 setlog('[TASK] Start');
 
-if ($result = mysqli_query($db, "SELECT c.*,a.`action`,a.`id` AS `id`,a.`pool_id`,a.`card_number`,d.data FROM `actions` a INNER JOIN `devices` d ON d.`id`=a.`device` LEFT JOIN `card2action` c ON c.`action`=a.`id` WHERE a.`device`=".$dev." ORDER BY a.`id`,c.`row`,c.`place`")) 
+if ($result = mysqli_query($db, "SELECT c.*,a.`action`,a.`id` AS `id`,a.`pool_id`,a.`card_number`,a.`data` AS adata, d.data FROM `actions` a INNER JOIN `devices` d ON d.`id`=a.`device` LEFT JOIN `card2action` c ON c.`action`=a.`id` WHERE a.`device`=".$dev." ORDER BY a.`id`,c.`row`,c.`place`")) 
 {
 	$action=0;
 	while ($row = mysqli_fetch_assoc($result))
@@ -42,7 +42,7 @@ if ($result = mysqli_query($db, "SELECT c.*,a.`action`,a.`id` AS `id`,a.`pool_id
 		}
 		else
 		{
-			sim_link($dev,unserialize($row['data']),$row['row'],$row['place'],$row['id'],$row['action']);
+			sim_link($dev,unserialize($row['data']),$row['row'],$row['place'],$row['id'],$row['action'],unserialize($row['adata']));
 			$pool_id=$row['pool_id'];
 			$card_number=$row['card_number'];
 			if ($pool_id) // Change of status | Смена статуса

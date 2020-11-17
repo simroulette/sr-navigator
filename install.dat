@@ -5,6 +5,7 @@ CREATE TABLE `actions` (
   `pool_id` int(9) NOT NULL DEFAULT '0',
   `device` int(9) NOT NULL DEFAULT '0',
   `action` varchar(255) NOT NULL DEFAULT '',
+  `data` text NOT NULL,
   `count` int(9) NOT NULL DEFAULT '0',
   `progress` int(9) NOT NULL DEFAULT '0',
   `status` enum('inprogress','waiting','') NOT NULL DEFAULT 'waiting',

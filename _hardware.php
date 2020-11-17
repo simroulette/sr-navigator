@@ -350,7 +350,7 @@ function action_stop($id)
 
 // Creating an action for a SIM card
 // Создание задачи для СИМ-карты
-function action_card_create($number,$type)
+function action_card_create($number,$type,$data='')
 {
 //	$number		Phone Number
 //	$type		Action Type
@@ -361,7 +361,7 @@ function action_card_create($number,$type)
 		if ($row = mysqli_fetch_assoc($result))
 		{
 			mysqli_query($db,"UPDATE `cards` SET `status`='waiting' WHERE `number`=".(int)$number);
-			mysqli_query($db,"INSERT INTO `actions` SET `card_number`=".(int)$number.",`device`=".$row['device'].",`action`='".$type."',`count`=1,`time`=".time());
+			mysqli_query($db,"INSERT INTO `actions` SET `card_number`=".(int)$number.",`device`=".$row['device'].",`action`='".$type."',`data`='".serialize($data)."',`count`=1,`time`=".time());
 			$act_id=mysqli_insert_id($db);
 			if ($row['model']=='SR-Train')
 			{
@@ -675,7 +675,7 @@ function action_card_scanner($id,$span)
 
 // Creating an action for a SIM card pool
 // Создание действия для пула СИМ-карт
-function action_pool_create($id,$type) 
+function action_pool_create($id,$type,$data='') 
 {
 //	$id		Pool ID
 //	$type		Action Type
@@ -703,7 +703,7 @@ function action_pool_create($id,$type)
 			$modems=explode(',',$row[$k]['modems']);
 			if ($device!=$row[$k]['device'])
 			{
-				$qry="INSERT INTO `actions` SET `device`=".$row[$k]['device'].",`action`='".$type."',`pool_id`=".(int)$id.",`time`=".time();
+				$qry="INSERT INTO `actions` SET `device`=".$row[$k]['device'].",`action`='".$type."',`data`='".serialize($data)."',`pool_id`=".(int)$id.",`time`=".time();
 				mysqli_query($db,$qry);
 				$act_id_old=$act_id;
 				$act_id=mysqli_insert_id($db);
@@ -860,11 +860,17 @@ function action_device_create($id,$type)
 
 // Getting a phone number
 // Получение номера телефона
-function get_number($dev,$row,$place,$operator='')
+function get_number($dev=0,$row='',$place='',$adata='',$operator='')
 {
 //	$dev		Device ID
 //	$row	        Panel row for positioning 1 modem line
 //	$place	        Modem position relative to the device
+//	$adata		Array with additional data from action	
+
+	if (!$dev)
+	{
+		return;
+	}
 
 	global $db;
 	$status=0;
@@ -1007,11 +1013,17 @@ function get_number($dev,$row,$place,$operator='')
 
 // Getting a balance
 // Получение баланса
-function get_balance($dev,$row,$place,$operator='')
+function get_balance($dev=0,$row='',$place='',$adata='',$operator='')
 {
 //	$dev		Device ID
 //	$row	        Panel row for positioning 1 modem line
 //	$place	        Modem position relative to the panel
+//	$adata		Array with additional data from action	
+
+	if (!$dev)
+	{
+		return;
+	}
 
 	global $db;
 	$status=0;
@@ -1122,16 +1134,22 @@ function get_balance($dev,$row,$place,$operator='')
 
 // Receiving SMS from the specified modem
 // Получение SMS с указанного модема
-function get_sms($dev,$curRow,$place,$operator='')
+function get_sms($dev=0,$curRow='',$place='',$adata='',$operator='')
 {
 
 //	$dev		Device ID
 //	$curRow	        Panel row for positioning 1 modem line
 //	$place		Modem position in the device
+//	$adata		Array with additional data from action	
+
+	if (!$dev)
+	{
+		return;
+	}
 
 	global $db;
 	$sms=array();
-	while ($begin>time()){}
+//	while ($begin>time()){}
 	$out=0;
 	$com='';
 
@@ -1244,6 +1262,53 @@ function get_sms($dev,$curRow,$place,$operator='')
 		}
 	}
 	return($out);
+}
+
+// Outgoing call from the specified modem
+// Осуществление вызова с указанного модема
+function put_call($dev=0,$curRow='',$place='',$adata='',$operator='')
+{
+
+//	$dev		Device ID
+//	$curRow	        Panel row for positioning 1 modem line
+//	$place		Modem position in the device
+//	$adata		Array with additional data from action	
+
+	if (!$dev)
+	{
+		$out=array();
+		$out[0]=auto_field('Номер телефона (+7...)','f1',15).auto_field('Ожидание (сек.)','f2','number','',15);
+		$out[1]=2;
+		return($out);
+	}
+
+	global $db;
+	$sms=array();
+	$com='';
+
+	if ($place>=1 && $place<=16)
+	{
+		setlog('[get_sms:'.$dev.'] Select modem: '.$place);
+		$com='modem>select:'.$place.'&&';
+	}
+	sr_answer_clear($dev,1); // Clearing the response buffer of the modem | Очистка буфера ответов модема
+	setlog('[put_call:'.$dev.'] Calling '.$adata[0].'...');
+	sr_command($dev,$com.'modem>send:ATD'.$adata[0].';');
+	$answer=sr_answer($dev,0,30,'ATD');
+	if (strpos($answer,'ERROR')!==false)
+	{
+		setlog('[put_call:'.$dev.'] Error!');
+		return(0);
+	}
+	elseif (strpos($answer,'OK')!==false)
+	{
+		setlog('[put_call:'.$dev.'] Ok!');
+		sleep($adata[1]);
+		sr_command($dev,'modem>send:ATH0');
+		sleep(7);
+		return(1);
+	}
+	return(0);
 }
 
 ?>

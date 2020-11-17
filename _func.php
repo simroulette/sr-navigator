@@ -400,6 +400,58 @@ function clear_flags($time=86400)
 		}
 	}
 	closedir($OpenDir); 
+}                                                   
+
+// Autoformazione form fields
+// Автоформирование полей формы
+function auto_field($title,$name,$type,$desc='',$data='',$comment='')
+{
+//	$name 		Field name
+//	$type		Field type
+//	$data		Field data
+	$str= '<div style="margin-bottom: 7px;"><span title="'.$desc.'">'.$title.'</span>';
+	if ((int)$type)
+	{
+		$str.= '<input type="text" id="'.$name.'" name="'.$name.'" maxlength="'.$type.'" value="'.$data.'" class="form-control input-xlarge"/>';
+	}
+	elseif ($type=='txt')
+	{
+		$str.= '<textarea name="'.$name.'" id="'.$name.'" class="form-control input-xlarge" maxlength="100000" rows="10">'.$data.'</textarea>';
+	}
+	elseif ($type=='url')
+	{
+		$str.= '<input type="text" id="'.$name.'" name="'.$name.'" maxlength="100" value="'.$data.'" class="form-control input-xlarge"/>';
+	}
+	elseif ($type=='email')
+	{
+		$str.= '<input type="email" id="'.$name.'" name="'.$name.'" maxlength="100" value="'.$data.'" class="form-control input-xlarge"/>';
+	}
+	elseif ($type=='digit')
+	{
+		$str.= '<input type="number" id="'.$name.'" name="'.$name.'" maxlength="100" value="'.$data.'" class="form-control input-xlarge"/>';
+	}
+	elseif ($type=='number')
+	{
+		$str.= '<input type="number" id="'.$name.'" name="'.$name.'" maxlength="100" value="'.$data.'" class="form-control input-xlarge"/>';
+	}
+	elseif ($type=='radio')
+	{
+		if ($data){$c=' checked';$d='';} else {$d=' checked';$c='';}
+		$str.= 'On <input type="radio" name="'.$name.'" id="'.$name.'" value="1"'.$c.'>&nbsp;&nbsp;&nbsp;';
+		$str.= 'Off <input type="radio" name="'.$name.'" id="'.$name.'" value="0"'.$d.'>';
+	}
+	elseif ($type=='check')
+	{
+		$str.= '<input type="checkbox" id="'.$name.'" name="'.$name.'" class="make-switch" value="1" data-on-color="success" data-off-color="danger"';
+		if ($data){$str.= 'checked';}
+		$str.= '>';
+	}
+	$str.= '</div>';
+	if ($comment)
+	{
+		$str.= '<div class="help_block">'.$comment.'</div>';
+	}
+	return($str);
 }
 
 // Checking the emergency exit flag

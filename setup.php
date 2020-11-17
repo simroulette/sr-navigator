@@ -59,63 +59,7 @@ for ($i=0; $i<count($a);$i++)
 		}
 		else
 		{
-			echo '<div style="margin-bottom: 7px;"><span title="'.$name.'">'.$b[1].'</span>';
-
-			if ((int)$b[2])
-			{
-?>
-				<input type="text" id="<?=$name?>" name="<?=$name?>" maxlength="<?=$b[2]?>" value='<?=$data?>' class="form-control input-xlarge"/>
-<?
-			}
-			elseif ($b[2]=='txt')
-			{
-?>
-				<textarea name="<?=$name?>" id="<?=$name?>" class="form-control input-xlarge" maxlength="100000" rows="10"><?=$data?></textarea>
-<?
-			}
-			elseif ($b[2]=='url')
-			{
-?>
-				<input type="text" id="<?=$name?>" name="<?=$name?>" maxlength="100" value='<?=$data?>' class="form-control input-xlarge"/>
-<?
-			}
-			elseif ($b[2]=='email')
-			{
-?>
-				<input type="email" id="<?=$name?>" name="<?=$name?>" maxlength="100" value='<?=$data?>' class="form-control input-xlarge"/>
-<?
-			}
-			elseif ($b[2]=='digit')
-			{
-?>
-				<input type="number" id="<?=$name?>" name="<?=$name?>" maxlength="100" value='<?=$data?>' class="form-control input-xlarge"/>
-<?
-			}
-			elseif ($b[2]=='number')
-			{
-?>
-				<input type="number" id="<?=$name?>" name="<?=$name?>" maxlength="100" value='<?=$data?>' class="form-control input-xlarge"/>
-<?
-			}
-			elseif ($b[2]=='radio')
-			{
-				if ($data){$c=' checked';$d='';} else {$d=' checked';$c='';}
-				echo 'On <input type="radio" name="'.$name.'" id="'.$name.'" value=\'1\''.$c.'>&nbsp;&nbsp;&nbsp;';
-				echo 'Off <input type="radio" name="'.$name.'" id="'.$name.'" value=\'0\''.$d.'>';
-			}
-			elseif ($b[2]=='check')
-			{
-?>
-				<input type="checkbox" id="<?=$name?>" name="<?=$name?>" class="make-switch" value="1" data-on-color="success" data-off-color="danger" <? if ($data){echo 'checked';} ?>>
-<?
-			}
-?>
-			</div>
-<?
-			if ($b[3])
-			{
-				echo '<div class="help_block">'.$b[3].'</div>';
-			}
+			auto_field($name,$b,$data);
 		}
 	}
 }

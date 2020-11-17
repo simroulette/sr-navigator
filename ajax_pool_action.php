@@ -7,11 +7,36 @@
 // ===================================================================
 
 include("_func.php");
-$actions=array('get_number|Получить номер','get_balance|Получить баланс','get_number;get_balance|Получить номер и баланс','get_sms|Получить SMS');
+$actions=array('get_number|Получить номер','get_balance|Получить баланс','get_number;get_balance|Получить номер и баланс','get_sms|Получить SMS','put_call|Осуществить Вызов');
+$data=array();
 if ($_GET['action'])
 {
 	$a=explode('|',$actions[trim($_GET['action'],'a')]);
-	$answer=action_pool_create($_GET['id'],$a[0]);
+	$f=$a[0];
+	if (!$_GET['f1'])
+	{
+		$f=$f();
+		if ($f[0])
+		{
+			echo $f[0];
+			$field='';
+			for ($i=0;$i<$f[1];$i++)
+			{
+				$field.="+'&f".($i+1)."='+encodeURIComponent(document.getElementById('f".($i+1)."').value)";
+			}
+			$field.="+'&count=".$f[1]."'";
+			echo '<input type="button" onclick="getActions(\'ajax_pool_action.php?id='.$_GET['id'].'&action='.$_GET['action']."'".$field.');" value="Применить" style="padding: 10px; margin: 5px 0">';
+			exit();
+		}
+	}
+	else
+	{
+		for ($i=0;$i<$_GET['count'];$i++)
+		{
+			$data[]=$_GET['f'.($i+1)];		
+		}
+	}
+	$answer=action_pool_create($_GET['id'],$a[0],$data);
 	if ($answer['task'])
 	{
 		echo 'Создано задач: <a href="actions.php">'.$answer['task'].'</a>';

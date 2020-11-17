@@ -8,14 +8,15 @@
 
 // Container function: Selecting a row, connecting contacts, powering modems, checking connections, and performing the following functions                        
 // Функция-контейнер: Выбор ряда, подключение контактов, включение модемов, проверка связи и выполнение перечисленных функций
-function sim_link($dev, $data, $curRow, $modems, $actId, $func)
+function sim_link($dev, $data, $curRow, $modems, $actId, $func, $adata)
 {
 //	$dev		Device ID
-//	$data		Array with additional data	
+//	$data		Array with additional data from device
 //	$curRow	        Panel row for positioning 1 modem line
 //	$modems	        List of modems to process
 //	$actId          Action ID
 //	$func     	List of functions to perform
+//	$adata		Array with additional data from action	
 
 	global $root,$db;
 	setlog('[sim_link:'.$dev.'] Start');
@@ -139,7 +140,7 @@ function sim_link($dev, $data, $curRow, $modems, $actId, $func)
 							$r=$r+3;	
 						}
 						sr_command($dev,'modem>select:'.$key);
-						$answer=$f($dev,$r,$m,$data['operator']);
+						$answer=$f($dev,$r,$m,$adata,$data['operator']);
 						if ($answer)
 						{
 							$test--;
