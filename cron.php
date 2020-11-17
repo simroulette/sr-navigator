@@ -6,6 +6,8 @@
 // Author: Nikita Zabelin
 // ===================================================================
 
+if ((int)$argv[1]){sleep($argv[1]);}
+
 $root="[path]";
 include($root.'_func.php');
 

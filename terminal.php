@@ -82,11 +82,11 @@ var term_int=<?=$GLOBALS['set_data']['term_int']?>;
 <input type="hidden" id="step" name="step" value="0">
 <br><br>
 <input type="button" value="Отправить" style="padding: 10px; float: left;" onclick="getRequest();return false;">
-<div class="example" onclick="document.getElementById('command').value='m:help'">m:help</div>
-<div class="example" onclick="document.getElementById('command').value='restart'">restart</div>
-<div class="example" onclick="document.getElementById('command').value='buffer>'">buffer></div>
-<div class="example" onclick="document.getElementById('command').value='modem>'">modem></div>
-<div class="example" onclick="document.getElementById('command').value='sms>'">sms></div>
+<div class="example" onclick="document.getElementById('command_').value='m:help';document.getElementById('command').value='m:help'">m:help</div>
+<div class="example" onclick="document.getElementById('command_').value='restart';document.getElementById('command').value='restart'">restart</div>
+<div class="example" onclick="document.getElementById('command_').value='buffer>';document.getElementById('command').value='buffer'">buffer></div>
+<div class="example" onclick="document.getElementById('command_').value='modem>';document.getElementById('command').value='modem'">modem></div>
+<div class="example" onclick="document.getElementById('command_').value='sms>';document.getElementById('command').value='sms'">sms></div>
 <div style="clear: both;"><span></span></div>
 </form>
 Лог команд:<div class="icon_cont"><i class="icon-trash" title="Очистить буфер" onclick="document.getElementById('result_send').innerHTML='';"></i></div>
