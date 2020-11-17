@@ -469,9 +469,9 @@ function setlog($data,$file='sr')
 
 	global $root;
 	if (!$GLOBALS['set_data']['log_size']){return;}
-	if ($GLOBALS['set_data']['log_size']>-1 && filesize($root.$file.'.log')>$GLOBALS['set_data']['log_size']*2*1024)
+	if ($GLOBALS['set_data']['log_size']>-1 && filesize($root.'logs/'.$file.'.log')>$GLOBALS['set_data']['log_size']*2*1024)
 	{
-		$txt=explode("\n",file_get_contents($root.$file.'.log'));
+		$txt=explode("\n",file_get_contents($root.'logs/'.$file.'.log'));
 		for ($i=count($txt);$i>0;$i--)
 		{
 			if (trim($txt[$i]))
@@ -480,9 +480,9 @@ function setlog($data,$file='sr')
 			}
 			if (strlen($t)>$GLOBALS['set_data']['log_size']*1024){break;}
 		}
-		file_put_contents($root.$file.'.log',$t);
+		file_put_contents($root.'logs/'.$file.'.log',$t);
 	}
-	$f=fopen($root.$file.'.log', "a"); 
+	$f=fopen($root.'logs/'.$file.'.log', "a"); 
 	fwrite($f,date('H:i:s d.m.Y').' '.$data."\n");
 	fclose($f);
 }
