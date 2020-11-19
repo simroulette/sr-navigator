@@ -59,7 +59,7 @@ for ($i=0; $i<count($a);$i++)
 		}
 		else
 		{
-			auto_field($name,$b,$data);
+			echo auto_field($b[1],$name,$b[2],$b[0],$data,$b[3]);
 		}
 	}
 }
