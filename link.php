@@ -75,5 +75,4 @@ if ($_GET['data']!='REQUEST')
 }
 
 setlog('device:'.$id.' IN > '.$_GET['step'].' | '.stripslashes($_GET['data']).' OUT > '.$step.' | '.$out,'link');
-setlog(print_r($_GET,1),'test');
 ?>
