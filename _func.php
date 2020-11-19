@@ -51,7 +51,7 @@ if ($_GET['mode']=='logout')
 }
 
 // Authorization | Авторизация
-if ($_SERVER['DOCUMENT_ROOT'] && $set_data['admin_login'] && ($_COOKIE['login']!=$set_data['admin_login'] || $_COOKIE['pass']!=md5($set_data['admin_pass'])))
+if ($_SERVER['DOCUMENT_ROOT'] && $GLOBALS['set_data']['admin_login'] && ($_COOKIE['login']!=$GLOBALS['set_data']['admin_login'] || $_COOKIE['pass']!=md5($GLOBALS['set_data']['admin_pass'])))
 {
 	include('_login.php');
 	exit();

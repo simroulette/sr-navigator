@@ -9,7 +9,7 @@
 if ($_POST['login'])
 {
 
-	if ($_POST['login']!=$set_data['admin_login'] || $_POST['pass']!=$set_data['admin_pass'])
+	if ($_POST['login']!=$GLOBALS['set_data']['admin_login'] || $_POST['pass']!=$GLOBALS['set_data']['admin_pass'])
 	{
 		$msg = "<div class=\"login_error\">Неверный пароль или логин</div>";
 	}
