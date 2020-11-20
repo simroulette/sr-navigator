@@ -1207,11 +1207,11 @@ function get_sms($dev=0,$curRow='',$place='',$adata='',$operator='')
 		{
 			if ($place>8)
 			{
-				$place=($surRow+3).'-'.($place-8);
+				$place=($curRow+3).'-'.($place-8);
 			} 
 			else 
 			{
-				$place=$surRow.'-'.$place;
+				$place=$curRow.'-'.$place;
 			}
 		}
 		else
