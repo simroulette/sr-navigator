@@ -410,7 +410,15 @@ if ($total>(int)$GLOBALS['set_data']['page_limit'])
 			<? } ?>
 			<td class="sidebar"><?=$data['device']?></td>
 			<td align="right"><?=$data['place']?></td>
+			<?
+			if ($data['place']!=$data['number']){
+			?>
 			<td align="right" class="sidebar"><?=balance_out($data['balance'],'')?></td>
+			<? } else { ?>
+			<td align="right" class="sidebar"><em>—</em></td>
+			<?
+			}
+			?>
 			<td<? if ($data['color']){?> style="color: #<?=$data['color']?>; background:#<?=$data['bg']?>"<? } ?> align="center" class="sidebar"><?=$data['operator']?></td>
 			<td class="sidebar"><?=$data['time']?></td>
 			<td><a href="cards.php?edit=<?=$data['id']?>"><i class="icon-pencil"></i></a> <a href="cards.php?delete=<?=$data['number']?>"><i class="icon-trash"></i></a></td>

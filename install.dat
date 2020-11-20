@@ -5,7 +5,7 @@ CREATE TABLE `actions` (
   `pool_id` int(9) NOT NULL DEFAULT '0',
   `device` int(9) NOT NULL DEFAULT '0',
   `action` varchar(255) NOT NULL DEFAULT '',
-  `data` text NOT NULL,
+  `data` text NOT NULL DEFAULT '',
   `count` int(9) NOT NULL DEFAULT '0',
   `progress` int(9) NOT NULL DEFAULT '0',
   `status` enum('inprogress','waiting','') NOT NULL DEFAULT 'waiting',
@@ -46,7 +46,7 @@ CREATE TABLE `cards` (
   `time_number` int(11) NOT NULL DEFAULT '0',
   `time_balance` int(11) NOT NULL DEFAULT '0',
   `time_sms` int(11) NOT NULL DEFAULT '0',
-  `comment` text NOT NULL
+  `comment` text NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Телефонные номера и места';
 
 CREATE TABLE `devices` (

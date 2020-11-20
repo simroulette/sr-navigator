@@ -1166,7 +1166,7 @@ function get_sms($dev=0,$curRow='',$place='',$adata='',$operator='')
 			sr_command($dev,$com.'modem>send:AT+CMGR='.$n);
 			$com="";
 			$answer=sr_answer($dev,0,30,'CMGR');
-	                preg_match('!AT\+CMGR.{0,20}(OK|ERROR)!s', $answer, $test);
+	                preg_match('!AT\+CMGR.{0,200}(OK|ERROR)!s', $answer, $test);
 			setlog('[get_sms:'.$dev.'] SMS #'.$n.' received: '.$test[1]);
 			if (strpos($answer,'error:')!==false && $k>0)
 			{
@@ -1214,9 +1214,13 @@ function get_sms($dev=0,$curRow='',$place='',$adata='',$operator='')
 				$place=$surRow.'-'.$place;
 			}
 		}
+		else
+		{
+			$place=remove_zero($place);
+		}
 
 		// Getting a SIM card number | Получение номера СИМ-карты
-		if ($result = mysqli_query($db, "SELECT * FROM `cards` WHERE `place`='".remove_zero($place)."'")) 
+		if ($result = mysqli_query($db, "SELECT * FROM `cards` WHERE `place`='".$place."'")) 
 		{
 			if ($row = mysqli_fetch_assoc($result))
 			{
