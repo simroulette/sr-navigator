@@ -460,7 +460,7 @@ function action_card_scanner($id,$span)
 						{
 							if (!$count)
 							{
-								mysqli_query($db,"INSERT INTO `actions` SET `device`=".(int)$id.",`action`='get_number',`time`=".time());
+								mysqli_query($db,"INSERT INTO `actions` SET `device`=".(int)$id.",`data`='',`action`='get_number',`time`=".time());
 								$act_id=mysqli_insert_id($db);
 							}		
 							$count++;
@@ -525,7 +525,7 @@ function action_card_scanner($id,$span)
 						}
 						if (!$count)
 						{
-							mysqli_query($db,"INSERT INTO `actions` SET `device`=".(int)$id.",`action`='get_number',`time`=".time());
+							mysqli_query($db,"INSERT INTO `actions` SET `device`=".(int)$id.",`data`='',`action`='get_number',`time`=".time());
 							$act_id=mysqli_insert_id($db);
 						}		
 						$count++;
@@ -572,7 +572,7 @@ function action_card_scanner($id,$span)
 					
 					$modems=explode(',',$row['modems']);
 
-					mysqli_query($db,"INSERT INTO `actions` SET `device`=".(int)$id.",`action`='get_number',`time`=".time());
+					mysqli_query($db,"INSERT INTO `actions` SET `device`=".(int)$id.",`data`='',`action`='get_number',`time`=".time());
 					$act_id=mysqli_insert_id($db);
 
 					$count=0;
@@ -623,7 +623,7 @@ function action_card_scanner($id,$span)
 
 					$modems=explode(',',$row['modems']);
 
-					mysqli_query($db,"INSERT INTO `actions` SET `device`=".(int)$id.",`action`='get_number',`time`=".time());
+					mysqli_query($db,"INSERT INTO `actions` SET `device`=".(int)$id.",`data`='',`action`='get_number',`time`=".time());
 					$act_id=mysqli_insert_id($db);
 					$count=0;
 					for ($i=$from;$i<=$to;$i++)
@@ -836,7 +836,7 @@ function action_device_create($id,$type)
 		$modems=explode(',',$row['modems']);
 		$data=unserialize($row['data']);
 		$count=count($modems)*$data['rows'];
-		$qry="INSERT INTO `actions` SET `device`=".$row['id'].",`action`='".$type."',`count`='".$count."',`time`=".time();
+		$qry="INSERT INTO `actions` SET `device`=".$row['id'].",`data`='',`action`='".$type."',`count`='".$count."',`time`=".time();
 		mysqli_query($db,$qry);
 		$act_id=mysqli_insert_id($db);
 		$n=0;
