@@ -10,7 +10,8 @@ include("_func.php");
 if ($_GET['do'])
 {
 	if (!$d=$_GET['dev1']){$d=$_GET['dev2'];}	
-	$answer=action_card_scanner($d,$_GET['span']);
+	if ($_GET['new']=='true'){$new=1;} else {$new=0;}
+	$answer=action_card_scanner($d,$_GET['span'],$new);
 	if ($answer['message']=='ok')
 	{
 ?>
@@ -68,7 +69,10 @@ if ($result = mysqli_query($db, 'SELECT * FROM `devices` ORDER BY `title`'))
 }
 ?>
 Диапазон (*-*) или список (*,*) рядов (SR-Train) либо мест (SR-Nano) 
-<input type="text" id="span" maxlength="32" placeholder="Ряд или ряды">
-<div class="sidebar">
+<input type="text" id="span" maxlength="32" placeholder="Ряд(ы) или Место(а)">
+<br><br>
+<input type="checkbox" id="new" value="1">
+<label for="new">Только новые (опция для SR-Nano)</label> 
+<div>
 <br>
-<input type="button" onclick="getActions('ajax_card_scanner.php?dev1=<?=$dev; if ($dev==0){?>&dev2='+document.getElementById('device').options[document.getElementById('device').options.selectedIndex].value+'<? } ?>&do=1&span='+document.getElementById('span').value);" value="Выполнить" style="padding: 10px; margin: 5px 0">
+<input type="button" onclick="getActions('ajax_card_scanner.php?dev1=<?=$dev; if ($dev==0){?>&dev2='+document.getElementById('device').options[document.getElementById('device').options.selectedIndex].value+'<? } ?>&do=1&span='+document.getElementById('span').value+'&new='+document.getElementById('new').checked);" value="Выполнить" style="padding: 10px; margin: 5px 0">

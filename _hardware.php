@@ -410,10 +410,11 @@ function action_card_create($number,$type,$data='')
 
 // Creating an action for scanning SIM cards
 // Создание задачи сканирования СИМ-карт
-function action_card_scanner($id,$span)
+function action_card_scanner($id,$span,$new)
 {
 //	$id		Device ID
 //	$span		Span of SIM cards, examples ("0,1", "0-3", "A0,A1", "A10-B20" etc)
+//	$new		Only new
 
 	global $db;
 	if (!$id){return(array('status'=>0,'message'=>'Ошибка — Вы не выбрали агрегатор!'));} // Error - you didn't select a device!
@@ -479,7 +480,20 @@ function action_card_scanner($id,$span)
 								elseif (strlen($p)<3){$p='0'.$p;}
 								$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`place`='".$l.$p."'";
 							}		
-							mysqli_query($db,$qry);
+							if ($new)
+							{
+								if ($testResult = mysqli_query($db, "SELECT `number`,`place` FROM `cards` WHERE `device`=".(int)$id." AND `place`='".remove_zero($l.$p)."'"))
+								{
+									if ($testRow = mysqli_fetch_assoc($testResult))
+									{
+										if ($testRow['number'] && $testRow['number']!=$testRow['place'])
+										{
+											$qry='';
+										}
+									}								
+								}
+							}
+							if ($qry){mysqli_query($db,$qry);}
 						}
 					}
 					if ($count)
@@ -542,7 +556,20 @@ function action_card_scanner($id,$span)
 							elseif ($num<100){$num='0'.$num;}
 							$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`place`='".$l.$num."'";
 						}		
-						mysqli_query($db,$qry);
+						if ($new)
+						{
+							if ($testResult = mysqli_query($db, "SELECT `number`,`place` FROM `cards` WHERE `device`=".(int)$id." AND `place`='".remove_zero($l.$num)."'"))
+							{
+								if ($testRow = mysqli_fetch_assoc($testResult))
+								{
+									if ($testRow['number'] && $testRow['number']!=$testRow['place'])
+									{
+										$qry='';
+									}
+								}								
+							}
+						}
+						if ($qry){mysqli_query($db,$qry);}
 					}
 					$qry="UPDATE `devices` SET `status`='waiting' WHERE `id`=".(int)$id;
 					mysqli_query($db,$qry);
@@ -974,7 +1001,6 @@ function get_number($dev=0,$row='',$place='',$adata='',$operator='')
 		{
 			$number=$GLOBALS['set_data']['phone_prefix'].$number;
 		}
-		setlog('[get_number:'.$dev.'] Received phone number: '.$number.' Place: '.$place);
 
 		if (ord($place[0])<58) // SR Train
 		{
@@ -992,10 +1018,10 @@ function get_number($dev=0,$row='',$place='',$adata='',$operator='')
 			$place=remove_zero($place);
 		}
 
+		setlog('[get_number:'.$dev.'] Received phone number: '.$number.' Place: '.$place);
 		// Clearing a place in the database | Очищаем место в БД
-
 		$qry="DELETE FROM `cards` WHERE
-		`place`='".($place=remove_zero($place))."'";
+		`place`='".$place."'";
 		mysqli_query($db,$qry);
 
 		// Saving the number | Сохраняем номер
@@ -1045,7 +1071,7 @@ function get_balance($dev=0,$row='',$place='',$adata='',$operator='')
 	}
 
 	// Getting balance request rules | Получение правил запроса баланса
-	if ($result = mysqli_query($db, "SELECT c.*,o.`get_balance`,o.`get_balance_type` FROM `cards` c INNER JOIN `operators` o ON o.`id`=c.`operator` WHERE c.`place`='".remove_zero($place)."'")) 
+	if ($result = mysqli_query($db, "SELECT c.*,o.`get_balance`,o.`get_balance_type` FROM `cards` c INNER JOIN `operators` o ON o.`id`=c.`operator` WHERE c.`place`='".$place."'")) 
 	{
 		if ($resRow = mysqli_fetch_assoc($result))
 		{
