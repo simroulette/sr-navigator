@@ -1218,7 +1218,7 @@ function get_sms($dev=0,$curRow='',$place='',$adata='',$operator='')
 		elseif (strlen($answer)>30)
 		{
 			setlog('[get_sms:'.$dev.'] Preparing an SMS'); // Подготовка SMS
-	                preg_match('!"(.*)","(.*)","(.*)","(.*)"(.*)OK!Us', $answer, $test);
+	                preg_match('!"(.*)","(.*)","(.*)","(.*)"(.*)OK!Us', $answer.'OK', $test);
 			$a=explode(',',$test[4]);
 			$b=explode('/',$a[0]);
 			$a=explode('+',$a[1]);
@@ -1307,8 +1307,8 @@ function put_call($dev=0,$curRow='',$place='',$adata='',$operator='')
 	if (!$dev)
 	{
 		$out=array();
-		$out[0]=auto_field('Номер телефона (+7...)','f1',15).auto_field('Ожидание (сек.)','f2','number','',15);
-		$out[1]=2;
+		$out['options']=auto_field('Номер телефона (+7...)','f1',15).auto_field('Ожидание (сек.)','f2','number','',15);
+		$out['count']=2;
 		return($out);
 	}
 
@@ -1341,4 +1341,25 @@ function put_call($dev=0,$curRow='',$place='',$adata='',$operator='')
 	return(0);
 }
 
+// Adding the name of the SIM card
+// Добавление названия СИМ-карты
+function set_title($dev=0,$curRow='',$place='',$adata='',$operator='')
+{
+
+//	$dev		Device ID
+//	$curRow	        Panel row for positioning 1 modem line
+//	$place		Modem position in the device
+//	$adata		Array with additional data from action	
+
+	if (!$dev)
+	{
+		$out=array();
+		$out['options']=auto_field('Имя карты','f1',15);
+		$out['count']=1;
+		$out['save']='title';
+		return($out);
+	}
+
+	global $db;
+}
 ?>

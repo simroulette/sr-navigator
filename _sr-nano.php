@@ -35,6 +35,10 @@ function sim_link($dev, $data, $curRow, $place, $actId, $func, $adata)
 		br($dev);
 		if (!$reconnect || $reconnect==7)
 		{
+			if ($reconnect==7 && remove_zero($place)!='A0')
+			{
+				sr_command($dev,'card>prev',20);
+			}
 			sr_command($dev,'card:'.$place,20);
 			sr_command($dev,'modem>connect',10);
 			sr_command($dev,'modem>on',10);

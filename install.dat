@@ -36,6 +36,7 @@ CREATE TABLE `card2pool` (
 CREATE TABLE `cards` (
   `id` int(9) NOT NULL,
   `number` varchar(15) NOT NULL DEFAULT '',
+  `title` varchar(32) NOT NULL DEFAULT '',
   `operator` tinyint(1) NOT NULL DEFAULT '0',
   `device` int(9) NOT NULL DEFAULT '0',
   `folder` varchar(32) NOT NULL DEFAULT '',
@@ -173,6 +174,7 @@ ALTER TABLE `cards`
   ADD UNIQUE KEY `number` (`number`),
   ADD KEY `operator` (`number`),
   ADD KEY `time` (`number`),
+  ADD KEY `title` (`title`),
   ADD KEY `time_number` (`time_number`),
   ADD KEY `time_balance` (`time_balance`),
   ADD KEY `time_sms` (`time_sms`),
