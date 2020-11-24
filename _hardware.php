@@ -1218,7 +1218,8 @@ function get_sms($dev=0,$curRow='',$place='',$adata='',$operator='')
 		elseif (strlen($answer)>30)
 		{
 			setlog('[get_sms:'.$dev.'] Preparing an SMS'); // Подготовка SMS
-	                preg_match('!"(.*)","(.*)","(.*)","(.*)"(.*)OK!Us', $answer.'OK', $test);
+			if (strpos($answer,'OK')===false){$answer.='OK';}
+	                preg_match('!"(.*)","(.*)","(.*)","(.*)"(.*)OK!Us', $answer, $test);
 			$a=explode(',',$test[4]);
 			$b=explode('/',$a[0]);
 			$a=explode('+',$a[1]);
