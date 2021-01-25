@@ -50,6 +50,16 @@ CREATE TABLE `cards` (
   `comment` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Телефонные номера и места';
 
+CREATE TABLE `folders` (
+  `id` int(9) NOT NULL,
+  `time` int(11) NOT NULL DEFAULT '0',
+  `title` varchar(32) NOT NULL DEFAULT '',
+  `comment` text NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Сменные диски';
+
+INSERT INTO `folders` (`id`, `title`, `comment`) VALUES
+(1, 'default', 'Диск по умолчанию');
+
 CREATE TABLE `devices` (
   `id` int(1) NOT NULL,
   `title` varchar(60) NOT NULL DEFAULT '',
@@ -57,6 +67,7 @@ CREATE TABLE `devices` (
   `token_local` varchar(5) NOT NULL DEFAULT '',
   `token_remote` varchar(10) NOT NULL DEFAULT '',
   `modems` varchar(38) NOT NULL DEFAULT '',
+  `folder_id` int(9) NOT NULL DEFAULT '0',
   `ip` varchar(21) NOT NULL DEFAULT '',
   `type` enum('client','server') NOT NULL DEFAULT 'client',
   `time` int(11) NOT NULL DEFAULT '0',
@@ -143,7 +154,7 @@ CREATE TABLE `values` (
 
 INSERT INTO `values` (`id`, `name`, `value`) VALUES
 (1, 'page_limit', '100'),
-(2, 'main_menu', 'Настройки - setup.php\r\nАгрегаторы - setup_devices.php;submenu\r\nОператоры - setup_operators.php;submenu\r\nSIM-карты - cards.php\r\nПулы - pools.php;submenu\r\nOnline - online.php;submenu\r\nSMS - sms.php\r\nЗадачи - actions.php\r\nTerminal - terminal.php'),
+(2, 'main_menu', 'Настройки - setup.php\r\nАгрегаторы - setup_devices.php;submenu\r\nОператоры - setup_operators.php;submenu\r\nSIM-карты - cards.php\r\nПулы - pools.php;submenu\r\nДиски - folders.php;submenu\r\nOnline - online.php;submenu\r\nSMS - sms.php\r\nЗадачи - actions.php\r\nTerminal - terminal.php'),
 (3, 'term_int', '500'),
 (4, 'phone_prefix', '7'),
 (5, 'log_size', '1000');
@@ -178,8 +189,13 @@ ALTER TABLE `cards`
   ADD KEY `time_number` (`time_number`),
   ADD KEY `time_balance` (`time_balance`),
   ADD KEY `time_sms` (`time_sms`),
+  ADD KEY `folder` (`folder`),
   ADD KEY `place` (`place`) USING BTREE,
   ADD KEY `status` (`status`);
+
+ALTER TABLE `folders`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `title` (`title`);
 
 ALTER TABLE `devices`
   ADD PRIMARY KEY (`id`),

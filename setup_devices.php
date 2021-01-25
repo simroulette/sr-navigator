@@ -174,7 +174,8 @@ else // Device list | Список агрегаторов
 	sr_header("Агрегаторы SIM Roulette");
 
 	$table=array();
-	if ($result = mysqli_query($db, 'SELECT d.*,a.status AS status2,a.count,a.progress,a.action FROM `devices` d LEFT JOIN `actions` a ON a.device=d.id GROUP BY d.`id` ORDER BY d.`id`')) 
+//	if ($result = mysqli_query($db, 'SELECT d.*,a.status AS status2,a.count,a.progress,a.action FROM `devices` d LEFT JOIN `actions` a ON a.device=d.id GROUP BY d.`id` ORDER BY d.`id`')) 
+	if ($result = mysqli_query($db, 'SELECT d.*,a.status AS status2,a.count,a.progress,a.action FROM `devices` d LEFT JOIN `actions` a ON a.device=d.id ORDER BY d.`id`')) 
 	{
 		while ($row = mysqli_fetch_assoc($result))
 		{
