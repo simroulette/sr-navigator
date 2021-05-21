@@ -2,12 +2,12 @@
 // ===================================================================
 // Sim Roulette -> AJAX
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
 include("_func.php");
-$actions=array('get_number|Получить номер','get_balance|Получить баланс','get_number;get_balance|Получить номер и баланс','get_sms|Получить SMS','put_call|Осуществить Вызов');
+$actions=array('set_title|Добавить имя карты','get_number|Получить номер','get_balance|Получить баланс','get_number;get_balance|Получить номер и баланс','get_sms|Получить SMS','send_sms|Отправить SMS','do_call|Позвонить');
 if ($_GET['action'])
 {
 	$a=explode('|',$actions[trim($_GET['action'],'a')]);
@@ -15,18 +15,33 @@ if ($_GET['action'])
 	if (!$_GET['f1'])
 	{
 		$f=$f();
-		if ($f[0])
+		if ($f['options'])
 		{
-			echo $f[0];
+			echo $f['options'];
 			$field='';
-			for ($i=0;$i<$f[1];$i++)
+			$save='';
+			for ($i=0;$i<$f['count'];$i++)
 			{
 				$field.="+'&f".($i+1)."='+encodeURIComponent(document.getElementById('f".($i+1)."').value)";
 			}
-			$field.="+'&count=".$f[1]."'";
-			echo '<input type="button" onclick="getActions(\'ajax_card_action.php?id='.$_GET['id'].'&action='.$_GET['action']."'".$field.');" value="Применить" style="padding: 10px; margin: 5px 0">';
+			$field.="+'&count=".$f['count']."'";
+			if ($f['save']){$field.="+'&save=".$f['save']."'";}
+			echo '<input type="button" onclick="getActions(\'ajax_card_action.php?id='.$_GET['id'].'&action='.$_GET['action']."'".$field.');" value="Выполнить" style="padding: 10px; margin: 5px 0">';
 			exit();
 		}
+	}
+	elseif ($_GET['save'])
+	{
+		$qry="UPDATE `cards` SET
+		`".$_GET['save']."`='".trim($_GET['f1'],'+')."'
+		WHERE `number`='".$_GET['id']."'";
+		mysqli_query($db, $qry); 
+?>
+<div id="scanned">
+<div id="action" style="margin-bottom: 10px;">Имя СИМ-карты сохранено. Обновите список...</div>
+</div>
+<?
+		exit();
 	}
 	else
 	{
@@ -76,4 +91,4 @@ var timerId = setInterval(function()
 ?>
 </select>
 <br><br>
-<input type="button" onclick="getActions('ajax_card_action.php?id=<?=$_GET['id']?>&action=a'+document.getElementById('action').options.selectedIndex);" value="Выполнить" style="padding: 10px; margin: 5px 0">
+<input type="button" onclick="getActions('ajax_card_action.php?id=<?=$_GET['id']?>&action=a'+document.getElementById('action').options.selectedIndex);" value="Продолжить" style="padding: 10px; margin: 5px 0">

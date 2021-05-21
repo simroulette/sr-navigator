@@ -1,8 +1,8 @@
-<?
+<?                             
 // ===================================================================
 // Sim Roulette -> Connection with SIM Roulette
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -22,14 +22,14 @@ if ($result = mysqli_query($db, "SELECT * FROM `devices` WHERE `token_remote`='"
 	}
 	else
 	{
-		setlog('device:'.$id.' Device not identified!','link');  // Устройство не опознано
+		setlog('Device not identified!','link_'.$id);  // Устройство не опознано
 		exit(); 
 	}
 }
 
 $out='RESTART';
 
-if (!file_exists('time-'.$id.'.dat') || file_get_contents('time-'.$id.'.dat')+$data['carrier_limit']>time())
+if (!flagGet($id,'connect') || flagGet($id,'connect',1)+$data['carrier_limit']>time())
 {
 	// Receiving a command that should be send to the device | Получение команды, которую надо отправить на устройство
 	if ($result = mysqli_query($db, 'SELECT *,unix_timestamp(time) AS time FROM `link_outgoing` WHERE `device`='.(int)$id." ORDER BY `id` LIMIT 1")) 
@@ -38,9 +38,9 @@ if (!file_exists('time-'.$id.'.dat') || file_get_contents('time-'.$id.'.dat')+$d
 		{
 			mysqli_query($db,"DELETE FROM `link_outgoing` WHERE `id`=".$row['id']);
 			$out=$row['step'].'#!#'.$row['command'];
-			if (!file_exists('time-'.$id.'.dat'))
+			if (!flagGet($id,'connect'))
 			{
-				file_put_contents('time-'.$id.'.dat',time());
+				flagSet($id,'connect');
 			}
 		}
 		else
@@ -48,17 +48,18 @@ if (!file_exists('time-'.$id.'.dat') || file_get_contents('time-'.$id.'.dat')+$d
 			$out='0#!#REQUEST';
 		}
 		echo '{data}'.$out;
+		flagSet($id,'answer');
 	}
 }
-elseif (file_exists('time-'.$id.'.dat') && file_get_contents('time-'.$id.'.dat')+$data['carrier_limit']*2.3<time())
+elseif (flagGet($id,'connect') && flagGet($id,'connect',1)+$data['carrier_limit']*2.3<time())
 {
-	setlog('device:'.$id.' ready to restart! ('.(time()-file_get_contents('time-'.$id.'.dat')).') '.$_GET['data'],'link');
-	unlink('time-'.$id.'.dat');
+	setlog('Does not respond! ('.(time()-flagGet($id,'connect',1)).') '.$_GET['data'],'link_'.$id);
+	flagDelete($id,'connect');
 	exit();
 }
-elseif (file_exists('time-'.$id.'.dat') && $_GET['data']=='REQUEST')
+elseif (flagGet($id,'connect') && $_GET['data']=='REQUEST')
 {
-	setlog('device:'.$id.' does not respond! ('.(time()-file_get_contents('time-'.$id.'.dat')).') '.$_GET['data'],'link');
+	setlog('Does not respond! ('.(time()-flagGet($id,'connect',1)).') '.$_GET['data'],'link_'.$id);
 	exit();
 } 
 
@@ -71,8 +72,7 @@ if ($_GET['data']!='REQUEST')
 	`step`=".(int)$_GET['step'].",
 	`answer`='".$_GET['data']."'".$uniq;
 	mysqli_query($db,$qry);
-	unlink('time-'.$id.'.dat');
+	flagDelete($id,'connect');
 }
-
-setlog('device:'.$id.' IN > '.$_GET['step'].' | '.stripslashes($_GET['data']).' OUT > '.$step.' | '.$out,'link');
+setlog('IN > '.$_GET['step'].' | '.stripslashes($_GET['data']).' OUT > '.$step.' | '.$out,'link_'.$id);
 ?>

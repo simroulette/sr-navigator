@@ -1,7 +1,7 @@
 <?
 // ===================================================================
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -51,6 +51,17 @@ if ($result = mysqli_query($db, 'SELECT * FROM `devices` ORDER BY `title`'))
 		$devices[$row['id']]=$row['title'];
 	}
 }
+if (count($devices)<1)
+{
+?>
+<br>
+<em>— Сначала нужно добавить в список свой агрегатор!</em>
+<br><br>
+<a href="setup_devices.php?edit=new" class="link" style="margin: margin: 0 10px 10px 0">Добавить Агрегатор</a>
+<?
+}
+else
+{
 ?>
 <br>
 Ответ Sim Roulette:
@@ -61,6 +72,7 @@ var term_int=<?=$GLOBALS['set_data']['term_int']?>;
 </script>
 <script src="sr/terminal.js" type="text/javascript"></script>
 <form onsubmit="getRequest();return false;">
+<div <? if (count($devices)<2){echo 'style="display:none;"';}?>?>
 <br>
 Агрегатор
 <br>
@@ -74,24 +86,30 @@ var term_int=<?=$GLOBALS['set_data']['term_int']?>;
 	}
 ?>
 </select>
-<br><br>
+<br>
+</div>
+<br>
 Команда:
-<input type="text" id="command_" name="command_" onclick="getRequest();" style="margin: 6px 0 10px 0;">
+<input type="text" id="command" name="command" style="margin: 6px 0 10px 0;">
 Или список команд:<div class="icon_cont"><i class="icon-trash" title="Очистить команды" onclick="document.getElementById('command').value='';"></i></div>
+<?
+/*
 <textarea id="command" name="command"></textarea>
+*/
+?>
 <input type="hidden" id="step" name="step" value="0">
 <br><br>
 <input type="button" value="Отправить" style="padding: 10px; float: left;" onclick="getRequest();return false;">
-<div class="example" onclick="document.getElementById('command_').value='m:help';document.getElementById('command').value='m:help'">m:help</div>
-<div class="example" onclick="document.getElementById('command_').value='restart';document.getElementById('command').value='restart'">restart</div>
-<div class="example" onclick="document.getElementById('command_').value='buffer>';document.getElementById('command').value='buffer'">buffer></div>
-<div class="example" onclick="document.getElementById('command_').value='modem>';document.getElementById('command').value='modem'">modem></div>
-<div class="example" onclick="document.getElementById('command_').value='sms>';document.getElementById('command').value='sms'">sms></div>
+<div class="example" onclick="document.getElementById('command').value='m:help'">m:help</div>
+<div class="example" onclick="document.getElementById('command').value='restart'">restart</div>
+<div class="example" onclick="document.getElementById('command').value='buffer'">buffer></div>
+<div class="example" onclick="document.getElementById('command').value='modem'">modem></div>
+<div class="example" onclick="document.getElementById('command').value='sms'">sms></div>
 <div style="clear: both;"><span></span></div>
 </form>
 Лог команд:<div class="icon_cont"><i class="icon-trash" title="Очистить буфер" onclick="document.getElementById('result_send').innerHTML='';"></i></div>
 <div id="result_send" class="term"></div>
 <?
-
+}
 sr_footer();
 ?>

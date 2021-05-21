@@ -2,7 +2,7 @@
 // ===================================================================
 // Sim Roulette -> AJAX
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -18,25 +18,11 @@ if ($_GET['step'])
 			$step=$row['step'];
 		}
 	}
-	if ($_GET['command_'])
+	if ($c=trim($_GET['command']))
 	{
-		$com=array();
-		$com[0]=$_GET['command_'];
+		sr_command((int)$_GET['device'],$c);
+		echo '<div class="term_item" onclick="document.getElementById(\'command\').value=\''.$c.'\';"><div class="answer_left answer_head">'.srdate('H:i:s').'</div><div class="answer_head">'.$dev.'</div><div class="answer_left" style="text-align: right;">'.$step++.'</div><div>'.$c.'</div></div>'.$str;
 	}
-	else
-	{
-		$com=explode('||',trim($_GET['command']));
-	}
-	$str='';
-	for ($i=0;$i<count($com);$i++)
-	{
-		if ($c=trim($com[$i]))
-		{
-			sr_command((int)$_GET['device'],$c);
-			$str='<div class="term_item" onclick="document.getElementById(\'command_\').value=\''.$c.'\';document.getElementById(\'command\').value=\''.$c.'\';"><div class="answer_left answer_head">'.date('H:i:s').'</div><div class="answer_head">'.$dev.'</div><div class="answer_left" style="text-align: right;">'.$step++.'</div><div>'.$c.'</div></div>'.$str;
-		}
-	}
-	echo $str;
 	$qry="UPDATE `devices` SET
 	`step`=".$step."
 	WHERE `id`=".(int)$_GET['device'];
@@ -46,7 +32,7 @@ if ($_GET['step'])
 $n=0;
 
 // Getting responses from client devices | Получение ответов агрегаторов-клиентов
-if ($result = mysqli_query($db, 'SELECT l.*,unix_timestamp(l.time) AS time, d.title FROM `link_incoming` l LEFT JOIN `devices` d ON d.id=l.device ORDER BY l.`id` LIMIT 5')) 
+if ($result = mysqli_query($db, 'SELECT l.*,unix_timestamp(l.time) AS time, d.title FROM `link_incoming` l INNER JOIN `devices` d ON d.id=l.device ORDER BY l.`id` LIMIT 5')) 
 {
 	while ($row = mysqli_fetch_assoc($result))
 	{
@@ -55,7 +41,7 @@ if ($result = mysqli_query($db, 'SELECT l.*,unix_timestamp(l.time) AS time, d.ti
 		if (!$answer=$row['answer']){$answer='—';}
 		if ($answer=='1'){$answer.=' <span class="comment">TRUE</span>';}
 		if ($answer=='NULL'){$answer.=' <span class="comment">FALSE</span>';}
-		echo '<div class="term_answer_item"><div class="answer_left answer_head">'.date('H:i:s',$row['time']).'</div><div class="answer_head">'.$row['title'].'</div><div class="answer_left" style="text-align: right;">'.$row['step'].'</div><div>'.$answer.'</div></div>';
+		echo '<div class="term_answer_item"><div class="answer_left answer_head">'.srdate('H:i:s',$row['time']).'</div><div class="answer_head">'.$row['title'].'</div><div class="answer_left" style="text-align: right;">'.$row['step'].'</div><div>'.$answer.'</div></div>';
 		exit();
 	}
 }
@@ -71,7 +57,7 @@ if ($result = mysqli_query($db, "SELECT `id` FROM `devices` WHERE `type`='server
 			if (!$n){echo '#!#';} $n++;
 			if ($answer=='1'){$answer.=' <span class="comment">TRUE</span>';}
 			if ($answer=='NULL'){$answer.=' <span class="comment">FALSE</span>';}
-			echo '<div class="term_answer_item"><div class="answer_left answer_head">'.date('H:i:s',time()).'</div><div class="answer_head">'.$row['title'].'</div><div class="answer_left" style="text-align: right;">'.$row['step'].'</div><div>'.$answer.'</div></div>';
+			echo '<div class="term_answer_item"><div class="answer_left answer_head">'.srdate('H:i:s',time()).'</div><div class="answer_head">'.$row['title'].'</div><div class="answer_left" style="text-align: right;">'.$row['step'].'</div><div>'.$answer.'</div></div>';
 		}
 	}
 }

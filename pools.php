@@ -1,19 +1,50 @@
 <?
+// ===================================================================
+// License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
+// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Author: Nikita Zabelin
+// ===================================================================
+
 include("_func.php");
 $status=1;
+if ($_POST['del']) // Deleting a SIM card Pool | Удаление Пула СИМ-карт
+{
+	foreach ($_POST['check'] as $data)
+	{
+		$a=explode(';',$data);
+		$qry="DELETE FROM `cards` WHERE `number`='".$a[0]."'";
+		mysqli_query($db,$qry);
+	}
+	header('location:cards.php');
+	exit();
+}
 if ($_GET['delete']) // Deleting a SIM card Pool | Удаление Пула СИМ-карт
 {
-	$qry="DELETE FROM `card2pool` WHERE `pool`=".(int)$_GET['delete'];
-	mysqli_query($db,$qry);
+	if ($result = mysqli_query($db, 'SELECT * FROM `pools` WHERE `id`='.(int)$_GET['delete'])) 
+	{
+		if ($row = mysqli_fetch_assoc($result))
+		{
+			$qry="DELETE FROM `card2pool` WHERE `pool`=".(int)$_GET['delete'];
+			mysqli_query($db,$qry);
 
-	$qry="DELETE FROM `pools` WHERE `id`=".(int)$_GET['delete'];
-	mysqli_query($db,$qry);
+			$qry="DELETE FROM `pools` WHERE `id`=".(int)$_GET['delete'];
+			mysqli_query($db,$qry);
+		}
+	}
 }
 if ($_POST['merge']) // Combining SIM card Pools | Объединение Пулов СИМ-карт
 {
 	$f=0;
 	foreach ($_POST['check'] as $data)
 	{
+		if ($result = mysqli_query($db, 'SELECT * FROM `pools` WHERE `id`='.(int)$data)) 
+		{
+			if (!mysqli_fetch_assoc($result))
+			{
+				header('location:pools.php');
+				exit();
+			}
+		}
 		if ($f)
 		{
 			if ($result = mysqli_query($db, 'SELECT * FROM `card2pool` WHERE `pool`='.(int)$data.' ORDER BY `card`')) 
@@ -50,6 +81,7 @@ if ($_GET['edit']) // Editing the Pool | Редактирование Пула
 		{
 			$qry="INSERT `pools` SET
 			`title`='".trim($_POST['title'])."',
+			`key`='".md5(rand(0,10000000))."',
 			`time`='".time()."'";
 		}
 		else
@@ -114,20 +146,20 @@ if ($_GET['edit']) // Editing the Pool | Редактирование Пула
 ?>
 <br>
 <?
-	if (!$status)
-	{
-?>
-<div class="status_error">Пул с таким названием уже существует!</div>
-<?
-	}
 	if (!count($_POST['check']))
 	{
 ?>
 <div class="status_error">Телефонные номера не выбраны!</div>
 <?
 	}
-	else
+	else 
 	{
+		if (!$status)
+		{
+?>
+<div class="status_error">Вы не ввели название пула либо пул с таким названием уже существует!</div>
+<?
+		}
 ?>
 <form method="post">
 
@@ -177,19 +209,28 @@ else // List of Pools | Список Пулов
 
 	$table=array();
 
-	if ($result = mysqli_query($db, 'SELECT p.*,(SELECT count(pool) FROM `card2pool` WHERE `pool`=p.id) AS `count`,(SELECT sum(c.balance) FROM `card2pool` cp INNER JOIN `cards` c ON c.`number`=cp.`card` WHERE cp.`pool`=p.id) AS `balance` FROM `pools` p  
+	if ($result = mysqli_query($db, 'SELECT 
+	p.*,
+	(SELECT count(pool) FROM `card2pool` WHERE `pool`=p.id) AS `count`,
+	(SELECT count(c.id) FROM `card2pool` cp INNER JOIN `cards` c ON c.`number`=cp.`card` WHERE cp.`pool`=p.id) AS `realcount`,
+	(SELECT sum(c.balance) 
+	FROM `card2pool` cp 
+	INNER JOIN `cards` c ON c.`number`=cp.`card` WHERE cp.`pool`=p.id) AS `balance` FROM `pools` p  
 	ORDER BY `title`')) 
 	{
 		while ($row = mysqli_fetch_assoc($result))
 		{
 			if (hexdec($row['color'])>8388607){$color='000';} else {$color='FFF';}
+			if ($row['balance']==''){$row['balance']=0;}
 			$table[]=array(
 				'id'=>$row['id'],
 				'title'=>$row['title'],
+				'key'=>$row['key'],
 				'count'=>$row['count'],
+				'realcount'=>$row['realcount'],
 				'balance'=>$row['balance'],
 				'status'=>$row['status'],
-				'time'=>date('H:i d.m.Y',$row['time']),
+				'time'=>srdate('H:i d.m.Y',$row['time']),
 			);
 		}
 	}
@@ -200,15 +241,18 @@ else // List of Pools | Список Пулов
 <br>
 <form method="post" id="cards" name="cards">
 	<table class="table">
+		<thead>
 		<tr>
 			<th><input type="checkbox" onclick="SelectGroup(checked,'cards','check')"></th>
 			<th>Пул</th>
 			<th style="text-align:right;">Номера</th>
-			<th>Баланс</th>
-			<th>Модификация</th>
+			<th class="sidebar">Баланс</th>
+			<th class="sidebar">Модификация</th>
+			<th class="sidebar">Key</th>
 			<th>Действие</th>
 			<th>Статус</th>
 		</tr>  
+		</thead>
 <?
 	$n=0;
 	foreach ($table as $data)
@@ -217,11 +261,12 @@ else // List of Pools | Список Пулов
 		<tr>
 			<td><input type="checkbox" name="check[<?=$n++?>]" id="check" value="<?=$data['id']?>"></td>
 			<td><span class="but_win" data-id="win_action" data-title='Управление пулом "<?=$data['title']?>"' data-type="ajax_pool_action.php?id=<?=$data['id']?>" data-height="400" data-width="600"><?=$data['title']?></span></td>
-			<td align="right"><?=$data['count']?></td>
-			<td><?=balance_out($data['balance'])?></td>
-			<td><?=$data['time']?></td>
+			<td align="right"><?=num_out($data['realcount']).'/'.num_out($data['count'])?></td>
+			<td class="sidebar" align="right"><?=balance_out($data['balance'])?></td>
+			<td class="sidebar"><?=$data['time']?></td>
+			<td class="sidebar"><span class="legend note" onclick="copy('<?=$data['key']?>');soundClick();"><?=$data['key']?></span></td>
 			<td><a href="pools.php?edit=<?=$data['id']?>"><i class="icon-pencil" title="Редактировать пул"></i></a> <a href="pools.php?delete=<?=$data['id']?>"><i class="icon-trash" title="Удалить пул, но оставить телефонные номера"></i></a></td>
-			<td><?=$data['status']?></td>
+			<td><em><?=$data['status']?></em></td>
 		</tr>
 <?
 }

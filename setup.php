@@ -1,7 +1,7 @@
 <?
 // ===================================================================
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -24,10 +24,9 @@ if ($_POST['submit']) // Save the settings | Сохранение настрое
 sr_header("Настройки"); // Output page title and title | Вывод титул и заголовок страницы
 ?>
 <br>
-<form id="form" method="post" target="_parent" enctype="multipart/form-data">
+<form method="post">
 <? 
 $a=explode("\n",$GLOBALS['sets']);
-
 for ($i=0; $i<count($a);$i++)
 {
 	if ($b=trim($a[$i]))

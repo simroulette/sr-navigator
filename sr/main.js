@@ -1,7 +1,7 @@
 // ===================================================================
 // Sim Roulette
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -56,7 +56,7 @@ function SelectGroup(mark,fn,name)
 
 function deleteItem(v)
 {
-	$(v).parent().html('');	
+	$(v).parent().parent().html('');	
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -284,6 +284,43 @@ function getModemStatus()
 						soundAlert();
 					}
 				}
+				else if (txt[3])
+				{
+					if (!txt[4])
+					{
+						if (txt[3]<=0)
+						{
+							document.getElementById('on').style.display='block';
+							document.getElementById('waiting').style.display='none';
+						}
+						else
+						{
+							document.getElementById('on').style.display='none';
+							document.getElementById('answer').style.display='none';
+							document.getElementById('table').style.display='none';
+							document.getElementById('stop').style.display='none';
+							document.getElementById('restart').style.display='none';
+							document.getElementById('clear_sms').style.display='none';
+							document.getElementById('waiting').style.display='inline-block';
+							document.getElementById('waiting').innerHTML='Сеанс начнется через '+txt[3]+' сек.';
+						}
+					}
+					else
+					{
+						if (txt[3]<=0)
+						{
+							document.getElementById('table').style.display='none';
+							document.getElementById('stop').style.display='none';
+							document.getElementById('restart').style.display='none';
+							document.getElementById('clear_sms').style.display='none';
+						}
+						else
+						{
+							document.getElementById('stop').value='Выключить ('+txt[3]+' сек.)';
+							document.getElementById('restart').style.display='inline-block';
+						}
+					}
+				}
 			}
 		}
 	}
@@ -321,15 +358,25 @@ function onlineCreate()
 	var row=document.getElementById('row').value;
 	if (!row){alert('Укажите ряд'); document.getElementById('row').focus(); return false;}
 
-	soundClick();
 	document.getElementById('table').innerHTML='';
 	document.getElementById('table').style.display='block';
 	document.getElementById('answer').style.display='block';
 	document.getElementById('result_receive').innerHTML='';
 	document.getElementById('stop').style.display='inline-block';
-	document.getElementById('reconnect').style.display='inline-block';
 	document.getElementById('clear_sms').style.display='inline-block';
+	soundClick();
 
+	onlineCreateCom(device,row);
+}
+
+function onlineCreateOut(device,row)
+{
+	onlineCreateCom(device,row);
+        document.location.href = "online.php";
+}
+
+function onlineCreateCom(device,row)
+{
 	var Request = new XMLHttpRequest();
 	Request.onreadystatechange = function()
 	{
@@ -352,14 +399,13 @@ function onlineStop()
 	{
 		if (Request.readyState == 4)
 		{
+			soundClick();
 			if (!Request.responseText)
 			{
 				document.getElementById('table').style.display='none';
 				document.getElementById('answer').style.display='none';
 				document.getElementById('stop').style.display='none';
-				document.getElementById('reconnect').style.display='none';
 				document.getElementById('clear_sms').style.display='none';
-				soundClick();
 			}
 			else
 			{
@@ -378,17 +424,32 @@ function onlineReconnect()
 	{
 		if (Request.readyState == 4)
 		{
-			if (!Request.responseText)
-			{
-				soundClick();
-			}
-			else
+			soundClick();
+			if (Request.responseText)
 			{
 				alert(Request.responseText);
 			}
 		}
 	}
 	Request.open("GET", 'ajax_online_reconnect.php?device='+device, true);
+	Request.send(null);
+}
+
+function onlineRestart()
+{
+	var Request = new XMLHttpRequest();
+	Request.onreadystatechange = function()
+	{
+		if (Request.readyState == 4)
+		{
+			soundClick();
+			if (Request.responseText)
+			{
+				alert(Request.responseText);
+			}
+		}
+	}
+	Request.open("GET", 'ajax_online_restart.php?device='+device, true);
 	Request.send(null);
 }
 
@@ -399,11 +460,8 @@ function sendCommand(command)
 	{
 		if (Request.readyState == 4)
 		{
-			if (!Request.responseText)
-			{
-				soundClick();
-			}
-			else
+			soundClick();
+			if (Request.responseText)
 			{
 				alert(Request.responseText);
 			}
@@ -493,7 +551,7 @@ function getProgress(action)
 			else if (ans[1])
 			{
 				document.getElementById('action').innerHTML=ans[1];
-				document.getElementById('progress_percent').innerHTML=ans[0]+'%';
+				document.getElementById('progress_percent').innerHTML=ans[0]+'% (обработано:'+ans[2]+'/успешно:'+ans[4]+'/ошибки:'+ans[3]+' <span class="'+ans[5]+'">'+ans[5]+ans[6]+'</span>)';
 				document.getElementById('progress').value=ans[0];
 			}
 		}
@@ -515,13 +573,21 @@ function getProgressAll(actions)
 				for (i=0;i<ans.length;i++)
 				{
 					var a=ans[i].split(";");
-					if (a[2]==1 && a[1]<100)
+					if (a[9]==1 && a[1]<100)
 					{
-						$('#act_'+a[0]).html('Прогресс '+a[1]+'%<progress id="progress" value="'+a[1]+'" max="100"></progress>');
+						$('#act_'+a[0]).html('Прогресс&nbsp;'+a[1]+'%<progress id="progress" value="'+a[1]+'" max="100"></progress><div class="legend">Обработано: '+(a[2])+'<br>Успешно: '+a[4]+'<br>Ошибки: '+a[3]+'<br>Прошло: '+a[7]+'<br>Ещё: '+a[8]+'<br><span class="'+a[5]+'">'+a[5]+a[6]+'</span></div>');
 					}
-					else if (a[2]==1)
+					else if (a[9]==1)
 					{
-						$('#act_'+a[0]).html('Выполнено');
+						$('#act_'+a[0]).html('Выполнена');
+					}
+					else if (a[9]==2)
+					{
+						$('#act_'+a[0]).html('<span class="warning">Приостановлена</span><br><div class="legend">Прогресс: '+a[1]+'%<br>Обработано: '+(a[2])+'<br>Успешно: '+a[4]+'<br>Ошибки: '+a[3]+'<br></div>');
+					}
+					else if (a[9]==3)
+					{
+						$('#act_'+a[0]).html('Приостанавливается...<progress id="progress" value="'+a[1]+'" max="100"></progress><div class="legend">Обработано: '+(a[2])+'<br>Успешно: '+a[4]+'<br>Ошибки: '+a[3]+'<br>Прошло: '+a[7]+'<br>Ещё: '+a[8]+'<br><span class="'+a[5]+'">'+a[5]+a[6]+'</span></div>');
 					}
 					else
 					{
@@ -540,7 +606,87 @@ function selectDevice(v,sections)
 	sections=sections.split(';');
 	for (i=0;i<sections.length;i++)
 	{
-		$('#'+sections[i]).hide(300);
+		id=sections[i]
+		if (id=='SR-Nano-500' || id=='SR-Nano-1000'){id='SR-Nano';}
+		$('#'+id).hide(300);
 	}
-	$('#'+$(v).find('option:selected').val()).show(300);
+	id=$(v).find('option:selected').val();
+	if (id=='SR-Nano-500' || id=='SR-Nano-1000'){id='SR-Nano';}
+	$('#'+id).show(300);
+}
+
+function FindFile() { document.getElementById('my_hidden_file').click(); }  
+function LoadFile() { document.getElementById('my_hidden_load').click(); }  
+
+function onResponse(d) 
+{  
+	eval('var obj = ' + d + ';');  
+	if(obj.message)
+	{
+        	$("body").css("overflow-y","hidden");
+		height=400;
+		width=600;
+		title='Импорт CSV';
+		$(".dm-overlay").find("h3").html(title);
+		if (height)
+		{
+			$(".dm-overlay").find(".dm-modal").attr("data-height",height);
+		}
+		if (width)
+		{
+			$(".dm-overlay").find(".dm-modal").attr("data-width",width);
+		}
+		$(".dm-overlay").show();
+		win_check(1);
+		$(document).mouseup(function (e){
+			var div = $(".dm-modal");
+			if (!noclose && ((!div.is(e.target) && div.has(e.target).length === 0)) || $(".win-close").is(e.target)) 
+			{
+				document.location.reload();			
+				win_close();
+			}
+		});
+		$(".dm-content").html(obj.message);
+		return; 
+	}; 
+}  
+
+function help() 
+{
+	var Request = new XMLHttpRequest();
+	Request.onreadystatechange = function()
+	{
+		if (Request.readyState == 4)
+		{
+			if (Request.responseText)
+			{
+		        	$("body").css("overflow-y","hidden");
+				height=400;
+				width=600;
+				title='Контекстная помощь';
+				$(".dm-overlay").find("h3").html(title);
+				if (height)
+				{
+					$(".dm-overlay").find(".dm-modal").attr("data-height",height);
+				}
+				if (width)
+				{
+					$(".dm-overlay").find(".dm-modal").attr("data-width",width);
+				}
+				$(".dm-overlay").show();
+				win_check(1);
+				$(document).mouseup(function (e){
+					var div = $(".dm-modal");
+					if (!noclose && ((!div.is(e.target) && div.has(e.target).length === 0)) || $(".win-close").is(e.target)) 
+					{
+						win_close();
+					}
+				});
+				$(".dm-body").html(Request.responseText);
+				return; 
+			}
+		}
+	}
+	Request.open("GET", 'ajax_help.php', true);
+	Request.send(null);
 }

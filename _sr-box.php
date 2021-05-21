@@ -1,6 +1,6 @@
 <?
 // ===================================================================
-// Sim Roulette -> SR-Train functions
+// Sim Roulette -> SR-Box functions
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
 // Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
@@ -34,7 +34,7 @@ function sim_link($dev, $data, $curRow, $modems, $actId, $func, $adata)
 	{
 		$mod[$key]=array();
 	}
-	for ($i=1;$i<17;$i++)
+	for ($i=1;$i<9;$i++)
 	{
 		if (!isset($mod[$i]))
 		{
@@ -43,38 +43,12 @@ function sim_link($dev, $data, $curRow, $modems, $actId, $func, $adata)
 	}
 	// The choice of the row, connecting contacts and enabling the modem | Выбор ряда, подключение контактов и включение модемов
 	if ($curRow==0){$otherRow=$curRow+1;} else {$otherRow=$curRow-1;}
-	sr_command($dev,'row:'.$otherRow.'&&row:'.$curRow.'&&modem>connect&&modem>on');
+	sr_command($dev,'modem>on');
 
 	while ($time_limit>time())
 	{
 		setlog('[sim_link:'.$dev.'] Cicle -> Reconnect:'.$reconnect.', Remaining time:'.($time_limit-time()).' sek.');
 		br($dev,'act_'.$actId.'_stop');
-		if ($reconnect>5 && $reconnect<10)
-		{
-			sr_command($dev,'row:'.$otherRow.'&&row:'.$curRow.'&&modem>connect&&modem>on');
-			$reconnect=10;
-			$connect=time();
-			setlog('[sim_link:'.$dev.'] Repositioning of the modem');
-		}
-		elseif ($reconnect>20 && $reconnect<100)
-		{
-			// Changing the modem line | Меняем линию модемов
-			if ($curRow<=$max_row-3)
-			{
-				$modem_shift=1;
-			}
-			elseif ($curRow>=3)
-			{
-				$modem_shift=-1;
-			}
-			if ($modem_shift!=0)
-			{
-				sr_command($dev,'row:'.($curRow+$modem_shift*3).'&&modem>connect&&modem>on');
-			}
-			$reconnect=100;
-			$connect=time();
-			setlog('[sim_link:'.$dev.'] Connecting another modem line');
-		}
 
 		$error='';
 		setlog('[sim_link:'.$dev.'] Getting information about operators');
@@ -188,7 +162,7 @@ function online_mode($dev, $curRow, $modems)
 //	$dev		Device ID
 //	$curRow	        Panel row for positioning 1 modem line
 //	$modems	        List of modems to process
-	global $db,$pdu;
+	global $pdu,$db;
 
 	setlog('[online_mode:'.$dev.'] Start');
 	$max_row=19;
@@ -200,7 +174,7 @@ function online_mode($dev, $curRow, $modems)
 	sr_answer_clear($dev);
 	if ($curRow==0){$r=$curRow+1;} else {$r=$curRow-1;}
 
-	sr_command($dev,'row:'.$r.'&&row:'.$curRow.'&&modem>connect'.'&&modem>on');
+	sr_command($dev,'modem>on');
 	$mm=array();
 
 	while (1)
@@ -246,7 +220,7 @@ function online_mode($dev, $curRow, $modems)
 				if ($error)
 				{
 					setlog('[online_mode:'.$dev.'] Restarting the modem: '.$error);
-					sr_command($dev,'modem>pack:AT+CFUN=1,1##'.$error.'##1'); // Перезапуск модемов 
+					sr_command($dev,'modem>on&&modem>pack:AT+CFUN=1,1##'.$error.'##1'); // Перезапуск модемов 
 
 				}
 				$getCops=4;
@@ -274,19 +248,18 @@ function online_mode($dev, $curRow, $modems)
 								$smsNum=explode(',',$data[$i]);
 								$smsNum=$smsNum[0];
 								setlog('[online_mode:'.$dev.'] SMSnum: '.$smsNum); // Подготовка SMS
-						
+					
 								$raw=explode("\n",$data[$i]);
 								$sms=$pdu->pduToText($raw[1]);
 								setlog('[online_mode:'.$dev.'] SMS: '.print_r($sms,1)); // Подготовка SMS
 				
-								if ($m>8){$p=$m-8;$r=$curRow+3;} else {$p=$m;$r=$curRow;}
-								if ($result = mysqli_query($db, "SELECT * FROM `cards` WHERE `place`='".$r."-".$p."' AND `device`=".$dev)) 
+								if ($result = mysqli_query($db, "SELECT * FROM `cards` WHERE `place`='".$curRow."-".$m."' AND `device`=".$dev)) 
 								{
 									if ($row = mysqli_fetch_assoc($result))
 									{
                        								if (trim($sms['userDataHeader']))
 										{
-											$qry="`header`='".trim($sms['userDataHeader'])."'";
+											$qry="`header`='".$sms['userDataHeader']."'";
 											$smsNum=0;
 										}
 										else
@@ -303,6 +276,7 @@ function online_mode($dev, $curRow, $modems)
 										`txt`='".$sms['message']."',
 										".$qry;
 										mysqli_query($db,$qry);
+										setlog('[online_mode:'.$dev.'] '.$qry);
 										setlog('[online_mode:'.$dev.'] SMS saved'); // SMS сохранена
 							    			if ($GLOBALS['set_data']['email'])
 										{
@@ -321,7 +295,7 @@ function online_mode($dev, $curRow, $modems)
 							{
 								setlog('[online_mode:'.$dev.'] Deleting all SMS messages from the SIM card');
 								sr_command($dev,'modem>select:'.$m.'&&modem>send:AT+CMGDA=5'); // Удаление всех SMS с SIM-карты
-							$smsNum=0;
+								$smsNum=0;
 							}
 						}
 					}

@@ -2,7 +2,7 @@
 // ===================================================================
 // Sim Roulette -> AJAX
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -56,7 +56,7 @@ if ($_GET['action'])
 <br>
 Номер или команда
 </div>
-<input type="text" id="phone2" maxlength="15" placeholder="Номер">
+<input type="text" id="phone2" maxlength="30" placeholder="Номер">
 <br>
 <br>
 <input type="button" onclick="onlineCommand(<?=$_GET['modem']?>,'call',document.getElementById('phone2').value,'');" value="Набрать номер" style="padding: 10px; margin-top: 5px">

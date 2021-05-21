@@ -1,6 +1,8 @@
 .dm-overlay {
 	position: fixed;
+/*
 	overflow: hidden !important;
+*/
 	top: 0;
 	left: 0;
 	display: none;
@@ -41,7 +43,7 @@
 	animation: fade .8s;
 }
 .dm-modal .dm-head {
-	background: #32c5d2;	
+	background: #ffbb00;	
 	padding: 12px 20px 12px 20px;
 }
 .dm-modal .dm-head h3 {
@@ -53,6 +55,10 @@
 	margin-top: 5px;
 	padding: 20px;
 	overflow-x: hidden;	
+}
+.dm-body {
+	height: 303px;
+	overflow: auto;	
 }
 .dm-modal .dm-content {
 	margin-bottom: 60px;

@@ -2,7 +2,7 @@
 // ===================================================================
 // Sim Roulette -> AJAX
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -13,35 +13,56 @@ if ($_GET['action'])
 	{
 		if ($row = mysqli_fetch_assoc($result))
 		{
-			$s=round($row['progress']/($row['count']/100+0.000001),2);
-			if ($s>100){$s=100;}
+			$p=round($row['progress']/($row['count']/100+0.000001),2);
+			$e=$row['errors'];
+			$s=$row['success'];
+			$pd=$row['progress'];
+			if ($p>100){$p=100;}
+			$access=flagGet($row['device'],'answer',1);
+			if ($access+30<time()){$o='Offline';$t=': '.time_calc(time()-$access);} else {$o='Online';$t='';}
 			if ($row['status']=='inprogress')
 			{
-				$p='Задача выполняется...';
+				$m='<em>Задача выполняется...</em><br><br>';
 			}
 		}
 		else
 		{
-			$s=100;
+			$p=100;
 		}
 	}
-	echo $s.';'.$p;
+	echo $p.';'.$m.';'.$pd.';'.$e.';'.$s.';'.$o.';'.$t;
 }
 else
 {
 	$txt='';
 	$actions=';'.$_GET['actions'].';';
-	if ($result = mysqli_query($db, "SELECT * FROM `actions`")) 
+	$a=explode(';',$_GET['actions']);
+	if ($result = mysqli_query($db, "SELECT * FROM `actions` WHERE `id` IN (".implode(',',$a).")")) 
 	{
 		while ($row = mysqli_fetch_assoc($result))
 		{
 			$actions=str_replace(';'.$row['id'].';',';',$actions);
-			$s=round($row['progress']/($row['count']/100+0.000001),2);
-			if ($s>100){$s=100;}
-			$txt.=$row['id'].';'.$s.';';
+			$p=round($row['progress']/($row['count']/100+0.000001),2);
+			if ($p>100){$p=100;}
+			$e=$row['errors'];
+			$s=$row['success'];
+			$pd=$row['progress'];
+			$access=flagGet($row['device'],'answer',1);
+			if ($access+30<time()){$o='Offline';$t=': '.time_calc(time()-$access);} else {$o='Online';$t='';}
+			$el=time_calc(time()-$row['time']);
+			$lt=time_calc(($row['count']-$row['progress'])*((time()-$row['time'])/$row['progress']));
+			$txt.=$row['id'].';'.$p.';'.$pd.';'.$e.';'.$s.';'.$o.';'.$t.';'.$el.';'.$lt.';';
 			if ($row['status']=='inprogress')
 			{
 				$txt.='1###';
+			}
+			elseif ($row['status']=='suspended')
+			{
+				$txt.='2###';
+			}
+			elseif ($row['status']=='suspension')
+			{
+				$txt.='3###';
 			}
 			else
 			{
@@ -55,7 +76,7 @@ else
 		$actions=explode(';',$actions);
 		foreach ($actions AS $key=>$data)
 		{
-			$txt.=$data.';100;1###';
+			$txt.=$data.';100;;;;;;;;1###';
 		}
 	}
 	echo $txt;

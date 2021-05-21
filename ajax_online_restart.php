@@ -7,5 +7,13 @@
 // ===================================================================
 
 include("_func.php");
-action_stop($_GET['action']);
-?>Задача остановлена
+if (flagGet($_GET['device'],'busy',0)==$GLOBALS['sv_staff_id'])
+{
+	if ($GLOBALS['sv_owner_id']){flagSet($_GET['device'],'busy',$GLOBALS['sv_staff_id']);}
+	echo 'Сеанс продлен!';
+}
+else
+{
+	echo 'Вы не можете продлить этот сеанс!';
+}
+?>

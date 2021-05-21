@@ -1,7 +1,7 @@
 // ===================================================================
 // Sim Roulette
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -39,8 +39,7 @@ function SendRequest(url)
 	Request.send(null);
 }
 function getRequest(){
-	var com=encodeURIComponent(document.getElementById('command').value.split('\n').join('||'));
-	var com_=encodeURIComponent(document.getElementById('command_').value);
+	var com=encodeURIComponent(document.getElementById('command').value);
 	document.getElementById('step').value=parseInt(document.getElementById('step').value)+1;
-	SendRequest('terminal_answer.php?step='+document.getElementById('step').value+'&command='+com+'&command_='+com_+'&device='+document.getElementById('device').value);
+	SendRequest('terminal_answer.php?step='+document.getElementById('step').value+'&command='+com+'&device='+document.getElementById('device').value);
 }
