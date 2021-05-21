@@ -10,10 +10,19 @@ include("_func.php");
 
 $s=onlineTable((int)$_GET['device']);
 $numb=$s[1];
+$staff=$time=flagGet($_GET['device'],'busy',1);
+$time=$time+300-time();
 
-if (!$numb=$s[1])
+if (!$numb || ($GLOBALS['sv_staff_id'] && $GLOBALS['sv_staff_id']!=flagGet((int)$_GET['device'],'busy')))
 {
-	echo 'hide#-#'.$id.'#-#';
+	if ($numb)
+	{
+		echo 'hide#-#'.$id.'#-#'.'#-#'.$time;
+	}
+	else
+	{
+		echo 'hide#-#'.$id.'#-#';
+	}
 	exit();
 }
 
@@ -40,25 +49,25 @@ if (!$_GET['txt'])
 	$answer=onlineView($numb);
 	$id=$answer[1];
 	$answer=$answer[0];
+	setlog($_GET['device'].'-'.$id,'test');
 }
 elseif ($number)
 {
 	$txt=preg_replace('!([0-9]{4,20})!','<span class="note" onclick="copy(\'$1\');soundClick();">$1</span>',$txt);
-	$answer='<div class="term_answer_item"><div class="answer_left answer_head" style="width: 100px;">'.srdate('H:i:s d.m',$time).'</div><div class="answer_head">'.$sender.'</div><div class="answer_left" style="width: 100px; margin-bottom: 10px;">'.$number.'</div><div>'.$txt.'</div></div>';
+	$answer='<div class="term_answer_item"><div class="answer_left answer_head" style="width: 120px;">'.srdate('H:i:s d.m',$time).'</div><div class="answer_head">'.$sender.'</div><div class="answer_left" style="width: 120px; margin-bottom: 10px;">'.$number.'</div><div>'.$txt.'</div></div>';
 	$sound='#-#1';
 }
+
 if ($GLOBALS['sv_staff_id'])
 {
-	$time=flagGet($_GET['device'],'busy',1);
-	$time=$time+300-time();
-
 	$msg='#-#'.$time;
+	
 	if (flagGet($_GET['device'],'busy',0)==$GLOBALS['sv_staff_id'])
 	{
 		$msg.='#-#1';
 	}
 
-	if ($time<=0)
+	if ($time<=0 && flagGet($_GET['device'],'busy'))
 	{
 		mysqli_query($db, "DELETE FROM `modems` WHERE `device`=".(int)$_GET['device']);
 		if (flagGet($_GET['device'],'cron'))
@@ -76,5 +85,10 @@ if ($GLOBALS['sv_staff_id'])
 		flagDelete($_GET['device'],'busy');
 	}
 }
+elseif ($staff && $time>0)
+{
+	$msg='#-#До конца сеанса <b>'.flagGet($_GET['device'],'staff').': '.$time.' сек.</b>#-#-1';
+}
+
 echo $s.'#-#'.$id.'#-#'.$answer.$sound.$msg;
 ?>

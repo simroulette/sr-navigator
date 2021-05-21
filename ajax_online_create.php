@@ -40,7 +40,16 @@ if ($model=='SR-Train') // SR Train
 		$modems[$mod[$i]]=array($_GET['row'],-3);
 	}
 	mysqli_query($db, "REPLACE INTO `modems` SET `device`=".(int)$_GET['device'].", `modems`='".serialize($modems)."', `time`=".time()); 
-	if ($GLOBALS['sv_owner_id']){flagSet($_GET['device'],'busy',$GLOBALS['sv_staff_id']);}
+	if ($GLOBALS['sv_owner_id'])
+	{
+		flagSet($_GET['device'],'busy',$GLOBALS['sv_staff_id']);
+		flagSet($_GET['device'],'staff',$_COOKIE['login']);
+	} 
+	else 
+	{
+		flagDelete($_GET['device'],'busy');
+		flagDelete($_GET['device'],'staff');
+	}
 }
 elseif ($model=='SR-Organizer') // SR Organizer
 {
@@ -60,7 +69,16 @@ elseif ($model=='SR-Organizer') // SR Organizer
 	if ($modems[2][0]!=$r[1]){$modems[2]=array($r[1],-3);}
 
 	mysqli_query($db, "REPLACE INTO `modems` SET `device`=".(int)$_GET['device'].", `modems`='".serialize($modems)."', `time`=".time()); 
-	if ($GLOBALS['sv_owner_id']){flagSet($_GET['device'],'busy',$GLOBALS['sv_staff_id']);}
+	if ($GLOBALS['sv_owner_id'])
+	{
+		flagSet($_GET['device'],'busy',$GLOBALS['sv_staff_id']);
+		flagSet($_GET['device'],'staff',$_COOKIE['srlogin']);
+	} 
+	else 
+	{
+		flagDelete($_GET['device'],'busy');
+		flagDelete($_GET['device'],'staff');
+	}
 }
 elseif ($model=='SR-Box-8') // SR Box
 {
@@ -70,15 +88,39 @@ elseif ($model=='SR-Box-8') // SR Box
 		$modems[$mod[$i]]=array($_GET['row'],-3);
 	}
 	mysqli_query($db, "REPLACE INTO `modems` SET `device`=".(int)$_GET['device'].", `modems`='".serialize($modems)."', `time`=".time()); 
-	if ($GLOBALS['sv_owner_id']){flagSet($_GET['device'],'busy',$GLOBALS['sv_staff_id']);}
+	if ($GLOBALS['sv_owner_id'])
+	{
+		flagSet($_GET['device'],'busy',$GLOBALS['sv_staff_id']);
+		flagSet($_GET['device'],'staff',$_COOKIE['srlogin']);
+	} 
+	else 
+	{
+		flagDelete($_GET['device'],'busy');
+		flagDelete($_GET['device'],'staff');
+	}
 }
 elseif (strpos($model,'SR-Nano')!==false) // SR Nano
 {
-	if ($result = mysqli_query($db, 'SELECT `place` FROM `cards` WHERE (`place`="'.$_GET['row'].'" OR `number` LIKE "%'.$_GET['row'].'%" OR `comment`="%'.$_GET['row'].'%" OR `title` LIKE "%'.$_GET['row'].'%") LIMIT 1')) 
+	if ($sv_staff_id)
+	{
+		$qry='SELECT c.`place` FROM `cards` c
+		INNER JOIN `card2pool` p ON p.`card`=c.`number` AND p.`pool`='.$sv_pool.' 
+		WHERE (c.`place`="'.$_GET['row'].'" OR c.`number` LIKE "%'.$_GET['row'].'%" OR c.`comment`="%'.$_GET['row'].'%" OR c.`title` LIKE "%'.$_GET['row'].'%") LIMIT 1';
+	}
+	else
+	{
+		$qry='SELECT `place` FROM `cards` WHERE (`place`="'.$_GET['row'].'" OR `number` LIKE "%'.$_GET['row'].'%" OR `comment`="%'.$_GET['row'].'%" OR `title` LIKE "%'.$_GET['row'].'%") LIMIT 1';
+	}
+	if ($result = mysqli_query($db, $qry)) 
 	{
 		if ($row = mysqli_fetch_assoc($result))
 		{
 			$_GET['row']=$row['place'];
+		}
+		elseif ($sv_staff_id)
+		{
+			echo 'Доступ запрещен! Выберите номер из списка внизу экрана...';
+			exit();
 		}
 		else
 		{
@@ -107,7 +149,16 @@ elseif (strpos($model,'SR-Nano')!==false) // SR Nano
 		}
 	}
 	mysqli_query($db, "REPLACE INTO `modems` SET `device`=".(int)$_GET['device'].", `modems`='".serialize(array(strtoupper($_GET['row']),-3))."', `time`=".time()); 
-	if ($GLOBALS['sv_owner_id']){flagSet($_GET['device'],'busy',$GLOBALS['sv_staff_id']);}
+	if ($GLOBALS['sv_owner_id'])
+	{
+		flagSet($_GET['device'],'busy',$GLOBALS['sv_staff_id']);
+		flagSet($_GET['device'],'staff',$_COOKIE['srlogin']);
+	} 
+	else 
+	{
+		flagDelete($_GET['device'],'busy');
+		flagDelete($_GET['device'],'staff');
+	}
 }
 if (flagGet($_GET['device'],'cron'))
 {

@@ -16,6 +16,8 @@ if (flagGet($_GET['device'],'cron'))
 		flagSet($_GET['device'],'stop');
 	}
 	flagDelete($_GET['device'],'cron');
+	flagDelete($_GET['device'],'busy');
+	flagDelete($_GET['device'],'staff');
 }
 elseif (flagGet($_GET['device'],'stop',1)<time()-60)
 {

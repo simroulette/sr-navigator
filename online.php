@@ -68,8 +68,13 @@ $res=onlineTable((int)$_GET['device']);
 
 if ($sv_staff_id)
 {
+?>
+<script>
+var owner=0; 
+</script>
+<?
 	$busy=1;
-	if (flagGet($_GET['device'],'busy',0)==$sv_staff_id)
+	if (flagGet($_GET['device'],'busy')==$sv_staff_id)
 	{
 		$busy=0;
 	}
@@ -84,6 +89,11 @@ if ($sv_staff_id)
 }
 else
 {
+?>
+<script>
+var owner=1; 
+</script>
+<?
 	$busy=0;
 }
 ?>
@@ -92,23 +102,28 @@ else
 <br>
 Ряд, Место, Телефон
 </div>
-<form id="form" onsubmit="onlineCreate(); return false;">
+<form id="form" onsubmit="<? if (!$sv_staff_id){?>onlineCreate(); <? } ?>return false;">
 <input type="text" id="row" value="<?=$res[2]?>" maxlength="12" placeholder="Начальный ряд, (например: 1 - будут задействованы ряды 1 и 4), место (A0) или часть номера">
 </form>
 <div class="sidebar" style="margin-bottom: 10px;"></div>
-<div class="tablo" id="waiting" style="display: <?=($busy ? 'block' : 'none'); ?>;">Ожидайте начала сеанса...</div>
+<div class="tablo" id="waiting" style="display: <?=($busy ? 'inline-block' : 'none'); ?>;">Ожидайте начала сеанса...</div>
+<div class="tablo" id="session" style="margin: 0 30px 20px 0; display: none;"></div>
 <input type="submit" id="on" onclick="onlineCreate();return false;" value="Включить" class="green" style="padding: 10px; margin: 0 10px 12px 0; display: <?=(!$busy ? 'inline-block' : 'none'); ?>">
-<input type="submit" id="stop" onclick="onlineStop();return false;" value="Выключить" style="background:#FF0000; padding: 10px; margin: 0 10px 7px 0;<? if (!$res[3]){echo ' display: none;';}?>">
+<input type="submit" id="stop" onclick="onlineStop();return false;" value="Выключить" style="background:#FF0000; padding: 10px; margin: 0 10px 7px 0;<? if (!$res[3] || $sv_staff_id){echo ' display: none;';}?>">
 <input type="submit" id="restart" onclick="onlineRestart();return false;" value="Продлить сеанс" style="background:#0066BB; padding: 10px; margin: 0 10px 7px 0; display: none;">
-<input type="submit" id="clear_sms" onclick="sendCommand('clear_sms');return false;" value="Очистить память SMS на SR" style="background:#0066BB; padding: 10px; margin: 0;<? if (!$res[3]){echo ' display: none;';}?>">
+<input type="submit" id="clear_sms" onclick="sendCommand('clear_sms');return false;" value="Очистить память SMS на SR" style="background:#0066BB; padding: 10px; margin: 0;<? if (!$res[3] || $sv_staff_id){echo ' display: none;';}?>">
 
 <div id="table" style="margin: 20px 0;">
 <?
-	echo $res[0];
+
+	if (!$sv_staff_id)
+	{
+		echo $res[0];
+	}
 ?>
 </div>
 
-<div id="answer"<? if (!$res[3]){echo ' style="display: none;"';}?>>
+<div id="answer"<? if (!$res[3] || $sv_staff_id){echo ' style="display: none;"';}?>>
 Принятые SMS:
 <div class="icon_cont"><i class="icon-trash" title="Очистить список" onclick="document.getElementById('result_receive').innerHTML='<div style=\'display:none\'></div>';"></i></div>
 <div id="result_receive" class="term_answer" style="height: 200px;"><?
