@@ -113,7 +113,7 @@ CREATE TABLE `flags` (
   `time` int NOT NULL DEFAULT '0',
   `name` varchar(15) NOT NULL DEFAULT '',
   `device` int NOT NULL DEFAULT '0',
-  `value` varchar(32) NOT NULL DEFAULT '1',
+  `value` varchar(32) NOT NULL DEFAULT '1'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT;
 
 DROP TABLE IF EXISTS `folders`;
