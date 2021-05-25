@@ -50,6 +50,9 @@ if ($_POST['save'])
 		}
 		else
 		{
+
+			mysqli_set_charset($db, 'utf8');
+
 			$qry=explode("\n\n",str_replace("\r","",file_get_contents('install.dat')));
 			foreach ($qry as $data)
 			{
