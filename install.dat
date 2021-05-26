@@ -216,6 +216,22 @@ CREATE TABLE `reports` (
   `user_id` int NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT;
 
+DROP TABLE IF EXISTS `sms_incoming`;
+
+CREATE TABLE `sms_incoming` (
+  `id` int NOT NULL,
+  `time` int NOT NULL DEFAULT '0',
+  `time_receive` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `modified` int NOT NULL DEFAULT '0',
+  `number` varchar(15) NOT NULL DEFAULT '',
+  `sender` varchar(15) NOT NULL DEFAULT '',
+  `txt` text NOT NULL,
+  `header` varchar(17) NOT NULL DEFAULT '',
+  `done` tinyint(1) NOT NULL DEFAULT '0',
+  `readed` tinyint(1) NOT NULL DEFAULT '0',
+  `user_id` int NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 DROP TABLE IF EXISTS `staff`;
 
 CREATE TABLE `staff` (
@@ -346,6 +362,17 @@ ALTER TABLE `reports`
   ADD KEY `time` (`time_begin`),
   ADD KEY `user_id` (`user_id`);
 
+ALTER TABLE `sms_incoming`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `time` (`time`),
+  ADD KEY `sender` (`sender`),
+  ADD KEY `readed` (`readed`),
+  ADD KEY `number` (`number`),
+  ADD KEY `modified` (`modified`) USING BTREE,
+  ADD KEY `user_id` (`user_id`),
+  ADD KEY `header` (`header`),
+  ADD KEY `time_receive` (`time_receive`);
+
 ALTER TABLE `staff`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `login` (`login`),
@@ -400,6 +427,9 @@ ALTER TABLE `pools`
   MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 ALTER TABLE `reports`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `sms_incoming`
   MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 ALTER TABLE `staff`

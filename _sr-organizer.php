@@ -1,6 +1,6 @@
 <?
 // ===================================================================
-// Sim Roulette -> SR-Nano functions
+// Sim Roulette -> SR-Organizer functions
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
 // Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
