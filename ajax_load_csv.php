@@ -24,7 +24,7 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 		$a=iconv('windows-1251//IGNORE', 'UTF-8//IGNORE', $a);
 	}
 	
-	$a=explode("\r",$a);
+	$a=explode("\n",$a);
 
 // Импорт с SR-Nano
 	if (strpos($a[0],'Track:')!==false)
