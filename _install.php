@@ -6,6 +6,8 @@
 // Author: Nikita Zabelin
 // ===================================================================
 
+$GLOBALS['set_data']['main_menu']='Установка - index.php';
+
 if ($_POST['save'])
 {
 	if (!file_exists($_POST['root'].'/_install.php'))
@@ -79,9 +81,9 @@ if ($_POST['save'] && !$error)
 	unlink('_install.php');
 ?>
 <div class="status_ok">SR Navigator успешно установлен!</div>
-Пропишите в планировщике CRONTAB ежеминутный запуск файла <b><?=__DIR__?>/cron.php</b>
-<br><br>	
-<a href="index.php">Начать работу</a>
+— Пропишите в планировщике CRONTAB ежеминутный запуск файла <b><?=__DIR__?>/cron.php</b>
+<br><br><br><br>	
+<a href="index.php" class="green-border">Начать работу</a>
 <?
 }
 if (!$_POST['save'] || $error)
@@ -120,7 +122,8 @@ if (!$_POST['save'] || $error)
 <br>
 <input type="text" name="dbname" value="<?=$dbname?>" maxlength="100">
 <br><br>
-<input type="submit" name="save" value="Установить" style="padding: 10px;">
+<div id="loading"><img src="sr/loading.gif"></div>
+<input type="submit" name="save" value="Установить" onclick="this.style.display='none';document.getElementById('loading').style.display='block';" style="padding: 10px;">
 </form>
 <?
 }

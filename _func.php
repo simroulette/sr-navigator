@@ -135,7 +135,7 @@ function sr_header($title,$win='')
 
 <div id="menu_cont"></div>
 <table height="100%" width="100%">
-<tr class="status"><td width="1%" style="background:#171717;border-bottom: 1px solid #505050;" class="sidebar"></td><td id="status"></td></tr><tr><td bgcolor="#363636" class="sidebar"><a href="index.php"><img src="sr/logo.gif" class="logo" title="На главную страницу"></a></td><td class="head"><div class="mobilemenu" id="m" onclick="menuToggle(this)"><div class="bar1"></div><div class="bar2"></div><div class="bar3"></div></div><div class="sidebar" style="float: right;"><?=($GLOBALS['sv_owner_id']?$GLOBALS['sv_owner_id']:$GLOBALS['set_data']['admin_login'])?> [<a href="index.php?mode=logout">выход</a>]</div></td></tr><tr><td height=99% class="sidebar panel" valign="top">
+<tr class="status"><td width="1%" style="background:#171717;border-bottom: 1px solid #505050;" class="sidebar"></td><td id="status"></td></tr><tr><td bgcolor="#363636" class="sidebar"><a href="index.php"><img src="sr/logo.gif" class="logo" title="На главную страницу"></a></td><td class="head"><div class="mobilemenu" id="m" onclick="menuToggle(this)"><div class="bar1"></div><div class="bar2"></div><div class="bar3"></div></div><? if ($GLOBALS['sv_user_id']){?><div class="sidebar" style="float: right;"><?=($GLOBALS['sv_owner_id']?$GLOBALS['sv_owner_id']:$GLOBALS['set_data']['admin_login'])?> [<a href="index.php?mode=logout">выход</a>]</div><? } ?></td></tr><tr><td height=99% class="sidebar panel" valign="top">
 
 <div id="menu">
 <?
@@ -170,7 +170,7 @@ function sr_footer()
 {
 ?><br></td></tr>
 <tr><td class="bottom sidebar">© <a href="http://x0.ru">X0 Systems</a>, 2016 — <?=srdate('Y')?></td>
-<td class="bottom" align="right"><div class="extinfo" style="float: left;"><?=($GLOBALS['sv_owner_id']?$GLOBALS['sv_owner_id']:$GLOBALS['set_data']['admin_login'])?> [<a href="index.php?mode=logout">выход</a>]</div></td>
+<td class="bottom" align="right"><? if ($sv_user_id){?><div class="extinfo" style="float: left;"><?=($GLOBALS['sv_owner_id']?$GLOBALS['sv_owner_id']:$GLOBALS['set_data']['admin_login'])?> [<a href="index.php?mode=logout">выход</a>]</div><? } ?></td>
 </tr>
 </table>
 </body>

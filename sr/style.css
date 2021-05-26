@@ -376,7 +376,7 @@ tr .rowsel {
 	margin-right: 20px;
 }
 .answer_fix {
-	width: 100px; 
+	width: 120px; 
 	margin-bottom: 10px; 
 }
 .example {
@@ -430,7 +430,7 @@ tr .rowsel {
 .mainblanc {
 	height: 100%;
 	margin-top: 15px;
-	background-image: url(/sign.gif);
+	background-image: url(sign.gif);
 	background-position: right bottom;
 	background-repeat: no-repeat;
 }
@@ -617,4 +617,20 @@ and (max-device-width : 480px) {
 	background: #f5da98;
 	border: 2px solid #dca938;
 	color: #000;
+}
+but {
+	color: #000;
+	padding: 5px 10px;
+	background: #DDD;
+	border: 1px solid #BBB;
+	border-radius: 10px;
+	opacity: 0.5;
+}
+.green-border {
+	border: 2px solid #6ead21;
+	border-radius: 12px;
+	padding: 20px;
+}
+#loading {
+	display: none;
 }
