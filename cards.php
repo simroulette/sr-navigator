@@ -342,6 +342,7 @@ else
 ';
 			}
 		}
+		echo $str;
 		exit();
 	}
 	sr_header("Список СИМ-карт"); // Output page title and title | Вывод титул и заголовок страницы
