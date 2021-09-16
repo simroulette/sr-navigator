@@ -26,8 +26,8 @@ if ($_GET['edit']) // Editing the staffer | Редактирование сот�
 			`name`='".$_POST['name']."',
 			`pass`='".$_POST['pass']."',
 			`pool`=".(int)$_POST['pool'].",
-			`time`='".time()."'
-			WHERE `id`=".(int)$_GET['edit'];
+			`timer`=".(int)$_POST['session'].",
+			`time`='".time()."'";
 			mysqli_query($db,$qry);
 		}
 
@@ -38,6 +38,7 @@ if ($_GET['edit']) // Editing the staffer | Редактирование сот�
 			`login`='".$_POST['login']."',
 			`pass`='".$_POST['pass']."',
 			`pool`=".(int)$_POST['pool'].",
+			`timer`=".(int)$_POST['session'].",
 			`time`='".time()."'";
 			mysqli_query($db,$qry);
 			if (mysqli_insert_id($db)) 
@@ -68,6 +69,7 @@ if ($_GET['edit']) // Editing the staffer | Редактирование сот�
 				$_POST['login']=$row['login'];
 				$_POST['pass']=$row['pass'];
 				$_POST['pool']=$row['pool'];
+				$_POST['session']=$row['timer'];
 			}
 		}
 	}
@@ -118,6 +120,10 @@ else if ($status=='pass')
 ?>
 </select>
 <br><br>
+Время сеанса (в секундах)
+<br>
+<input type="text" name="session" value="<?=$_POST['session']?>" maxlength="3">
+<br><br>
 <input type="submit" name="save" value="Сохранить" style="padding: 10px;">
 </form>
 <?
@@ -144,10 +150,15 @@ else // List of staffers | Список сотрудников
 	{
 ?>
 <br>
-<table class="table table_adaptive">
+<table class="table table_sort table_adaptive">
+	<tr>
 	<thead>
-		<tr><th>Сотрудник</th><th>Логин</th><th>Пул</th><th></th></tr>  
+		<tr><th>Сотрудник</th>
+		<th>Логин</th>
+		<th>Пул</th>
+		<th></th></tr>  
 	</thead>
+	</tr>
 <?
 	foreach ($table as $data)
 {

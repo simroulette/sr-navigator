@@ -7,14 +7,14 @@
 // ===================================================================
 
 include("_func.php");
-$actions=array('dev_truncate|Удалить полученные номера');//,'get_number|Получить номера SIM-карт','get_balance|Получить балансы SIM-карт','get_number;get_balance|Получить номера и балансы');
+$actions=array('dev_init|Инициализировать агрегатор','dev_truncate|Удалить полученные номера');//,'get_number|Получить номера SIM-карт','get_balance|Получить балансы SIM-карт','get_number;get_balance|Получить номера и балансы');
 if ($result = mysqli_query($db, 'SELECT `model` FROM `devices` WHERE `id`='.(int)$_GET['id'])) 
 {
 	if ($row = mysqli_fetch_assoc($result))
 	{
 		if ($row['model']=='SR-Train') // SR Train
 		{
-			$actions=array('dev_rows|Получить длину пути','dev_truncate|Удалить полученные номера');//,'get_number|Получить номера SIM-карт','get_balance|Получить балансы SIM-карт','get_number;get_balance|Получить номера и балансы');
+			$actions=array('dev_init|Инициализировать агрегатор','dev_rows|Получить длину пути','dev_truncate|Удалить полученные номера');//,'get_number|Получить номера SIM-карт','get_balance|Получить балансы SIM-карт','get_number;get_balance|Получить номера и балансы');
 		}
 	}
 }

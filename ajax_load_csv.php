@@ -2,7 +2,7 @@
 // ===================================================================
 // Sim Roulette -> AJAX
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -17,6 +17,7 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 	$cards=array();
 	$dev=array();
 	$operators=array();
+
 	$a=trim(file_get_contents($file));
 
 	if (mb_detect_encoding($a, 'UTF-8, Windows-1251')=='Windows-1251')
@@ -57,9 +58,7 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 				if ($number[1])
 				{
 					$count++;
-					$b=explode(';',$a);
-
-					$qry="DELETE FROM `cards2folder` WHERE (`number`='".$number[1]."' OR `place`='".$track.($i-1)."')";
+					$qry="DELETE FROM `cards2folder` WHERE (`number`='".(int)$number[1]."' OR `place`='".$track.($i-1)."')";
 					mysqli_query($db,$qry);
 
 					$qry="INSERT INTO `cards2folder` SET
@@ -74,7 +73,7 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 			}
 		}
 
-		$message='<h2>Импорт успешно завершен!</h2><br>Обработано карт: '.$count.'<br>';
+		$message.='<h2>Импорт успешно завершен!</h2><br>Обработано карт: '.$count.'<br>';
 		if ($count)
 		{
 			$message.='<br>Импортированные карты помещены на диск <b><a href=\"folders.php\">Импорт из агрегатора</a></b>.<br>';
@@ -116,7 +115,7 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 				}
 				if (!$dev[trim($b[2])])
 				{
-					if ($result = mysqli_query($db, 'SELECT id FROM `devices` WHERE `title`="'.trim($b[1]).'" ORDER BY `title` DESC')) 
+					if ($result = mysqli_query($db, 'SELECT id FROM `devices` WHERE `title`="'.mysqli_real_escape_string($db,trim($b[1])).'" ORDER BY `title` DESC')) 
 					{
 						if ($row = mysqli_fetch_assoc($result))
 						{
@@ -124,6 +123,7 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 						}
 					}
 				}
+
 				if (!$dev[trim($b[2])] && $model) // Добавляем новое устройство
 				{
 					$qry="INSERT `devices` SET
@@ -152,10 +152,11 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 				{
 					$cards[$i-1]['dev']=$dev[trim($b[2])];
 				}
+
 				// Ищем оператора
 				if (!$operators[trim($b[6])])
 				{
-					if ($result = mysqli_query($db, 'SELECT name FROM `operators` WHERE `name` LIKE "%'.trim($b[6]).'%" ORDER BY `name`="'.trim($b[6]).'" LIMIT 1')) 
+					if ($result = mysqli_query($db, 'SELECT name FROM `operators` WHERE `name` LIKE "%'.mysqli_real_escape_string($db,trim($b[6])).'%"  ORDER BY `name`="'.mysqli_real_escape_string($db,trim($b[6])).'" LIMIT 1')) 
 					{
 						if ($row = mysqli_fetch_assoc($result))
 						{
@@ -165,7 +166,7 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 				}
 				if (!$operators[trim($b[6])])
 				{
-					if ($result = mysqli_query($db, 'SELECT id FROM `operators` WHERE `title` LIKE "'.trim($b[5]).'" OR `name` LIKE "'.trim($b[5]).'"')) 
+					if ($result = mysqli_query($db, 'SELECT id FROM `operators` WHERE `title` LIKE "'.mysqli_real_escape_string($db,trim($b[5])).'" OR `name` LIKE "'.trim($b[5]).'"')) 
 					{
 						if ($row = mysqli_fetch_assoc($result))
 						{
@@ -195,7 +196,7 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 				`operator`='".$cards[$i]['operator']."',
 				`folder_id`=".(int)substr($cards[$i]['dev'],1,255).",
 				`title`='".$cards[$i]['title']."',
-				`comment`='".$cards[$i]['comment']."';";
+				`comment`='".$cards[$i]['comment']."'"
 				$status1=1;
 			}
 			else
@@ -208,7 +209,7 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 				`operator`='".$cards[$i]['operator']."',
 				`device`=".(int)$cards[$i]['dev'].",
 				`title`='".$cards[$i]['title']."',
-				`comment`='".$cards[$i]['comment']."'";
+				`comment`='".$cards[$i]['comment']."'"
 				if ($newdev)
 				{
 					$status2=1;
@@ -222,7 +223,7 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 		}
 		if ($status2)
 		{
-			$message.='<br>Импортированные карты привязаны к новому агрегатору <b><a href=\"setup_devices.php\">'.$newdev.'</a></b>.';
+			$message.='<br>Импортированные карты привязаны к новому агрегатору <b><a href=\"devices.php\">'.$newdev.'</a></b>.';
 		}
 	}
 	jsOnResponse("{'message':'".$message."'}");  

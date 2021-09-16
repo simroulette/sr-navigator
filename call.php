@@ -7,24 +7,39 @@
 
 include("_func.php");
 $status=1;
-if ($_GET['delete']=='all') // Delete all SMS | Удаление всех SMS
+
+$devices_=array();
+$devices=array();
+
+if ($result = mysqli_query($db, 'SELECT * FROM `devices` ORDER BY `title`')) 
 {
-	$qry="DELETE FROM `sms_incoming`";
+	while ($row = mysqli_fetch_assoc($result))
+	{
+		$devices_[]=$row['id'];
+		$devices[$row['id']]=$row['title'];
+	}
+}
+
+
+if ($_GET['delete']=='all') // Delete all Call | Удаление всех входящих вызовов
+{
+	$qry='DELETE FROM `call_incoming` 
+	WHERE `device` in ('.implode(',',$devices_).')';
 	mysqli_query($db,$qry);
 }
-if ($_POST['delete']) // Deleting SMS | Удаление SMS
+if ($_POST['delete']) // Deleting Call | Удаление входящего вызова
 {
 	if (count($_POST['check']))
 	{
 		foreach ($_POST['check'] as $data)
 		{
-			$qry="DELETE FROM `sms_incoming` WHERE `id`=".(int)$data;
+			$qry='DELETE FROM `call_incoming` WHERE `device` in ('.implode(',',$devices_).') AND `id`='.(int)$data;
 			mysqli_query($db,$qry);
 		}
 	}
 }
 
-sr_header("Список SMS"); // Output page title and title | Вывод титул и заголовок страницы
+sr_header("Список входящих вызовов"); // Output page title and title | Вывод титул и заголовок страницы
 
 $table=array();
 $where=array();
@@ -34,6 +49,10 @@ $limit=' LIMIT '.((int)$GLOBALS['set_data']['page_limit']*($_GET['page']-1)).','
 if ($_GET['number'])
 {
 	$where[]="c.number LIKE '%".(int)$_GET['number']."%'";
+}
+if ($_GET['incoming'])
+{
+	$where[]="s.incoming LIKE '%".(int)$_GET['incoming']."%'";
 }
 if ($_GET['operator'])
 {
@@ -52,11 +71,11 @@ if ($_GET['balance'])
 	$a=str_replace(',','.',$_GET['balance']);
 	if ($_GET['balance'][0]!='>' && $_GET['balance'][0]!='<')
 	{
-		$where[]="c.balance=".$a;
+		$where[]="c.balance=".mysqli_real_escape_string($db,$a);
 	}
 	else
 	{
-		$where[]="c.balance".$a;
+		$where[]="c.balance".mysqli_real_escape_string($db,$a);
 	}
 }
 if (count($where)){$where=' AND '.implode(' AND ',$where);} else {$where='';}
@@ -85,6 +104,10 @@ elseif ($_GET['sort']==5)
 {
 	$order=' ORDER BY c.`number`,s.`time` DESC';
 }
+elseif ($_GET['sort']==6)
+{
+	$order=' ORDER BY s.`incoming`,s.`time` DESC';
+}
 
 	$operators=array();
 
@@ -101,10 +124,10 @@ if ($result = mysqli_query($db, 'SELECT * FROM `operators`'))
 	}
 }
 
-$qry='SELECT count(s.id) AS counter FROM `cards` c 
-INNER JOIN `sms_incoming` s ON s.`number`=c.`number` AND s.`done`=1
-LEFT JOIN `devices` d ON c.`device`=d.`id` 
-WHERE 1=1'.$where;
+$qry='SELECT count(s.id) AS counter FROM `call_incoming` s 
+LEFT JOIN `cards` c ON s.`number`=c.`number` AND s.`done`=1
+LEFT JOIN `devices` d ON s.`device`=d.`id` 
+WHERE s.`device` in ('.implode(',',$devices_).')'.$where;
 
 if ($result = mysqli_query($db, $qry))
 {
@@ -114,11 +137,10 @@ if ($result = mysqli_query($db, $qry))
 	}
 }
 
-$qry='SELECT c.*,s.sender,s.time,s.txt,s.readed,s.id AS sms_id,d.title AS device FROM `cards` c 
-INNER JOIN `sms_incoming` s ON s.`number`=c.`number` AND s.`done`=1 
-LEFT JOIN `devices` d ON c.`device`=d.`id` 
-WHERE 1=1'.$where.$order.$limit;
-
+$qry='SELECT c.*,s.incoming,s.time,s.number,s.id AS `call_id`,d.title AS device FROM `call_incoming` s
+LEFT JOIN `cards` c ON s.`number`=c.`number` 
+LEFT JOIN `devices` d ON s.`device`=d.`id` 
+WHERE s.`device` in ('.implode(',',$devices_).')'.$where.$order.$limit;
 if ($result = mysqli_query($db, $qry)) 
 {
 	$n=1;
@@ -134,10 +156,8 @@ if ($result = mysqli_query($db, $qry))
 			'num'=>$n+$GLOBALS['set_data']['page_limit']*($_GET['page']-1),
 			'number'=>$row['number'],
 			'time'=>srdate('d.m.Y H:i:s',$row['time']),
-			'sender'=>$row['sender'],
-			'sms'=>sms_out($row['txt']),
-			'sms_id'=>$row['sms_id'],
-			'readed'=>$row['readed'],
+			'incoming'=>$row['incoming'],
+			'call_id'=>$row['call_id'],
 			'model'=>$row['model'],
 			'device'=>$row['device'],
 			'place'=>$row['place'],
@@ -152,20 +172,19 @@ if ($result = mysqli_query($db, $qry))
 	}
 }
 
-if ($result = mysqli_query($db, 'SELECT * FROM `devices` ORDER BY `title`')) 
-{
-	while ($row = mysqli_fetch_assoc($result))
-	{
-		$devices[$row['id']]=$row['title'];
-	}
-}
 ?>
+<h4 style="margin: 5px 0;">SR-Nano</h4>
 <br>
 <form method="get">
 <div class="sidebar">
-Номер телефона
+Номер телефона на который пришел вызов
 </div>
 <input type="text" name="number" value="<?=$_GET['number']?>" maxlength="15" placeholder="Часть телефонного номера. Пример: 903">
+<div class="sidebar">
+<br>
+Номер телефона с которого пришел вызов
+</div>
+<input type="text" name="incoming" value="<?=$_GET['incoming']?>" maxlength="15" placeholder="Входящий номер. Пример: 903">
 <div class="sidebar">
 <br>
 Оператор
@@ -215,6 +234,7 @@ if (count($devices)>1)
 <option value="3"<? if ($_GET['sort']==3){echo ' selected=1';}?>>По балансам</option>
 <option value="4"<? if ($_GET['sort']==4){echo ' selected=1';}?>>По операторам</option>
 <option value="5"<? if ($_GET['sort']==5){echo ' selected=1';}?>>По номерам телефонов</option>
+<option value="6"<? if ($_GET['sort']==6){echo ' selected=1';}?>>По входящим номерам</option>
 </select>
 <br>
 <?
@@ -246,19 +266,18 @@ if ($total>(int)$GLOBALS['set_data']['page_limit'])
 if (count($table))
 {
 ?>
-<form method="post" id="sms" name="sms">
+<form method="post" id="call" name="call">
 	<table class="table table_sort table_adaptive">
 		<thead>
 			<tr>
-				<th><input type="checkbox" onclick="SelectGroup(checked,'sms','check')"></th>
+				<th><input type="checkbox" onclick="SelectGroup(checked,'call','check')"></th>
 				<th class="sidebar">№</th>
-				<th>Номер</th>
+				<th>На&nbsp;номер</th>
 				<th class="sidebar">Агрегатор</th>
 				<th class="sidebar">Место</th>
 				<th class="sidebar">Оператор</th>
 				<th class="sidebar">Баланс</th>
-				<th>От</th>
-				<th>SMS</th>
+				<th>С&nbsp;номера</th>
 				<th>Время</th>
 			</tr>  
 		</thead>
@@ -268,16 +287,15 @@ foreach ($table as $data)
 {
 			if ($data['time_balance']){$balance=balance_out($data['balance'],'').'<div class="legend">'.srdate('d.m.Y H:i',$data['time_balance']).'</div>';} else {$balance='—';}
 ?>
-		<tr<? if (!$data['readed']){echo ' class="rowsel"';}?>>
-			<td><input type="checkbox" name="check[<?=$n++?>]" id="check" value="<?=$data['sms_id']?>"></td>
+		<tr>
+			<td><input type="checkbox" name="check[<?=$n++?>]" id="check" value="<?=$data['call_id']?>"></td>
 			<td class="sidebar"><?=$data['num']?></td>
-			<td>+<?=$data['number']?></td>
+			<td><? if ($data['number']){echo '+'.$data['number'];} else {echo '—';}?></td>
 			<td class="sidebar"><?=$data['device']?></td>
 			<td class="sidebar"><?=$data['place']?></td>
 			<td class="sidebar"<? if ($data['color']){?> style="color: #<?=$data['color']?>; background:#<?=$data['bg']?>"<? } ?> align="center"><?=$data['operator']?></td>
 			<td align="right" class="sidebar"><?=$balance?></td>
-			<td><?=$data['sender']?></td>
-			<td><?=$data['sms']?></td>
+			<td><? if ($data['incoming']){echo '+'.$data['incoming'];} else {echo '—';}?></td>
 			<td><?=$data['time']?></td>
 		</tr>
 <?
@@ -285,15 +303,15 @@ foreach ($table as $data)
 ?>
 	</table>
 <br>
-<input type="submit" name="delete" value="Удалить отмеченные SMS" style="float:left; margin-right: 10px">
-<a href="sms.php?delete=all" class="link" style="background:#FF0000; margin: 0 5px 10px 0">Удалить все SMS</a>
+<input type="submit" name="delete" value="Удалить отмеченные вызовы" style="float:left; margin-right: 10px">
+<a href="call.php?delete=all" class="link" style="background:#FF0000; margin: 0 5px 10px 0">Удалить все вызовы</a>
 </form>
 <?
 }
 else
 {
 ?>
-<em>— Список SMS пуст!</em>
+<em>— Список входящих вызовов пуст!</em>
 <?
 }
 

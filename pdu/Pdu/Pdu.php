@@ -731,7 +731,7 @@ class Pdu  {
 			$inpString=$raw[1];
 		}
 	}
-	if (strlen($inpString<10) || strpos($inpString,' '))
+	if ((strlen($inpString)<10) || strpos($inpString,' ')!==false || strpos($inpString,',')!==false || strpos($inpString,'.')!==false || strpos($inpString,':')!==false)
 	{
 		return($inpString);
 	}		
@@ -740,7 +740,8 @@ class Pdu  {
 
     private function decode_ussdText($inpString, $bitSize, $is_cell_broadcast)
     {
-
+	if (strpos($inpString,' ')!==false || strpos($inpString,'.')!==false || strpos($inpString,',')!==false)
+        return $inpString;//"ERROR: Length is not even";
 
         if ($bitSize == 7)
             return $this->decodeGSM7bitPacked($inpString, $is_cell_broadcast);
@@ -898,6 +899,21 @@ class Pdu  {
     }
 
     public function pduToText($inp){
+	$out=$this->pduToTextGet($inp);
+	$header=$out['userDataHeader'];
+	$h=$h2=str_replace(' ','',$header);	
+	if (strlen($h)==14)
+	{
+		setlog('------------------------'.print_r($out,1),'sms');
+		$h1=substr($h,0,6);
+		$h=$h1.substr($h,8,255);
+		$inp=str_replace($h2,$h,$inp);
+		$out=$this->pduToTextGet($inp);
+	}
+	return($out);
+    }
+
+    public function pduToTextGet($inp){
         $pduString = $inp;
         $start = 0;
         $out = array();

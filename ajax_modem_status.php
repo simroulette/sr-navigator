@@ -8,11 +8,14 @@
 
 include("_func.php");
 
-$s=onlineTable((int)$_GET['device']);
+$s=onlineTable((int)$_GET['device'],(int)$_GET['hide']);
 $numb=$s[1];
 $staff=$time=flagGet($_GET['device'],'busy',1);
-$time=$time+300-time();
-
+if ($time)
+{
+	$timer=flagGet($_GET['device'],'busy_timer');
+	$time=$time+300-time();
+}
 if (!$numb || ($GLOBALS['sv_staff_id'] && $GLOBALS['sv_staff_id']!=flagGet((int)$_GET['device'],'busy')))
 {
 	if ($numb)
@@ -49,15 +52,17 @@ if (!$_GET['txt'])
 	$answer=onlineView($numb);
 	$id=$answer[1];
 	$answer=$answer[0];
-	setlog($_GET['device'].'-'.$id,'test');
+//	setlog($_GET['device'].'-'.$id,'test');
 }
 elseif ($number)
 {
+	$txt=sms_out($row['txt']);
 	$txt=preg_replace('!([0-9]{4,20})!','<span class="note" onclick="copy(\'$1\');soundClick();">$1</span>',$txt);
-	$answer='<div class="term_answer_item"><div class="answer_left answer_head" style="width: 120px;">'.srdate('H:i:s d.m',$time).'</div><div class="answer_head">'.$sender.'</div><div class="answer_left" style="width: 120px; margin-bottom: 10px;">'.$number.'</div><div>'.$txt.'</div></div>';
+	$answer='<div class="term_answer_item"><div class="answer_left answer_head" style="width: 120px;">'.srdate('H:i:s d.m',$time).'</div><div class="answer_head">'.$sender.'</div><div class="answer_left answer_fix">'.$number.'</div><div style="left: 140px;">'.$txt.'</div></div>';
 	$sound='#-#1';
 }
 
+$msg='#-##-#';
 if ($GLOBALS['sv_staff_id'])
 {
 	$msg='#-#'.$time;
@@ -90,5 +95,18 @@ elseif ($staff && $time>0)
 	$msg='#-#До конца сеанса <b>'.flagGet($_GET['device'],'staff').': '.$time.' сек.</b>#-#-1';
 }
 
-echo $s.'#-#'.$id.'#-#'.$answer.$sound.$msg;
+// Ищем сообщение агрегатора
+if ($result = mysqli_query($db, 'SELECT `msg` FROM `devices` WHERE `id`='.(int)$_GET['device'])) 
+{
+	if ($row = mysqli_fetch_assoc($result))
+	{
+		$m=unserialize($row['msg']);
+		if ($m['type']=='RING' && $m['time']>time()-10)
+		{
+			$dev_msg='#-#'.'Входящий вызов: <span class="note" onclick="copy(\''.str_replace('+','',$m['data']).'\');soundClick();">'.$m['data'].'</span>';
+		}
+	}
+}
+
+echo $s.'#-#'.$id.'#-#'.$answer.$sound.$msg.$dev_msg;
 ?>

@@ -123,7 +123,7 @@ if (count($table))
 			<td class="sidebar"><?=$data['time_begin']?></td>
 			<td class="sidebar"><?=$data['time_end']?></td>
 			<td><?=$data['duration']?></td>
-			<td>Ошибки:<?=$data['errors']?><br>Успешно:<?=$data['success']?></td>
+			<td>Успешно:<?=$data['success']?><br>Ошибки:<?=$data['errors'] ? '<span class="but_win" data-id="win_action" data-title="Задача '.$data['action'].'" data-type="ajax_action_errors.php?id='.$data['id'].'" data-height="400" data-width="600">'.$data['errors'].'</span>' : '0' ?></td>
 		</tr>
 <?
 	}
@@ -132,6 +132,7 @@ if (count($table))
 <br>
 
 <a href="reports.php?mode=clear" class="link" style="background: #FF0000;">Очистить список</a>
+<br>
 <?
 }
 else

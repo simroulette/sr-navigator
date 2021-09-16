@@ -135,7 +135,7 @@ function sr_header($title,$win='')
 
 <div id="menu_cont"></div>
 <table height="100%" width="100%">
-<tr class="status"><td width="1%" style="background:#171717;border-bottom: 1px solid #505050;" class="sidebar"></td><td id="status"></td></tr><tr><td bgcolor="#363636" class="sidebar"><a href="index.php"><img src="sr/logo.gif" class="logo" title="На главную страницу"></a></td><td class="head"><div class="mobilemenu" id="m" onclick="menuToggle(this)"><div class="bar1"></div><div class="bar2"></div><div class="bar3"></div></div><? if ($GLOBALS['sv_user_id']){?><div class="sidebar" style="float: right;"><?=($GLOBALS['sv_owner_id']?$GLOBALS['sv_owner_id']:$GLOBALS['set_data']['admin_login'])?> [<a href="index.php?mode=logout">выход</a>]</div><? } ?></td></tr><tr><td height=99% class="sidebar panel" valign="top">
+<tr class="status"><td width="1%" style="background:#171717;border-bottom: 1px solid #505050;" class="sidebar"></td><td id="status"></td></tr><tr><td bgcolor="#363636" class="sidebar"><a href="index.php"><img src="sr/logo.gif" class="logo" title="На главную страницу"></a></td><td class="head"><div class="mobilemenu" id="m" onclick="menuToggle(this)"><div class="bar1"></div><div class="bar2"></div><div class="bar3"></div></div><? if ($GLOBALS['set_data']['admin_login']){?><div class="sidebar" style="float: right; margin-right: 50px;"><?=($GLOBALS['sv_owner_id']?$GLOBALS['sv_owner_id']:$GLOBALS['set_data']['admin_login'])?> [<a href="index.php?mode=logout">выход</a>]</div><? } ?></td></tr><tr><td height=99% class="sidebar panel" valign="top">
 
 <div id="menu">
 <?
@@ -170,7 +170,7 @@ function sr_footer()
 {
 ?><br></td></tr>
 <tr><td class="bottom sidebar">© <a href="http://x0.ru">X0 Systems</a>, 2016 — <?=srdate('Y')?></td>
-<td class="bottom" align="right"><? if ($sv_user_id){?><div class="extinfo" style="float: left;"><?=($GLOBALS['sv_owner_id']?$GLOBALS['sv_owner_id']:$GLOBALS['set_data']['admin_login'])?> [<a href="index.php?mode=logout">выход</a>]</div><? } ?></td>
+<td class="bottom" align="right"><? if ($GLOBALS['set_data']['admin_login']){?><div class="extinfo" style="float: left;"><?=($GLOBALS['sv_owner_id']?$GLOBALS['sv_owner_id']:$GLOBALS['set_data']['admin_login'])?> [<a href="index.php?mode=logout">выход</a>]</div><? } ?></td>
 </tr>
 </table>
 </body>
@@ -181,7 +181,7 @@ function statusAtr($dev,$status)
 {
 	// Проверка на Online
 	$access=flagGet($dev,'answer',1);
-	if ($access+60<time())
+	if ($access+90<time())
 	{
 		$st='Offline';
 		$bg='FF0000';
@@ -192,7 +192,9 @@ function statusAtr($dev,$status)
 		} 
 		else 
 		{
-			$st.=': '.time_calc(time()-$access);
+			$t=time_calc(time()-$access);
+			if (strlen($t)>4){$t='∞';}
+			$st.=': '.$t;
 		}
 	}
 	else
@@ -205,7 +207,7 @@ function statusAtr($dev,$status)
 		}
 		elseif ($status==-2)
 		{
-			$st='не&nbsp;активен';
+			$st='неактивен';
 			$bg='FF9900';
 		}
 		elseif ($status==-1)
@@ -272,7 +274,7 @@ function statusAtrApi($dev,$status)
 
 // Output a table of modem statuses
 // Вывод таблицы статусов модемов
-function onlineTable($dev)
+function onlineTable($dev,$hide=0)
 {
 //	$dev		Device ID
 
@@ -280,14 +282,13 @@ function onlineTable($dev)
 
 	if ($dev)
 	{
-		if ($result = mysqli_query($db, 'SELECT m.*,d.model FROM `modems` m INNER JOIN `devices` d ON d.id='.$dev.' WHERE `device`='.$dev)) 
+		if ($result = mysqli_query($db, 'SELECT m.*,d.model,d.data FROM `modems` m INNER JOIN `devices` d ON d.id='.$dev.' WHERE `device`='.$dev)) 
 		{
 			if ($row = mysqli_fetch_assoc($result))
 			{
 				$oper=array();
 				$operators=array();
-				if ($result2 = mysqli_query($db, 'SELECT * FROM `operators`
-				ORDER BY `title`')) 
+				if ($result2 = mysqli_query($db, 'SELECT * FROM `operators`')) 
 				{
 					while ($row2 = mysqli_fetch_assoc($result2))
 					{
@@ -348,9 +349,8 @@ function onlineTable($dev)
 						$table[$i]=array(
 						'num'=>$i,
 						'place'=>'1-'.$i,
-						'status'=>$st,
+						'status'=>'B',
 						'bg'=>'DDD',
-						'status'=>'—',
 						'color'=>'000000',
 						);
 					}
@@ -359,9 +359,8 @@ function onlineTable($dev)
 						$table[8+$i]=array(
 						'num'=>(8+$i),
 						'place'=>'2-'.$i,
-						'status'=>$st,
+						'status'=>'B',
 						'bg'=>'DDD',
-						'status'=>'—',
 						'color'=>'000000',
 						);
 					}
@@ -375,6 +374,100 @@ function onlineTable($dev)
 						$places[]="'".$place."'";
 						$table[($n-1)*8+$status[0]]=array(
 						'num'=>((($n-1)*8)+$status[0]),
+						'place'=>$place,
+						'status'=>$st,
+						'bg'=>$bg,
+						'color'=>$color,
+						);
+						$n++;
+					}
+					if (count($places))
+					{
+						$qry='SELECT c.* FROM `cards` c WHERE c.`device`='.$row['device'].' ORDER BY c.`place`';
+						if ($result = mysqli_query($db, $qry)) 
+						{
+							$no=1;
+							while ($row = mysqli_fetch_assoc($result))
+							{
+								$no=0;
+								$numbers[$row['place']]=$row['number'];
+								$operators[$row['place']]=$oper[$row['operator']];
+								$names[$row['place']]=$row['title'];
+								$numb[]='"'.$row['number'].'"';
+							}
+							if ($no)
+							{
+								$numb=1;
+							}
+						}
+					}
+				}
+				else if ($row['model']=='SR-Box-Bank')
+				{
+					$n=1;
+					$d=unserialize($row['data']);
+					if (!$d['map'] || $d['map']==1)
+					{
+						for ($k=0;$k<8;$k++)
+						{
+							for ($i=1;$i<9;$i++)
+							{
+								$table[($k*8)+$i]=array(
+								'num'=>($k*8)+$i,
+								'place'=>($k+1).'-'.$i,
+								'status'=>'B',
+								'bg'=>'DDD',
+								'color'=>'000000',
+								);
+							}
+						}
+					}
+					else 
+					{
+						for ($j=0;$j<8;$j++)
+						{
+							if ($d['map'][$j])
+							{
+								$section=($j+1).' банк';
+								for ($k=$j*8;$k<$j*8+8;$k++)
+								{
+									for ($i=1;$i<9;$i++)
+									{
+										if ($k-$j*8!=$k)
+										{
+											$explane='<span class="explane">'.($k-$j*8+1).'</span>';
+										}
+										else
+										{
+											$explane='';
+										}
+										$table[($k*8)+$i]=array(
+										'num'=>($k*8)+$i,
+										'place'=>($k+1).'-'.$i,
+										'explane'=>$explane,
+										'status'=>'B',
+										'section'=>$section,
+										'bg'=>'DDD',
+										'color'=>'000000',
+										);
+										$section='';
+									}
+								}
+							}
+						}
+					}
+					foreach ($modems AS $key => $status)
+					{
+                                                $ar=statusAtr($dev,$status[1]);
+					        $color=$ar[0];
+						$bg=$ar[1];
+						$st=$ar[2];
+						$place=$status[0].'-'.$n;
+						$places[]="'".$place."'";
+						$table[($status[0]-1)*8+$n]=array(
+						'num'=>(($status[0]-1)*8+$n),
+						'section'=>$table[($status[0]-1)*8+$n]['section'],
+						'explane'=>$table[($status[0]-1)*8+$n]['explane'],
 						'place'=>$place,
 						'status'=>$st,
 						'bg'=>$bg,
@@ -487,7 +580,7 @@ function onlineTable($dev)
 	<th style="text-align:center;">Место</th>
 	<th style="text-align:center;">Номер</th>
 	<th class="sidebar">Оператор</th>
-	<th style="text-align:center;">Статус</th>
+	<th style="text-align:center;width: 90px;">Статус</th>
 </tr>';         
 			$n=0;
 			foreach ($table as $key=>$data)
@@ -498,17 +591,36 @@ function onlineTable($dev)
 					$num=substr($numbers[$data['place']],1,255);
 					$numbers[$data['place']]='<span class="note2 light" onclick="copy(\''.$numbers[$data['place']].'\');soundClick();">'.$prefix.'</span><span class="note2" onclick="copy(\''.$num.'\');soundClick();">'.$num.'</span>';
 				}
-				$s.='
-<tr>
-	<td class="sidebar" align="right">'.$data['num'].'</td>
+
+				if ($data['section']){$s.='<td colspan="6" class="section">'.$data['section'].'</td></tr>';}
+
+				if (($data['status']!='—' && $data['status']!='B') || !$hide)
+				{
+					$s.='<tr class="rowhide">';
+
+	$s.='<td class="sidebar" align="right">'.$data['num'].'</td>
 	<td class="sidebar">'.($names[$data['place']]?$names[$data['place']]:'—').'</td>
-	<td align="center">'.($data['status']!='—'?'<span onclick="winOpen(this)" class="but_win" data-id="win_action" data-title="Управление номером '.strip_tags($numbers[$data['place']]).'" data-type="ajax_online_card_action.php?number='.strip_tags($numbers[$data['place']]).'&modem='.$key.'" data-height="400" data-width="600">'.$data['place']:$data['place']).'</span></td>
-	<td align="center">'.$numbers[$data['place']].'</td>
+	<td align="center">';
+	if ($data['status']=='—')
+	{
+		$s.=$data['place'].'</td>';
+	}
+	elseif ($data['status']=='B')
+	{
+		$data['status']='—';
+		$s.='<span onclick="onlineCreateCom('.$dev.',\'place:'.$data['place'].'\');soundClick();" class="but_win">'.$data['place'].'</span>';
+	}
+	else
+	{
+		$s.='<span onclick="winOpen(this)" class="but_win sel" data-id="win_action" data-title="Управление номером '.strip_tags($numbers[$data['place']]).'" data-type="ajax_online_card_action.php?number='.strip_tags($numbers[$data['place']]).'&modem='.$key.'" data-height="400" data-width="600">'.$data['place'].'</span>';
+	}
+	$s.=$data['explane'].'</td><td align="center">'.$numbers[$data['place']].'</td>
 	<td class="sidebar" align="center">'.($operators[$data['place']]?$operators[$data['place']]:'—').'</td>
 	<td id="status_'.$data['num'].'"';
 	if ($data['color']){$s.=' style="color: #'.$data['color'].';background:#'.$data['bg'].'"';} 
 	$s.=' align="center">'.$data['status'].'</td>
 </tr>';
+				}
 			}
 $s.='</table>';
 			return(array($s,$numb,$curRow,count($table)));
@@ -528,13 +640,11 @@ function onlineView($numb)
 		while ($row = mysqli_fetch_assoc($result))
 		{
 			$number='+'.$row['number'];
-			$txt=$row['txt'];
-			$txt=preg_replace('!([0-9]{4,20})!','<span class="note" onclick="copy(\'$1\');soundClick();">$1</span>',$txt);
-			$txt=preg_replace("/(([a-z]+:\/\/)?(?:[a-zа-я0-9@:_-]+\.)+[a-zа-я0-9]{2,4}(?(2)|\/).*?)([-.,:]?(?:\\s|\$))/is",'<a href="$1" target="_blank"><b>$1</b></a>$3', $txt);
+			$txt=sms_out($row['txt']);
 			$time=$row['time'];
 			$sender=$row['sender'];
 			if (!$id){$id=$row['id']+1;}
-			$s.='<div class="term_answer_item"><div class="answer_left answer_head" style="width: 100px;">'.srdate('H:i:s d.m',$time).'</div><div class="answer_head">'.$sender.'</div><div class="answer_left answer_fix">'.$number.'</div><div style="margin-left: 120px;">'.$txt.'</div></div>';
+			$s.='<div class="term_answer_item"><div class="answer_left answer_head" style="width: 120px;">'.srdate('H:i:s d.m',$time).'</div><div class="answer_head">'.$sender.'</div><div class="answer_left answer_fix">'.$number.'</div><div style="margin-left: 140px;">'.$txt.'</div></div>';
 		}
 	}
 	return(array($s,$id));
@@ -674,25 +784,15 @@ function br($dev,$file='stop')
 	}
 }
 
-// Check for the flag
-// Проверка наличия флага
-function ts($dev,$file='stop')
-{
-//	$dev		Device ID
-//	$file		Filename
-
-	setlog('Вызов отмененной функции ts','error');
-}
-
 // Preparing the balance
 // Форматирование баланса
-function balance_out($balance,$sign='+')
+function balance_out($balance,$sign='')
 {
 //	$balance	Balance
 //	$sign		Sign before the number
-
-	if ($balance>0){$b=$a;}
+	if ($balance<0){$b='-';} else {$b=$sign;}
 	$balance=str_replace('.',',',$balance);
+	$balance=str_replace('-','',$balance);
 	$cent=explode(',',$balance);
 	$cent[1]=substr($cent[1].'00',0,2);
 	return($b.str_replace(',',"'",number_format($balance)).'.'.$cent[1]);
@@ -773,7 +873,7 @@ function flagSet($dev,$name,$value=1)
 
 	global $db;
 
-	mysqli_query($db, 'REPLACE INTO `flags` SET `name`="'.$name.'", `device`='.(int)$dev.', `value`='.(int)$value.', `time`='.time());
+	mysqli_query($db, 'REPLACE INTO `flags` SET `name`="'.$name.'", `device`='.(int)$dev.', `value`="'.$value.'", `time`='.time());
 }
 
 function flagGet($dev,$name,$time=0)
@@ -838,7 +938,7 @@ function operator_select()
 	global $db;
 	$operators=array();
 
-	$qry='SELECT * FROM `operators` ORDER BY `user_id` DESC, CHAR_LENGTH(`name`) DESC';
+	$qry='SELECT * FROM `operators` ORDER BY CHAR_LENGTH(`name`) DESC';
 	if ($result = mysqli_query($db, $qry)) 
 	{
 		$name='';
@@ -878,11 +978,22 @@ function trim_number($number)
 
 function trim_balance($balance)
 {
-        preg_match('!(minus|-)!i', $balance, $minus);
+	setlog($balance,'balance');
+        preg_match('!(минус|minus)!i', $balance, $minus);
+	$minus=$minus[0];
         preg_match('!([0-9]{1,5})([\.|\,])*([0-9]{1,2})*!', $balance, $test);
+	$a=strpos($balance,$test[1]);
+	if (strpos($balance,'-')!==false)
+	{
+		if (strpos($balance,'-')<$a)
+		{
+			$minus=1;
+		} 
+	}
 	$balance=str_replace(',','.',trim(trim($test[1].$test[2].$test[3],'.')));
-	if ($minus[1]){$balance=$balance*-1;}
+	setlog($balance,'balance');
+	if ($minus){$balance=$balance*-1;}
+	setlog($balance,'balance');
 	return($balance);
 }
-
 ?>

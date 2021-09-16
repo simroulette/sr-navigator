@@ -21,7 +21,7 @@ clear_flags(); // Deleting old flags | Удаление старых флаго�
 
 // Checking for online actions | Проверка наличия online-задач
 $qry="SELECT m.*,d.`model`,d.`id` AS device,d.`data`,d.`serial_time` FROM `modems` m 
-	INNER JOIN `devices` d ON m.`device`=d.`id` AND d.`id`<>33 
+	INNER JOIN `devices` d ON m.`device`=d.`id` 
 	LEFT JOIN `flags` f ON f.`device`=d.`id` AND f.`name`='cron' 
 	WHERE f.`name` IS NULL
 	ORDER BY d.`pause`
@@ -35,6 +35,7 @@ if ($result = mysqli_query($db, $qry))
 			flagSet($row['device'],'cron'); // Setting the employment flag | Установка флага занятости
 			if ($row['model']=='SR-Train'){include($root."_sr-train.php");}
 			elseif ($row['model']=='SR-Box-8'){include($root."_sr-box.php");}
+			elseif ($row['model']=='SR-Box-Bank'){include($root."_sr-box-bank.php");}
 			elseif ($row['model']=='SR-Organizer'){include($root."_sr-organizer.php");}
 			elseif ($row['model']=='SR-Nano-500' || $row['model']=='SR-Nano-1000'){include($root."_sr-nano.php");}
 			flagDelete($row['device'],'stop');
@@ -59,7 +60,7 @@ if ($result = mysqli_query($db, $qry))
 				}
 				else
 				{
-					online_mode($row['device'], $curRow, implode(',',$mod));
+					online_mode($row['device'], $curRow, implode(',',$mod), unserialize($row['data']));
 				}
 			}
 			elseif ($row['model']=='SR-Organizer')
@@ -89,7 +90,8 @@ if ($result = mysqli_query($db, $qry))
 				flagSet($row['device'],'cron'); // Setting the employment flag | Установка флага занятости
 				$modems=unserialize($row['modems']);
 				$modem[1]=-1;
-				mysqli_query($db, "UPDATE `modems` SET `modems`='".serialize($modems)."', `time`=".time()." WHERE `device`=".$row['device']); 
+				$modemTime=time();
+				mysqli_query($db, "UPDATE `modems` SET `modems`='".serialize($modems)."', `time`=".$modemTime." WHERE `device`=".$row['device']); 
 
 				sr_answer_clear($row['device']);
 				$answer=sr_command($row['device'],'answer>clear',30); 
@@ -103,7 +105,7 @@ if ($result = mysqli_query($db, $qry))
 				else
 				{
 					getSerial($row['device'],$row['serial_time']);
-					online_mode($row['device'], $modems, unserialize($row['data']));
+					online_mode($row['device'], $modems, $modemTime, unserialize($row['data']));
 				}
 
 			}
@@ -118,7 +120,7 @@ if (count($dev))
 	$qry=' AND a.device NOT IN('.implode(',',$dev).')';
 }
 
-$qry="SELECT d.* FROM `actions` a INNER JOIN `devices` d ON a.`device`=d.`id` AND d.`id`<>33 WHERE a.`status`='waiting'".$qry;
+$qry="SELECT d.* FROM `actions` a INNER JOIN `devices` d ON a.`device`=d.`id` WHERE a.`status`='waiting'".$qry;
 
 // Checking for actions | Проверка наличия задач
 if ($result = mysqli_query($db, $qry))
@@ -138,6 +140,7 @@ if ($result = mysqli_query($db, $qry))
 		{
 			if ($row['model']=='SR-Train'){include($root."_sr-train.php");}
 			elseif ($row['model']=='SR-Box-8'){include($root."_sr-box.php");}
+			elseif ($row['model']=='SR-Box-Bank'){include($root."_sr-box-bank.php");}
 			elseif ($row['model']=='SR-Organizer'){include($root."_sr-organizer.php");}
 			elseif ($row['model']=='SR-Nano-500' || $row['model']=='SR-Nano-1000'){include($root."_sr-nano.php");}
 			$uniq=rand(11111111,99999999);
@@ -151,6 +154,7 @@ if ($result = mysqli_query($db, $qry))
 setlog('[CRON] Finish');
 // Монитор SMS на предмет необходимости склеивать
 sms_monitor();
+log_clear();
 autoStop();
 
 ?>

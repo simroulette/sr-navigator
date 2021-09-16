@@ -12,7 +12,8 @@ if ($_POST['del']) // Deleting a SIM card Pool | Удаление Пула СИ�
 	foreach ($_POST['check'] as $data)
 	{
 		$a=explode(';',$data);
-		$qry="DELETE FROM `cards` WHERE `number`='".$a[0]."'";
+		for ($i=0;$i<count($a);$i++){$a[$i]=(int)$a[$i];}
+		$qry="DELETE FROM `cards` WHERE `id`='".$a[3]."'";
 		mysqli_query($db,$qry);
 	}
 	header('location:cards.php');
@@ -134,11 +135,11 @@ if ($_GET['edit']) // Editing the Pool | Редактирование Пула
 		if ($result = mysqli_query($db, 'SELECT p.*,c.`place`,d.`title` FROM `card2pool` p 
 		INNER JOIN `cards` c ON c.`number`=p.`card` 
 		INNER JOIN `devices` d ON d.`id`=c.`device` 
-		WHERE p.`card`<>"" AND p.`pool`='.(int)$_GET['edit'].' ORDER BY p.`card`')) 
+		WHERE p.`card`<>"" AND p.`pool`='.(int)$_GET['edit'].' ORDER BY CHAR_LENGTH(c.`place`),c.`place`')) 
 		{
 			while ($row = mysqli_fetch_assoc($result))
 			{
-				$_POST['check'][]=$row['card'].';'.$row['place'].';'.$row['title'];
+				$_POST['check'][]=$row['card'].';'.$row['place'].';'.$row['title'].';'.$row['done'];
 			}
 		}
 	}
@@ -184,7 +185,7 @@ if ($_GET['edit']) // Editing the Pool | Редактирование Пула
 	{
 		$data=explode(";",$data);
 ?>
-		<tr>
+		<tr<? if ($data[3]){echo ' class="rowsel"';}?>>
 			<td><?=($n+1)?><input type="hidden" name="check[<?=$n++?>]" value="<?=$data[0]?>"></td>
 			<td>+<?=$data[0]?></td>
 			<td><?=$data[2]?></td>

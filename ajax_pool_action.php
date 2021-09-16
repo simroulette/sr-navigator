@@ -8,7 +8,7 @@
 
 include("_func.php");
 
-$actions=array('get_number|Получить номер','get_balance|Получить баланс','get_number;get_balance|Получить номер и баланс','get_sms|Получить SMS','send_sms|Отправить SMS','do_call|Осуществить Вызов');
+$actions=array('get_number|Получить номер','get_balance|Получить баланс','get_iccid|Получить ICCID','get_number;get_balance|Получить номер и баланс','get_sms|Получить SMS','send_sms|Отправить SMS','do_call|Осуществить Вызов');
 $data=array();
 if ($_GET['action'])
 {
@@ -29,7 +29,8 @@ if ($_GET['action'])
 			}
 			$field.="+'&count=".$f['count']."'";
 			if ($f['save']){$field.="+'&save=".$f['save']."'";}
-			echo '<input type="button" onclick="getActions(\'ajax_pool_action.php?id='.$_GET['id'].'&action='.$_GET['action']."'".$field.');" value="Выполнить" style="padding: 10px; margin: 5px 0">';
+			echo '<input type="button" onclick="document.getElementById(\'loading\').style.display=\'block\';getActions(\'ajax_pool_action.php?id='.$_GET['id'].'&action='.$_GET['action']."'".$field.');" value="Выполнить" style="padding: 10px; margin: 5px 0">';
+			echo '<div id="loading"><img src="sr/loading.gif"></div>';
 			exit();
 		}
 	}
@@ -41,7 +42,12 @@ if ($_GET['action'])
 		}
 	}
 	$answer=action_pool_create($_GET['id'],$a[0],$data);
-	if ($answer['task'])
+	if ($answer['task']==1)
+	{
+		echo '<h1>Задача создана!</h1><br><a href="actions.php">Перейти к задаче</a>';
+		exit();
+	}
+	else if ($answer['task'])
 	{
 		echo 'Создано задач: <a href="actions.php">'.$answer['task'].'</a>';
 		exit();
@@ -86,4 +92,5 @@ var timerId = setInterval(function()
 ?>
 </select>
 <br><br>
-<input type="button" onclick="getActions('ajax_pool_action.php?id=<?=$_GET['id']?>&action=a'+document.getElementById('action').options.selectedIndex);" value="Продолжить" style="padding: 10px; margin: 5px 0">
+<div id="loading"><img src="sr/loading.gif"></div>
+<input type="button" onclick="this.style.display='none';document.getElementById('loading').style.display='block';getActions('ajax_pool_action.php?id=<?=$_GET['id']?>&action=a'+document.getElementById('action').options.selectedIndex);" value="Продолжить" style="padding: 10px; margin: 5px 0">

@@ -40,7 +40,8 @@ if ($_GET['change']) // Changing the disk | Смена диска
 		{
 			if (!$_POST['title']){$_POST['title']='Новый диск';}
 			// Создаем новый диск
-			mysqli_query($db, "INSERT INTO `folders` SET `time`=".time().",`title`='".$_POST['title']."',`comment`='".$_POST['comment']."'");  
+			$qry="INSERT INTO `folders` SET `time`=".time().",`title`='".$_POST['title']."',`comment`='".$_POST['comment']."'";
+			mysqli_query($db, $qry);  
 			$_POST['folder_id']=mysqli_insert_id($db);
 		}
 
@@ -52,6 +53,7 @@ if ($_GET['change']) // Changing the disk | Смена диска
 			while ($row = mysqli_fetch_assoc($result))
 			{
 				$qry="INSERT `cards2folder` SET
+				`iccid`='".$row['iccid']."',
 				`number`='".$row['number']."',
 				`title`='".$row['title']."',
 				`operator`='".$row['operator']."',
@@ -77,6 +79,7 @@ if ($_GET['change']) // Changing the disk | Смена диска
 			{
 				// Копируем в цикле карты на новый диск
 				$qry="INSERT `cards` SET
+				`iccid`='".$row['iccid']."',
 				`number`='".$row['number']."',
 				`title`='".$row['title']."',
 				`operator`='".$row['operator']."',
@@ -127,8 +130,8 @@ if ($_GET['change']) // Changing the disk | Смена диска
 
 		if ($status)
 		{			
-			header('location:folders.php');
-			exit();
+//			header('location:folders.php');
+//			exit();
 		}
 	}
 	elseif ($_POST['save'])
@@ -292,6 +295,16 @@ else
 		$folder=0;
 		foreach ($table as $data)
 		{
+/*
+			if (!$folder=$folders[$data['folder_id']])
+			{
+				$folder='default';
+			}
+			else
+			{
+				unset($folders[$data['folder_id']]);
+			}
+*/								
 			if (!$data['device']){$data['device']='—';} else {$data['device']='<a href="folders.php?change='.$data['id'].'" title="Сменить диск">'.$data['device'].'</a>';}
 
 			if ($data['device']=='—' && !$folder)
@@ -338,7 +351,7 @@ else
 ?>
 <em>— Сначала нужно добавить в список свой агрегатор SR-Nano!</em>
 <br><br>
-<a href="setup_devices.php?edit=new" class="link" style="margin: margin: 0 10px 10px 0">Добавить Агрегатор</a>
+<a href="devices.php?edit=new" class="link" style="margin: margin: 0 10px 10px 0">Добавить Агрегатор</a>
 <?
 	}
 }

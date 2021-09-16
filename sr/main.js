@@ -6,6 +6,12 @@
 // ===================================================================
 
 var noclose=0;
+var rhide=0;
+var timer=0;
+
+$(window).on('load', function () {
+    $('.preloader').addClass("preloader-remove");     
+});
 
 function menuToggle(x) 
 {
@@ -16,7 +22,7 @@ function menuToggle(x)
 	}
 	else
 	{
-		document.getElementById('menu_cont').innerHTML="<a href=\"index.php\"><img src=\"sr/logo.gif\" border=\"0\" style=\"float: right; margin: -75px 10px 0 0; width: 150px;\"></a>"+document.getElementById('menu').innerHTML;	
+		document.getElementById('menu_cont').innerHTML="<a href=\"index.php\"><img src=\"sr/logo.gif\" border=\"0\" style=\"float: right; margin: -70px 20px 0 0; width: 150px;\"></a>"+document.getElementById('menu').innerHTML;	
 		document.getElementById('menu_cont').classList.add("panel");	
 		document.getElementById('menu_cont').style.display='block';	
 	}
@@ -246,7 +252,31 @@ function getDeviceStatus()
 				for (i=0;i<ans.length;i++)
 				{
 					var str=ans[i].split(";");
-					if (str[0]){document.getElementById("status_"+str[0]).innerHTML=str[1];}
+					if (str[0]){$("#status_"+str[0]).html(str[1]);}
+					if (str[2])
+					{
+						if ($("#resume").html())
+						{
+							if (str[3])
+							{
+								$("#resume").hide(300);
+								$("#done").show(300);
+							}
+							else if (timer!=1000)
+							{
+								timer=1000;
+								getActions('ajax_device_action.php?id='+str[2]+'&action=a0');
+								$("#resume").show(300);
+								$("#info").hide(300);
+							}
+						}
+						else if (str[3])
+						{
+							$("#title_"+str[2]).html(str[3]);
+							$("#model_"+str[2]).html(str[4]);
+							$("#row_"+str[2]).removeClass('rowsel');
+						}
+					}
 				}
 			}
 		}
@@ -270,10 +300,37 @@ function getModemStatus()
 				if (txt[0]=='hide')
 				{
 					document.getElementById("table").innerHTML='';
+					document.getElementById('stop').style.display='none';
+					document.getElementById('restart').style.display='none';
+					document.getElementById('clear_sms').style.display='none';
+					document.getElementById('session').style.display='none';
+					if (document.getElementById('waiting').style.display=='inline-block' && !txt[3])
+					{
+						document.getElementById('waiting').style.display='none';
+						document.getElementById('on').style.display='inline-block';
+					}
 				}
 				else if (txt[0])
 				{
-					document.getElementById("table").innerHTML=txt[0];
+					document.getElementById('table').innerHTML=txt[0];
+					document.getElementById('answer').style.display='block';
+					document.getElementById('stop').style.display='inline-block';
+					document.getElementById('clear_sms').style.display='inline-block';
+				}
+				if (txt[5])
+				{
+					if (timer+5<time())
+					{
+						soundRing();
+						timer=time();
+					}
+					document.getElementById('msg').innerHTML=txt[5];
+					$("#msg").show(300);
+				}
+				else
+				{
+					document.getElementById('msg').style.display='none';
+					$("#msg").hide(300);
 				}
 				id=txt[1];
 				if (txt[2])
@@ -286,11 +343,11 @@ function getModemStatus()
 				}
 				else if (txt[3])
 				{
-					if (!txt[4])
+					if (txt[4]!=1 && txt[4]!=-1)
 					{
 						if (txt[3]<=0)
 						{
-							document.getElementById('on').style.display='block';
+							document.getElementById('on').style.display='inline-block';
 							document.getElementById('waiting').style.display='none';
 						}
 						else
@@ -298,25 +355,40 @@ function getModemStatus()
 							document.getElementById('on').style.display='none';
 							document.getElementById('answer').style.display='none';
 							document.getElementById('table').style.display='none';
+							document.getElementById('msg').style.display='none';
 							document.getElementById('stop').style.display='none';
 							document.getElementById('restart').style.display='none';
 							document.getElementById('clear_sms').style.display='none';
 							document.getElementById('waiting').style.display='inline-block';
-							document.getElementById('waiting').innerHTML='Сеанс начнется через '+txt[3]+' сек.';
+							document.getElementById('waiting').innerHTML='Сеанс можно начать через '+txt[3]+' сек.';
 						}
 					}
 					else
 					{
-						if (txt[3]<=0)
+						if (txt[3]<=0 && txt[4]!=-1)
 						{
 							document.getElementById('table').style.display='none';
+							document.getElementById('msg').style.display='none';
 							document.getElementById('stop').style.display='none';
+//							document.getElementById('reconnect').style.display='none';
 							document.getElementById('restart').style.display='none';
 							document.getElementById('clear_sms').style.display='none';
 						}
+						else if (txt[4]==1)
+						{
+							document.getElementById('stop').style.display='inline-block';
+							document.getElementById('restart').style.display='inline-block';
+							document.getElementById('clear_sms').style.display='inline-block';
+							document.getElementById('stop').value='Выключить ('+txt[3]+' сек.)';
+							document.getElementById('restart').style.display='inline-block';
+						}
 						else
 						{
-							document.getElementById('stop').value='Выключить ('+txt[3]+' сек.)';
+							document.getElementById('stop').style.display='inline-block';
+							document.getElementById('restart').style.display='inline-block';
+							document.getElementById('clear_sms').style.display='inline-block';
+							document.getElementById('session').style.display='inline-block';
+							document.getElementById('session').innerHTML=txt[3];
 							document.getElementById('restart').style.display='inline-block';
 						}
 					}
@@ -324,7 +396,7 @@ function getModemStatus()
 			}
 		}
 	}
-	Request.open("GET", 'ajax_modem_status.php?device='+device+'&txt='+txt+'&id='+id, true);
+	Request.open("GET", 'ajax_modem_status.php?device='+device+'&txt='+txt+'&id='+id+'&hide='+rhide, true);
 	Request.send(null);
 }
 
@@ -332,6 +404,13 @@ function soundAlert()
 {
 	var audio = new Audio();
 	audio.src = 'sound/sound.mp3';
+	audio.autoplay = true;
+}
+
+function soundRing() 
+{
+	var audio = new Audio();
+	audio.src = 'sound/ring.mp3';
 	audio.autoplay = true;
 }
 
@@ -344,6 +423,10 @@ function soundClick()
 
 function onlineCreate()
 {
+	document.getElementById('answer').style.display='none';
+	document.getElementById('stop').style.display='none';
+	document.getElementById('clear_sms').style.display='none';
+
 	device=document.getElementById('one').value;
 	if (device==0)
 	{
@@ -362,8 +445,6 @@ function onlineCreate()
 	document.getElementById('table').style.display='block';
 	document.getElementById('answer').style.display='block';
 	document.getElementById('result_receive').innerHTML='';
-	document.getElementById('stop').style.display='inline-block';
-	document.getElementById('clear_sms').style.display='inline-block';
 	soundClick();
 
 	onlineCreateCom(device,row);
@@ -371,8 +452,9 @@ function onlineCreate()
 
 function onlineCreateOut(device,row)
 {
+	soundClick();
 	onlineCreateCom(device,row);
-        document.location.href = "online.php";
+        document.location.href = "online.php?device="+device;
 }
 
 function onlineCreateCom(device,row)
@@ -403,8 +485,10 @@ function onlineStop()
 			if (!Request.responseText)
 			{
 				document.getElementById('table').style.display='none';
+				document.getElementById('msg').style.display='none';
 				document.getElementById('answer').style.display='none';
 				document.getElementById('stop').style.display='none';
+//				document.getElementById('reconnect').style.display='none';
 				document.getElementById('clear_sms').style.display='none';
 			}
 			else
@@ -589,6 +673,10 @@ function getProgressAll(actions)
 					{
 						$('#act_'+a[0]).html('Приостанавливается...<progress id="progress" value="'+a[1]+'" max="100"></progress><div class="legend">Обработано: '+(a[2])+'<br>Успешно: '+a[4]+'<br>Ошибки: '+a[3]+'<br>Прошло: '+a[7]+'<br>Ещё: '+a[8]+'<br><span class="'+a[5]+'">'+a[5]+a[6]+'</span></div>');
 					}
+					else if (a[9]==4)
+					{
+						$('#act_'+a[0]).html('Подготавливается...');
+					}
 					else
 					{
 						$('#act_'+a[0]).html('В очереди');
@@ -689,4 +777,15 @@ function help()
 	}
 	Request.open("GET", 'ajax_help.php', true);
 	Request.send(null);
+}
+
+function rowhide() 
+{
+	if (rhide==1){rhide=0;} else {rhide=1;}
+	soundClick();
+}
+
+function time()
+{
+	return parseInt(new Date().getTime()/1000);
 }

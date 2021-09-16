@@ -51,7 +51,6 @@ function sim_link($dev, $data, $curRow, $place, $actId, $func, $adata)
 
 	for ($counter=0;$counter<$cnt;$counter++)
 	{
-
 		$modem=1;
 		setlog('[sim_link:'.$dev.'] Extra time: '.$GLOBALS['time_correct'].' sek.');
 		setlog('[sim_link:'.$dev.'] Remaining time:'.(($time_limit+$GLOBALS['time_correct'])-time()).' sek.');
@@ -221,6 +220,8 @@ function online_mode($dev, $modems)
 	$com[]='modem>on';
 	sr_command($dev,implode('&&',$com)); 
 
+	setlog('[1] -> '.print_r($modems,1).'link_36');
+
 	$timer[1]=time()+120;
 	$timer[2]=time()+120;
 	$reconnect[1]=1;
@@ -287,61 +288,62 @@ function online_mode($dev, $modems)
 				{
 					for ($i=1;$i<count($data);$i++)
 					{
-							$sms='';
-							setlog('[online_mode:'.$dev.'] RAW SMS received: '.$data[$i]); // Получена SMS
-							if ($data[$i])
-							{
-								$smsNum=explode(',',$data[$i]);
-								$smsNum=$smsNum[0];
-								setlog('[online_mode:'.$dev.'] SMSnum: '.$smsNum); // Подготовка SMS
-						
-								$raw=explode("\n",$data[$i]);
-								$sms=$pdu->pduToText($raw[1]);
-								setlog('[online_mode:'.$dev.'] SMS: '.print_r($sms,1)); // Подготовка SMS
+						$sms='';
+						setlog('[online_mode:'.$dev.'] RAW SMS received: '.$data[$i]); // Получена SMS
+						if ($data[$i])
+						{
+							$smsNum=explode(',',$data[$i]);
+							$smsNum=$smsNum[0];
+							setlog('[online_mode:'.$dev.'] SMSnum: '.$smsNum); // Подготовка SMS
 				
-								if ($result = mysqli_query($db, "SELECT * FROM `cards` WHERE `place`='".$m."-".$modems[$m][0]."' AND `device`=".$dev)) 
+							$raw=explode("\n",$data[$i]);
+							$sms=$pdu->pduToText($raw[1]);
+							setlog('[online_mode:'.$dev.'] SMS: '.print_r($sms,1)); // Подготовка SMS
+			
+							if ($result = mysqli_query($db, "SELECT * FROM `cards` WHERE `place`='".$m."-".$modems[$m][0]."' AND `device`=".$dev)) 
+							{
+								if ($row = mysqli_fetch_assoc($result))
 								{
-									if ($row = mysqli_fetch_assoc($result))
+                      								if (trim($sms['userDataHeader']))
 									{
-                       								if (trim($sms['userDataHeader']))
-										{
-											$qry="`header`='".trim($sms['userDataHeader'])."'";
-											$smsNum=0;
-										}
-										else
-										{
-											$qry="`done`=1";
-										}
-						        	
-										// Saving to the database | Сохранение в БД
-										$qry="INSERT INTO `sms_incoming` SET
-										`number`='".$row['number']."',
-										`sender`='".$sms['number']."',
-										`time`=".$sms['unixTimeStamp'].",
-										`modified`=".time().",
-										`txt`='".$sms['message']."',
-										".$qry;
-										mysqli_query($db,$qry);
-										setlog('[online_mode:'.$dev.'] SMS saved'); // SMS сохранена
-							    			if ($GLOBALS['set_data']['email'])
-										{
-											setlog('[online_mode:'.$dev.'] SMS sent to E-mail'); // SMS отправлена на E-mail
-										}
+										$qry="`header`='".trim($sms['userDataHeader'])."'";
+										$smsNum=0;
+									}
+									else
+									{
+										$qry="`done`=1";
+									}
+					        	
+									// Saving to the database | Сохранение в БД
+									$qry="INSERT INTO `sms_incoming` SET
+									`number`='".$row['number']."',
+									`sender`='".$sms['number']."',
+									`time`=".$sms['unixTimeStamp'].",
+									`modified`=".time().",
+									`txt`='".$sms['message']."',
+									".$qry;
+									mysqli_query($db,$qry);
+									setlog('[online_mode:'.$dev.'] '.$qry);
+									setlog('[online_mode:'.$dev.'] SMS saved'); // SMS сохранена
+						    			if ($GLOBALS['set_data']['email'])
+									{
+										setlog('[online_mode:'.$dev.'] SMS sent to E-mail'); // SMS отправлена на E-mail
 									}
 								}
-								else
-								{
-									setlog('[online_mode:'.$dev.'] SIM card not found in the database!'); // СИМ-карта не найдена в БД
-									return($out);
-								}
 							}
-							setlog('[online_mode:'.$dev.'] SMS counter: '.$smsNum.', Time: '.(time()-$smsTime[$m]).', Status: '.$place[1]);
-							if ($smsNum>7)
+							else
 							{
-								setlog('[online_mode:'.$dev.'] Deleting all SMS messages from the SIM card');
-								sr_command($dev,'modem>select:'.$m.'&&modem>send:AT+CMGDA=5'); // Удаление всех SMS с SIM-карты
-								$smsNum=0;
+								setlog('[online_mode:'.$dev.'] SIM card not found in the database!'); // СИМ-карта не найдена в БД
+								return($out);
 							}
+						}
+						setlog('[online_mode:'.$dev.'] SMS counter: '.$smsNum.', Time: '.(time()-$smsTime[$m]).', Status: '.$place[1]);
+						if ($smsNum>7)
+						{
+							setlog('[online_mode:'.$dev.'] Deleting all SMS messages from the SIM card');
+							sr_command($dev,'modem>select:'.$m.'&&modem>send:AT+CMGDA=5'); // Удаление всех SMS с SIM-карты
+						$smsNum=0;
+						}
 					}
 				}
 			}
@@ -356,6 +358,7 @@ function online_mode($dev, $modems)
 			{
 				if ($row['time']<time()-20)
 				{
+					setlog('[2] -> '.print_r($modems,1).'link_36');
 					mysqli_query($db, "UPDATE `modems` SET `modems`='".serialize($modems)."' WHERE `device`=".$dev);
 				}
 			}
@@ -371,6 +374,21 @@ function online_mode($dev, $modems)
 		}
 		br($dev);
 	}
+}
+
+function dev_init($dev)
+{
+//	$dev		Device ID
+	global $db;
+	$answer=sr_command($dev,'dev:mode=navigator',20);
+	if ($answer=='Navigator mode ON')
+	{
+		sr_command($dev,'save');		
+		$qry="UPDATE `devices` SET `title`=`model`,`init`=".time()." WHERE `id`=".$dev;
+		mysqli_query($db,$qry);
+		return(1);
+	}
+	return(0);
 }
 
 ?>

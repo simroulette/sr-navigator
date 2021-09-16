@@ -7,7 +7,7 @@
 // ===================================================================
 
 include("_func.php");
-$actions=array('set_title|Добавить имя карты','get_number|Получить номер','get_balance|Получить баланс','get_number;get_balance|Получить номер и баланс','get_sms|Получить SMS','send_sms|Отправить SMS','do_call|Позвонить');
+$actions=array('set_title|Добавить имя карты','get_number|Получить номер','get_balance|Получить баланс','get_iccid|Получить ICCID','get_number;get_balance|Получить номер и баланс','get_sms|Получить SMS','send_sms|Отправить SMS','do_call|Позвонить');
 if ($_GET['action'])
 {
 	$a=explode('|',$actions[trim($_GET['action'],'a')]);
@@ -34,7 +34,7 @@ if ($_GET['action'])
 	{
 		$qry="UPDATE `cards` SET
 		`".$_GET['save']."`='".trim($_GET['f1'],'+')."'
-		WHERE `number`='".$_GET['id']."'";
+		WHERE `number`='".(int)$_GET['id']."'";
 		mysqli_query($db, $qry); 
 ?>
 <div id="scanned">

@@ -27,6 +27,43 @@ if ($result = mysqli_query($db, "SELECT * FROM `devices` ORDER BY `title`"))
 	{
 		if (!$dev){$dev=$row['id'];}
 		$devices[$row['id']]=$row['title'];
+		if ($row['id']==$_GET['device'] || count($devices)<2)
+		{
+			if (strpos($row['model'],'SR-Nano')!==false)
+			{
+				$hint='Место <em>(пример: A0)</em> • Имя • Часть телефонного номера';
+				$cardholder='СИМ-карта';
+				$placeholder='Укажите место СИМ-карты, имя или номер';
+				$autostart=0;
+			}
+			if ($row['model']=='SR-Train')
+			{
+				$hint='Начальный ряд <em>(пример: 1 — будут подключены ряды 1 и 4)</em> • Имя • Часть телефонного номера СИМ-карты';
+				$cardholder='Ряд';
+				$placeholder='Укажите ряд, имя или номер';
+				$autostart=0;
+			}
+			if ($row['model']=='SR-Organizer')
+			{
+				$hint='Карта_1_ряда-Карта_2_ряда <em>(пример: 2-5)</em> • Имя • Часть телефонного номера СИМ-карты';
+				$cardholder='СИМ-карты';
+				$placeholder='Укажите СИМ-карты, имя или номер';
+				$autostart=0;
+			}
+			if ($row['model']=='SR-Box-Bank')
+			{
+				$hint='Карта_1_ряда-Карта_2_ряда <em>(пример: 2-5)</em> • Имя • Часть телефонного номера СИМ-карты';
+				$cardholder='СИМ-карты';
+				$placeholder='Укажите СИМ-карты, имя или номер';
+				$autostart=0;
+			}
+			if ($row['model']=='SR-Box-8')
+			{
+				$autostart=0;
+				$cardholder='Ряд';
+				$placeholder='Укажите СИМ-карты, имя или номер';
+			}
+		}
 	}
 }
 if (count($devices)<1)
@@ -34,7 +71,7 @@ if (count($devices)<1)
 ?>
 <em>— Сначала нужно добавить в список свой агрегатор!</em>
 <br><br>
-<a href="setup_devices.php?edit=new" class="link" style="margin: margin: 0 10px 10px 0">Добавить Агрегатор</a>
+<a href="devices.php?edit=new" class="link" style="margin: margin: 0 10px 10px 0">Добавить Агрегатор</a>
 <?
 }
 else
@@ -98,13 +135,21 @@ var owner=1;
 }
 ?>
 <input type="hidden" id="one" value="<?=$dev?>">
+<?
+if ((count($devices)<2 || $_GET['device']) && !$autostart)
+{
+?>
 <div class="sidebar">
 <br>
-Ряд, Место, Телефон
+<?=$cardholder?>
 </div>
 <form id="form" onsubmit="<? if (!$sv_staff_id){?>onlineCreate(); <? } ?>return false;">
-<input type="text" id="row" value="<?=$res[2]?>" maxlength="12" placeholder="Начальный ряд, (например: 1 - будут задействованы ряды 1 и 4), место (A0) или часть номера">
+<input type="text" id="row" value="<?=$res[2]?>" maxlength="20" placeholder="<?=$placeholder?>">
 </form>
+<? if ($hint){ ?><div class="hint"><?=$hint?></div><? } ?>
+<? 
+}
+?>
 <div class="sidebar" style="margin-bottom: 10px;"></div>
 <div class="tablo" id="waiting" style="display: <?=($busy ? 'inline-block' : 'none'); ?>;">Ожидайте начала сеанса...</div>
 <div class="tablo" id="session" style="margin: 0 30px 20px 0; display: none;"></div>
@@ -112,6 +157,8 @@ var owner=1;
 <input type="submit" id="stop" onclick="onlineStop();return false;" value="Выключить" style="background:#FF0000; padding: 10px; margin: 0 10px 7px 0;<? if (!$res[3] || $sv_staff_id){echo ' display: none;';}?>">
 <input type="submit" id="restart" onclick="onlineRestart();return false;" value="Продлить сеанс" style="background:#0066BB; padding: 10px; margin: 0 10px 7px 0; display: none;">
 <input type="submit" id="clear_sms" onclick="sendCommand('clear_sms');return false;" value="Очистить память SMS на SR" style="background:#0066BB; padding: 10px; margin: 0;<? if (!$res[3] || $sv_staff_id){echo ' display: none;';}?>">
+
+<span onclick="rowhide();" class="rhide" title="Скрывать неактивные карты">H</span>
 
 <div id="table" style="margin: 20px 0;">
 <?
@@ -122,6 +169,8 @@ var owner=1;
 	}
 ?>
 </div>
+
+<div id="msg" style="display: none;"></div>
 
 <div id="answer"<? if (!$res[3] || $sv_staff_id){echo ' style="display: none;"';}?>>
 Принятые SMS:
@@ -136,11 +185,22 @@ id='.(int)$answer[1].';
 </div>
 
 <?
+if ($autostart) 
+{
+?>
+<form id="form">
+<input type="hidden" id="row" value="0">
+</form>
+<script>
+onlineCreate();
+</script>
+<?
+}
+
 	if ($GLOBALS['sv_owner_id'])
 	{
 		$operators=array();
-		if ($result = mysqli_query($db, 'SELECT * FROM `operators`
-		ORDER BY `title`')) 
+		if ($result = mysqli_query($db, 'SELECT * FROM `operators`')) 
 		{
 			while ($row = mysqli_fetch_assoc($result))
 			{
@@ -222,7 +282,7 @@ var device=<?=(int)$_GET['device']?>;
 setInterval(function()
 {
 	getModemStatus();
-}, 1000);
+}, 2000);
 </script>
 
 <?

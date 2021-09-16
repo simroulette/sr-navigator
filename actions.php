@@ -27,7 +27,7 @@ if ($_POST['suspend']) // Приостановка отмеченных зада
 		{
 			if ($row = mysqli_fetch_assoc($result))
 			{
-				$qry="UPDATE `actions` SET `status`='suspension' WHERE `id`=".$data;
+				$qry="UPDATE `actions` SET `status`='suspension' WHERE `id`=".(int)$data;
 				mysqli_query($db,$qry);
 			}
 		}
@@ -46,7 +46,7 @@ if ($_POST['unsuspend']) // Приостановка отмеченных зад
 		{
 			if ($row = mysqli_fetch_assoc($result))
 			{
-				$qry="UPDATE `actions` SET `status`='waiting' WHERE `status`='suspended' AND `id`=".$data;
+				$qry="UPDATE `actions` SET `status`='waiting' WHERE `status`='suspended' AND `id`=".(int)$data;
 				mysqli_query($db,$qry);
 			}
 		}

@@ -8,23 +8,35 @@
 
 setlog('[TASK] Start');
 
-if ($result = mysqli_query($db, "SELECT c.*,a.`action`,a.`id` AS `id`,a.`pool_id`,a.`card_number`,a.`data` AS `adata`,a.`progress`, d.`data` FROM `actions` a INNER JOIN `devices` d ON d.`id`=a.`device` LEFT JOIN `card2action` c ON c.`action`=a.`id` WHERE a.`status`<>'suspension' AND a.`status`<>'suspended' AND a.`device`=".$dev." ORDER BY a.`id`,c.`row`,c.`place`")) 
+if ($taskResult = mysqli_query($db, "SELECT c.*,a.`action`,a.`id` AS `id`,a.`pool_id`,a.`card_number`,a.`data` AS `adata`,a.`progress`, d.`data`, d.`model` FROM `actions` a 
+INNER JOIN `devices` d ON d.`id`=a.`device` 
+LEFT JOIN `card2action` c ON c.`action`=a.`id` 
+WHERE a.`status`<>'suspension' AND a.`status`<>'suspended' AND a.`status`<>'preparing' AND a.`device`=".$dev." ORDER BY a.`id`,c.`row`,c.`place`")) 
 {
 	$action=0;
 	$progress=0;
-	while ($row = mysqli_fetch_assoc($result))
+	while ($taskRow = mysqli_fetch_assoc($taskResult))
 	{
-		if ($action && $action!=$row['id']) // Following action | Следующее действие
+		if ($result2 = mysqli_query($db, "SELECT `id` FROM `actions` WHERE `id`=".$taskRow['id'])) 
+		{
+			if (!mysqli_fetch_assoc($result2))
+			{
+				setlog('[TASK:'.$dev.'] No action!');
+				exit();
+			}
+		}
+
+		if ($action && $action!=$taskRow['id']) // Following action | Следующее действие
 		{
 			$progress=0;
-			action_close($row['id']);
+			action_close($taskRow['id']);
 			$qry='DELETE FROM `card2action` WHERE `action`='.$action;
 			mysqli_query($db,$qry);
 			$qry='DELETE FROM `actions` WHERE `id`='.$action;
 			mysqli_query($db,$qry);
 			setlog('[TASK:'.$dev.'] Deleting the action #'.$action); 
 		}
-		if ($progress<$row['progress']) // Подматываем задачу после остановки
+		if ($progress<$taskRow['progress']) // Подматываем задачу после остановки
 		{
 			$progress++;
 		}
@@ -33,13 +45,20 @@ if ($result = mysqli_query($db, "SELECT c.*,a.`action`,a.`id` AS `id`,a.`pool_id
 			sr_command_clear($dev); // Clearing the command buffer | Очиcтка буфера команд
 			if (!$action)
 			{
-				$qry="UPDATE `actions` SET `status`='inprogress',`time`=".time()."-`timer` WHERE `id`=".$row['id'];
+				$qry="UPDATE `actions` SET `status`='inprogress',`time`=".time()."-`timer` WHERE `id`=".$taskRow['id'];
 				mysqli_query($db,$qry);
-				sr_command($dev,'card>null');
+				if (($taskRow['model']=='SR-Nano-500' || $taskRow['model']=='SR-Nano-1000') && $taskRow['action']!='dev_init')
+				{
+					sr_command($dev,'card>null'); // 25.08.2021
+				}
+				elseif ($taskRow['action']!='dev_init')
+				{
+					sr_command($dev,'answer>clear');
+				}
 			}
 			while (1)
 			{
-				setlog('[TASK:'.$dev.'] Start action #'.$row['id'].' ('.$stime.')');
+				setlog('[TASK:'.$dev.'] Start action #'.$taskRow['id'].' ('.$stime.')');
 				$step=sr_command($dev,'answer>clear');
 				setlog('[TASK:'.$dev.'] Command: answer>clear Step: '.$step);
 				if (!$step)
@@ -51,8 +70,8 @@ if ($result = mysqli_query($db, "SELECT c.*,a.`action`,a.`id` AS `id`,a.`pool_id
 				setlog('[TASK:'.$dev.'] Answer: '.$answer);
 				if (strpos($answer,'error:')!==false)
 				{
-					setlog('[TASK:'.$dev.'] Action ['.$row['id'].']: '.$row['action'].' - The device does not respond!'); // Агрегатор не отвечает
-					br($dev,'act_'.$row['id'].'_stop');
+					setlog('[TASK:'.$dev.'] Action ['.$taskRow['id'].']: '.$taskRow['action'].' - The device does not respond!'); // Агрегатор не отвечает
+					br($dev,'act_'.$taskRow['id'].'_stop');
 					br($dev,'stop_'.$dev);
 				}
 				else
@@ -60,16 +79,18 @@ if ($result = mysqli_query($db, "SELECT c.*,a.`action`,a.`id` AS `id`,a.`pool_id
 					break;
 				}
 			}
-			if (strpos($row['action'],'dev_')!==false)
+
+			if (strpos($taskRow['action'],'dev_')!==false)
 			{
-				$f=$row['action'];
+				$f=$taskRow['action'];
 				$f($dev);
 			}
 			else
 			{
-				sim_link($dev,unserialize($row['data']),$row['row'],$row['place'],$row['id'],$row['action'],unserialize($row['adata']));
-				$pool_id=$row['pool_id'];
-				$card_number=$row['card_number'];
+				sim_link($dev,unserialize($taskRow['data']),$taskRow['row'],$taskRow['place'],$taskRow['id'],$taskRow['action'],unserialize($taskRow['adata']));
+
+				$pool_id=$taskRow['pool_id'];
+				$card_number=$taskRow['card_number'];
 				if ($pool_id) // Change of status | Смена статуса
 				{
 					$qry="UPDATE `pools` SET `status`='inprogress' WHERE `id`=".$pool_id;
@@ -78,9 +99,8 @@ if ($result = mysqli_query($db, "SELECT c.*,a.`action`,a.`id` AS `id`,a.`pool_id
 				{
 					$qry="UPDATE `cards` SET `status`='inprogress' WHERE `number`='".$card_number."'";
 				}
-			
 			}
-			if ($action!=$row['id'])
+			if ($action!=$taskRow['id'])
 			{
 				if ($pool_id) // Change of status | Смена статуса
 				{
@@ -92,13 +112,13 @@ if ($result = mysqli_query($db, "SELECT c.*,a.`action`,a.`id` AS `id`,a.`pool_id
 				}
 				mysqli_query($db,$qry);
 			}
-			$action=$row['id'];
-// Проверяем не приостановлена ли задача
-			if ($result2 = mysqli_query($db, "SELECT id FROM `actions` a WHERE `id`=".$row['id']." AND `status`='suspension'")) 
+			$action=$taskRow['id'];
+			// Проверяем не приостановлена ли задача
+			if ($result2 = mysqli_query($db, "SELECT id FROM `actions` a WHERE `id`=".$taskRow['id']." AND `status`='suspension'")) 
 			{
 				if ($row2 = mysqli_fetch_assoc($result2))
 				{
-					mysqli_query($db, "UPDATE `actions` SET `timer`=".time()."-`time`, `status`='suspended' WHERE `id`=".$row['id']);
+					mysqli_query($db, "UPDATE `actions` SET `timer`=".time()."-`time`, `status`='suspended' WHERE `id`=".$taskRow['id']);
 					setlog('[TASK:'.$dev.'] Action #'.$action.' suspended'); // Задача приостановлена
 					$action='';
 					flagDelete($dev,'cron');

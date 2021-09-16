@@ -1,7 +1,7 @@
 <?
 // ===================================================================
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -29,6 +29,7 @@ if ($_GET['edit']) // Editing a SIM card | Редактирование СИМ-�
 		if ($_GET['edit']=='new')
 		{
 			$qry="INSERT `cards` SET
+			`iccid`='".trim($_POST['iccid'],'+')."',
 			`number`='".trim($_POST['number'],'+')."',
 			`title`='".trim($_POST['title'])."',
 			`place`='".$_POST['place']."',
@@ -41,6 +42,7 @@ if ($_GET['edit']) // Editing a SIM card | Редактирование СИМ-�
 		else
 		{
 			$qry="UPDATE `cards` SET
+			`iccid`='".trim($_POST['iccid'],'+')."',
 			`number`='".trim($_POST['number'],'+')."',
 			`title`='".trim($_POST['title'])."',
 			`place`='".$_POST['place']."',
@@ -73,6 +75,7 @@ if ($_GET['edit']) // Editing a SIM card | Редактирование СИМ-�
 				{
 					$number='+'.$row['number'];
 				}
+				$iccid=$row['iccid'];
 				$title=$row['title'];
 				$place=$row['place'];
 				$operator=$row['operator'];
@@ -86,7 +89,7 @@ if ($_GET['edit']) // Editing a SIM card | Редактирование СИМ-�
 
 	$operators=array();
 
-	$qry='SELECT * FROM `operators` ORDER BY `name`';
+	$qry='SELECT * FROM `operators` ORDER BY `name`, `user_id` DESC';
 	if ($result = mysqli_query($db, $qry)) 
 	{
 		$name='';
@@ -114,13 +117,17 @@ if (!$status)
 <br>
 <input type="text" name="number" value="<?=$number?>" maxlength="15">
 <br><br>
-Имя
-<br>
-<input type="text" name="title" value="<?=$title?>" maxlength="15">
-<br><br>
 Место, например: A0 для SR-Nano или 2-8 для SR-Train (обязательное поле)
 <br>
 <input type="text" name="place" value="<?=$place?>" maxlength="7">
+<br><br>
+Имя
+<br>
+<input type="text" name="title" value="<?=$title?>" maxlength="32">
+<br><br>
+ICCID
+<br>
+<input type="text" name="iccid" value="<?=$iccid?>" maxlength="20">
 <br><br>
 Оператор
 <br>
@@ -173,17 +180,21 @@ else
 		if (!$_GET['page']){$_GET['page']=1;}
 		$limit=' LIMIT '.((int)$GLOBALS['set_data']['page_limit']*($_GET['page']-1)).','.(int)$GLOBALS['set_data']['page_limit'];
 	}
+	if ($_GET['iccid'])
+	{
+		$where[]="c.iccid LIKE '%".(int)$_GET['iccid']."%'";
+	}
 	if ($_GET['number'])
 	{
 		$where[]="c.number LIKE '%".(int)$_GET['number']."%'";
 	}
 	if ($_GET['title'])
 	{
-		$where[]="c.title LIKE '%".$_GET['title']."%'";
+		$where[]="c.title LIKE '%".mysqli_real_escape_string($db,$_GET['title'])."%'";
 	}
 	if ($_GET['operator'])
 	{
-		$where[]="(o.title LIKE '%".$_GET['operator']."%' OR o.`name` LIKE '%".$_GET['operator']."%')";
+		$where[]="(o.title LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%' OR o.`name` LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%')";
 	}
 	if ($_GET['device'])
 	{
@@ -191,31 +202,35 @@ else
 	}
 	if ($_GET['place'])
 	{
-		$where[]="c.place LIKE '".$_GET['place']."%'";
+		$where[]="c.place LIKE '".mysqli_real_escape_string($db,$_GET['place'])."%'";
 	}
 	if ($_GET['balance'])
 	{
 		$a=str_replace(',','.',$_GET['balance']);
 		if ($_GET['balance'][0]!='>' && $_GET['balance'][0]!='<')
 		{
-			$where[]="c.balance=".$a;
+			$where[]="c.balance=".mysqli_real_escape_string($db,$a);
 		}
 		else
 		{
-			$where[]="c.balance".$a;
+			$where[]="c.balance".mysqli_real_escape_string($db,$a);
 		}
 	}
 	if (!$_GET['sort'])
 	{
-		$order=' ORDER BY c.`number`';
+		$order=' ORDER BY CHAR_LENGTH(c.`place`),c.`place`';
 	}
 	elseif ($_GET['sort']==1)
 	{
-		$order=' ORDER BY c.`device`';
+		$order=' ORDER BY c.`device`,CHAR_LENGTH(c.`place`),c.`place`';
 	}
 	elseif ($_GET['sort']==2)
 	{
-		$order=' ORDER BY c.`place`';
+		$order=' ORDER BY c.`number`';
+	}
+	elseif ($_GET['sort']==8)
+	{
+		$order=' ORDER BY c.`iccid`';
 	}
 	elseif ($_GET['sort']==3)
 	{
@@ -242,8 +257,7 @@ else
 
 // Получаем список актуальных операторов
 	$operators=array();
-	if ($result = mysqli_query($db, 'SELECT * FROM `operators`
-	ORDER BY `title`')) 
+	if ($result = mysqli_query($db, 'SELECT * FROM `operators`')) 
 	{
 		while ($row = mysqli_fetch_assoc($result))
 		{
@@ -254,8 +268,7 @@ else
 			$operators[$row['name']]['color_r']=$row['color_r'];
 		}
 	}
-	if ($result = mysqli_query($db, 'SELECT count(c.`number`) AS counter FROM `cards` c 
-	WHERE 1=1'.$where)) 
+	if ($result = mysqli_query($db, 'SELECT count(c.`number`) AS counter FROM `cards` c')) 
 	{
 		if ($row = mysqli_fetch_assoc($result))
 		{
@@ -269,6 +282,8 @@ else
 	WHERE 1=1'.$where.$order.$limit)) 
 	{
 		$n=1;
+		$nn=array();
+		$copy=array();
 		while ($row = mysqli_fetch_assoc($result))
 		{
 			$o=operator($row['operator']);
@@ -291,15 +306,18 @@ else
 			}
 			if ($_GET['page']=='all'){$pnum++;} else {$pnum=$n+$GLOBALS['set_data']['page_limit']*($_GET['page']-1);}
 			$modems=unserialize($row['modems']);
-			if ($modems[0]==$row['place']){$online=1;} else {$online=0;}
+			$a=explode('-',$row['place']);
+			if ($modems[0]==$row['place'] || $modems[$a[1]][0]==$a[0]){$online=1;} else {$online=0;}
 			$table[]=array(
 				'num'=>$pnum,
 				'id'=>$row['id'],
+				'iccid'=>$row['iccid'],
 				'number'=>$row['number'],
 				'title'=>$row['title'],
 				'comment'=>$row['comment'],
 				'time'=>srdate('d.m.Y H:i:s',$row['time']),
 				'time_balance'=>$row['time_balance'],
+				'time_last_balance'=>$row['time_last_balance'],
 				'model'=>$row['model'],
 				'dev'=>$row['device'],
 				'device'=>$row['device_name'],
@@ -308,15 +326,17 @@ else
 				'operator_name'=>$row['operator_name'],
 				'status'=>$row['status'],
 				'balance'=>$row['balance'],
+				'last_balance'=>$row['last_balance'],
 				'online'=>$online,
 				'bg'=>$row['color'],
 				'color'=>$color,
 			);
+			if (in_array($row['number'],$nn)){$copy[$row['number']]='warning';}
+			$nn[]=$row['number'];
 			if ($row['title']){$title_td=1;}
 			$n++;
 		}
 	}
-
 	if ($result = mysqli_query($db, 'SELECT * FROM `devices` ORDER BY `title`')) 
 	{
 		while ($row = mysqli_fetch_assoc($result))
@@ -327,10 +347,11 @@ else
 	if ($_GET['type']=='csv')
 	{
 		header('Content-Type:csv/plain');
-		$str="Номер\tАгрегатор\tID\tМесто\tБаланс\tОператор\tСеть\tВремя\tИмя\tКомментарий
+		$str="ICCID\tНомер\tАгрегатор\tID\tМесто\tБаланс\tОператор\tСеть\tВремя\tИмя\tКомментарий
 ";
 		foreach ($table as $data)
 		{
+			$str.=$data['iccid']."\t";
 			if ($data['number']==$data['place'])
 			{
 				$str.="Блокировка\t".$data['device']."\t".$data['dev']."\tP:".$data['place']."\t".$data['balance']."\t—\t—\t".$data['time'].'
@@ -342,7 +363,14 @@ else
 ';
 			}
 		}
-		echo $str;
+		if ($GLOBALS['set_data']['cp-1251'])
+		{
+			echo iconv('UTF-8//IGNORE', 'windows-1251//IGNORE', $str);
+		}
+		else
+		{
+			echo $str;
+		}
 		exit();
 	}
 	sr_header("Список СИМ-карт"); // Output page title and title | Вывод титул и заголовок страницы
@@ -353,6 +381,16 @@ else
 Номер телефона
 </div>
 <input type="text" name="number" value="<?=$_GET['number']?>" maxlength="15" placeholder="Часть телефонного номера. Пример: 903">
+<div class="sidebar">
+<br>
+Место
+</div>
+<input type="text" name="place" value="<?=$_GET['place']?>" maxlength="7" placeholder="Место. Примеры: A0 или A или 2-8 или 2">
+<div class="sidebar">
+<br>
+ICCID
+</div>
+<input type="text" name="iccid" value="<?=$_GET['iccid']?>" maxlength="20" placeholder="Часть ICCID. Пример: 897">
 <div class="sidebar">
 <br>
 Имя
@@ -387,11 +425,6 @@ if (count($devices)>1)
 ?>
 <div class="sidebar">
 <br>
-Место
-</div>
-<input type="text" name="place" value="<?=$_GET['place']?>" maxlength="7" placeholder="Место. Примеры: A0 или A или 2-8 или 2">
-<div class="sidebar">
-<br>
 Баланс
 </div>
 <input type="text" name="balance" value="<?=$_GET['balance']?>" maxlength="8" placeholder="Баланс. Пример: >100">
@@ -400,9 +433,10 @@ if (count($devices)>1)
 Отсортировать
 </div>
 <select name="sort">
-<option value="0"<? if (!$_GET['sort']){echo ' selected=1';}?>>По номерам телефонов</option>
+<option value="0"<? if (!$_GET['sort']){echo ' selected=1';}?>>По местам</option>
 <option value="1"<? if ($_GET['sort']==1){echo ' selected=1';}?>>По агрегаторам</option>
-<option value="2"<? if ($_GET['sort']==2){echo ' selected=1';}?>>По местам</option>
+<option value="8"<? if ($_GET['sort']==8){echo ' selected=1';}?>>По ICCID</option>
+<option value="2"<? if ($_GET['sort']==2){echo ' selected=1';}?>>По номерам телефонов</option>
 <option value="3"<? if ($_GET['sort']==3){echo ' selected=1';}?>>По балансам</option>
 <option value="6"<? if ($_GET['sort']==6){echo ' selected=1';}?>>По времени получения баланса ↑</option>
 <option value="7"<? if ($_GET['sort']==7){echo ' selected=1';}?>>По времени получения баланса ↓</option>
@@ -448,6 +482,7 @@ if ($total>(int)$GLOBALS['set_data']['page_limit'])
 				<th><input type="checkbox" onclick="SelectGroup(checked,'cards','check')"></th>
 				<th class="sidebar">№</th>
 				<? if ($title_td){?><th>Имя</th><? } ?>
+				<? if ($GLOBALS['set_data']['iccid_show']){?><th class="sidebar">ICCID</th><? } ?>
 				<th>Номер</th>
 				<? if (count($devices)>1){ ?>
 				<th class="sidebar">Агрегатор</th>
@@ -465,15 +500,16 @@ if ($total>(int)$GLOBALS['set_data']['page_limit'])
 		{
 ?>
 		<tr<? if ($data['online']){echo ' class="rowsel"';}?>>
-			<td><input type="checkbox" name="check[<?=$n++?>]" id="check" value="<?=$data['number'].';'.$data['place'].';'.$data['device']?>"></td>
+			<td><input type="checkbox" name="check[<?=$n++?>]" id="check" value="<?=$data['number'].';'.$data['place'].';'.$data['device'].';'.$data['id']?>"></td>
 			<td class="sidebar"><?=$data['num']?></td>
 			<? if ($title_td){?><td><?=$data['title']?></td><? } ?>
+			<? if ($GLOBALS['set_data']['iccid_show']){?><td class="sidebar"><?=$data['iccid']?></span><td><? } ?>
 			<?
-			if ($data['place']!=$data['number']){
+			if ($data['place']!=$data['number'] && $data['number']){
 			?>
-			<td><span class="but_win" data-id="win_action" data-title="Управление номером +<?=$data['number']?>" data-type="ajax_card_action.php?id=<?=$data['number']?>" data-height="400" data-width="600">+<?=$data['number']?></span>
-			<? } else { ?>
-			<td><em>Карта заблокирована</em>
+			<span class="but_win <?=$copy[$data['number']]?>" data-id="win_action" data-title="Управление номером +<?=$data['number']?>" data-type="ajax_card_action.php?id=<?=$data['number']?>" data-height="400" data-width="600">+<?=$data['number']?></span>
+			<? } elseif ($data['number']) { ?>
+			<em>Карта заблокирована</em>
 			<? } ?>
 			</td>
 			<? if (count($devices)>1){ ?>
@@ -482,7 +518,20 @@ if ($total>(int)$GLOBALS['set_data']['page_limit'])
 			<td align="right"><?=$data['place']?></td>
 			<?
 			if ($data['place']!=$data['number']){
-			if ($data['time_balance']){$balance=balance_out($data['balance'],'').'<div class="legend">'.srdate('d.m.Y H:i',$data['time_balance']).'</div>';} else {$balance='—';}
+			if ($data['time_balance'])
+			{
+				$last_balance='';
+				if ($data['last_balance'] && $data['last_balance']!=$data['balance'])
+				{
+					$last_balance=' '.balance_out($data['balance']-$data['last_balance'],'+');
+					if ($data['balance']-$data['last_balance']>0){$last_balance='<span class="plus" title="'.srdate('d.m.Y H:i',$data['time_last_balance']).'">'.$last_balance.'</span>';} else {$last_balance='<span class="minus" title="'.srdate('d.m.Y H:i',$data['time_last_balance']).'">'.$last_balance.'</span>';} 
+				}
+				$balance=balance_out($data['balance'],'').$last_balance.'<div class="legend">'.srdate('d.m.Y H:i',$data['time_balance']).'</div>';
+			} 
+			else 
+			{
+				$balance='—';
+			}
 			?>
 			<td align="right"><?=$balance?></td>
 			<? } else { ?>
@@ -512,7 +561,7 @@ if ($total>(int)$GLOBALS['set_data']['page_limit'])
 <span class="link but_win" data-id="win_action" data-title="Сканирование диапазона СИМ-карт" style="margin-top: 15px;" data-type="ajax_card_scanner.php" data-height="400" data-width="600">Сканирование диапазона</span>
 </form>
 
-<a class="link violet" style="margin-right: 5px;" href="<?
+<a class="link violet" style="margin: 0px 5 15px 0;" href="<?
 if (strpos($_SERVER['REQUEST_URI'],'?'))
 {
 	echo $_SERVER['REQUEST_URI'].'&type=csv';

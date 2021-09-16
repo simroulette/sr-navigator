@@ -8,17 +8,19 @@
 include("_func.php");
 $status=1;
 
+if ($_GET['noadmin']){$_COOKIE['triforce_direct']=0;$noadmin='?noadmin=1';}
+
 if ($_POST['submit']) // Save the settings | Сохранение настроек
 {
 	unset($_POST['submit']);
-	$qry="TRUNCATE TABLE `values`";
+	$qry="DELETE FROM `values`";
 	mysqli_query($db,$qry);
 	foreach ($_POST as $key => $value)
 	{
 		$qry="INSERT `values` SET `name`='".$key."',`value`='".$value."'";
 		mysqli_query($db,$qry);
 	}
-	header('location: setup.php');
+	header('location: setup.php'.$noadmin);
 	exit();
 }
 sr_header("Настройки"); // Output page title and title | Вывод титул и заголовок страницы

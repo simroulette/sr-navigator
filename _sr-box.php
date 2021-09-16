@@ -103,17 +103,8 @@ function sim_link($dev, $data, $curRow, $modems, $actId, $func, $adata)
 						setlog('[sim_link:'.$dev.'] The start of the function: '.$f); // Запуск функции
 						$m=$key;
 						$r=$curRow;
-						if ($modem_shift==-1) // Changing the modem line 9-15 -> 1-8 | Меняем линию модемов 9-15 -> 1-8
-						{
-							$m=$m+8;
-						}
-						elseif ($modem_shift==1) // Changing the modem line 1-8 -> 9-15 | Меняем линию модемов 1-8 -> 9-15
-						{
-							$m=$m-8;
-							$r=$r+3;	
-						}
 						sr_command($dev,'modem>select:'.$key);
-						$answer=$f($dev,$r,$m,$adata,$data['operator']);
+						$answer=$f($dev,$r,$m,$adata);//,$data['operator']);
 						setlog('[sim_link:'.$dev.'] The function is executed with the result: '.$answer);
 						if ($answer)
 						{
@@ -157,7 +148,7 @@ function sim_link($dev, $data, $curRow, $modems, $actId, $func, $adata)
 
 // Online mode: Connect to the selected modems for receiving SMS in a loop
 // Онлайн-режим: Подключение выбранных модемов, прием SMS в цикле
-function online_mode($dev, $curRow, $modems)
+function online_mode($dev, $curRow, $modems, $devData)
 {
 //	$dev		Device ID
 //	$curRow	        Panel row for positioning 1 modem line
@@ -329,19 +320,29 @@ function online_mode($dev, $curRow, $modems)
 	}
 }
 
-// Getting the path length
-// Получение длины пути
-function dev_rows($dev)
+function dev_init($dev)
 {
 //	$dev		Device ID
 	global $db;
-	$rows=sr_command($dev,'row>calc',300);
-	if ($rows!=(int)$rows)
+	$map=sr_command($dev,'modem>map',30);
+	if (strpos($map,'error:')===false)
 	{
-		return(0);
+		if ($result = mysqli_query($db, "SELECT `data` FROM `devices` WHERE `id`=".$dev)) 
+		{
+			if ($row = mysqli_fetch_assoc($result))
+			{
+				$data=unserialize($row['data']);
+				if ($map=='NULL'){$map=0;$model='SR-Box-8';} else {$model='SR-Box-Bank';} 
+				$data['map']=$map;
+
+				$qry="UPDATE `devices` SET `title`=`model`,`model`='".$model."',`init`=".time().",`data`='".serialize($data)."' WHERE `id`=".$dev;
+				mysqli_query($db,$qry);
+				sr_command($dev,'dev:mode=navigator&&save&&sound:beep');		
+				return(1);
+			}
+		}			
 	}
-	$qry="UPDATE `devices` SET `data`='".serialize(array('data'=>$rows))."' WHERE `id`=".(int)$dev;
-	mysqli_query($qry,$db);
-	return(1);
+	return(0);
 }
+
 ?>

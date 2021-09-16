@@ -11,44 +11,76 @@ CREATE TABLE `actions` (
   `data` text NOT NULL,
   `count` int NOT NULL DEFAULT '0',
   `progress` int NOT NULL DEFAULT '0',
-  `status` enum('inprogress','waiting','suspension','suspended','') NOT NULL DEFAULT 'waiting',
+  `status` enum('inprogress','waiting','suspension','suspended','preparing','') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'waiting',
   `success` int NOT NULL DEFAULT '0',
   `errors` int NOT NULL DEFAULT '0',
-  `uniq` varchar(8) NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  `uniq` varchar(8) NOT NULL DEFAULT '0',
+  `report` text NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
 DROP TABLE IF EXISTS `answer`;
 
 CREATE TABLE `answer` (
-  `step` int NOT NULL,
+  `step` int(9) NOT NULL,
   `answer` text NOT NULL,
-  `device` int NOT NULL DEFAULT '0',
-  `time` int NOT NULL DEFAULT '0'
+  `device` int(9) NOT NULL DEFAULT '0',
+  `time` int(11) NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `call_incoming`;
+
+CREATE TABLE `call_incoming` (
+  `id` int NOT NULL,
+  `time` int NOT NULL DEFAULT '0',
+  `number` varchar(15) NOT NULL DEFAULT '',
+  `incoming` varchar(15) NOT NULL,
+  `device` int NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `card2action`;
 
 CREATE TABLE `card2action` (
-  `id` int NOT NULL,
-  `device` int NOT NULL DEFAULT '0',
-  `action` int NOT NULL DEFAULT '0',
-  `row` int NOT NULL DEFAULT '0',
-  `place` varchar(63) NOT NULL DEFAULT ''
+  `id` int(9) NOT NULL,
+  `device` int(1) NOT NULL DEFAULT '0',
+  `action` int(9) NOT NULL DEFAULT '0',
+  `row` int(9) NOT NULL DEFAULT '0',
+  `place` varchar(38) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `cards2folder`;
+
+CREATE TABLE `cards2folder` (
+  `id` int NOT NULL,
+  `iccid` varchar(20) NOT NULL,
+  `number` varchar(15) NOT NULL DEFAULT '',
+  `title` varchar(32) NOT NULL DEFAULT '',
+  `operator` varchar(16) NOT NULL DEFAULT '0',
+  `balance` double NOT NULL DEFAULT '0',
+  `place` varchar(6) NOT NULL DEFAULT '' COMMENT 'Ряд;Место(10;8) или ДорожкаМесто(A0)',
+  `time` int NOT NULL DEFAULT '0',
+  `time_number` int NOT NULL DEFAULT '0',
+  `time_balance` int NOT NULL DEFAULT '0',
+  `time_sms` int NOT NULL DEFAULT '0',
+  `comment` text NOT NULL,
+  `folder_id` int NOT NULL DEFAULT '0',
+  `done` tinyint NOT NULL DEFAULT '0',
+  `user_id` int NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT;
 
 DROP TABLE IF EXISTS `card2pool`;
 
 CREATE TABLE `card2pool` (
-  `id` int NOT NULL,
-  `pool` int NOT NULL DEFAULT '0',
-  `card` varchar(15) NOT NULL DEFAULT '',
-  `done` tinyint(1) NOT NULL DEFAULT '0'
+  `id` int(9) NOT NULL,
+  `pool` int(9) NOT NULL DEFAULT '0',
+  `card` varchar(15) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `cards`;
 
 CREATE TABLE `cards` (
   `id` int NOT NULL,
+  `iccid` varchar(20) NOT NULL,
+  `num` int NOT NULL DEFAULT '0',
   `number` varchar(15) NOT NULL DEFAULT '',
   `title` varchar(32) NOT NULL DEFAULT '',
   `operator` varchar(16) NOT NULL DEFAULT '0',
@@ -56,32 +88,37 @@ CREATE TABLE `cards` (
   `device` int NOT NULL DEFAULT '0',
   `folder` varchar(32) NOT NULL DEFAULT '',
   `balance` double NOT NULL DEFAULT '0',
+  `last_balance` double NOT NULL DEFAULT '0',
   `place` varchar(6) NOT NULL DEFAULT '',
   `time` int NOT NULL DEFAULT '0',
   `status` enum('free','inprogress','waiting') NOT NULL DEFAULT 'free',
   `time_number` int NOT NULL DEFAULT '0',
   `time_balance` int NOT NULL DEFAULT '0',
+  `time_last_balance` int NOT NULL DEFAULT '0',
   `time_sms` int NOT NULL DEFAULT '0',
   `comment` varchar(255) NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 ROW_FORMAT=COMPACT;
 
-DROP TABLE IF EXISTS `cards2folder`;
+DROP TABLE IF EXISTS `flags`;
 
-CREATE TABLE `cards2folder` (
+CREATE TABLE `flags` (
   `id` int NOT NULL,
-  `number` varchar(15) NOT NULL DEFAULT '',
-  `title` varchar(32) NOT NULL DEFAULT '',
-  `operator` varchar(16) NOT NULL DEFAULT '0',
-  `balance` double NOT NULL DEFAULT '0',
-  `place` varchar(6) NOT NULL DEFAULT '',
   `time` int NOT NULL DEFAULT '0',
-  `time_number` int NOT NULL DEFAULT '0',
-  `time_balance` int NOT NULL DEFAULT '0',
-  `time_sms` int NOT NULL DEFAULT '0',
-  `comment` text NOT NULL,
-  `folder_id` int NOT NULL DEFAULT '0',
-  `done` tinyint NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT;
+  `name` varchar(15) NOT NULL DEFAULT '',
+  `device` int NOT NULL DEFAULT '0',
+  `value` varchar(32) NOT NULL DEFAULT '1'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 ROW_FORMAT=COMPACT;
+
+DROP TABLE IF EXISTS `folders`;
+
+CREATE TABLE `folders` (
+  `id` int(9) NOT NULL,
+  `title` varchar(32) NOT NULL DEFAULT '',
+  `comment` text NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Сменные диски';
+
+INSERT INTO `folders` (`id`, `title`, `comment`) VALUES
+(1, 'default', 'Диск по умолчанию');
 
 DROP TABLE IF EXISTS `devices`;
 
@@ -95,6 +132,7 @@ CREATE TABLE `devices` (
   `ip` varchar(21) NOT NULL DEFAULT '',
   `type` enum('client','server') NOT NULL DEFAULT 'client',
   `time` int NOT NULL DEFAULT '0',
+  `init` int NOT NULL DEFAULT '0',
   `step` int NOT NULL DEFAULT '100',
   `data` text NOT NULL,
   `status` enum('free','inprogress','waiting') NOT NULL DEFAULT 'free',
@@ -103,100 +141,68 @@ CREATE TABLE `devices` (
   `pause` int NOT NULL DEFAULT '0',
   `folder` varchar(255) NOT NULL DEFAULT 'a:3:{s:5:"title";s:7:"Default";s:4:"time";s:1:"0";s:7:"comment";s:23:"По умолчанию";}',
   `press` int NOT NULL DEFAULT '0',
-  `errors` int NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-DROP TABLE IF EXISTS `flags`;
-
-CREATE TABLE `flags` (
-  `id` int NOT NULL,
-  `time` int NOT NULL DEFAULT '0',
-  `name` varchar(15) NOT NULL DEFAULT '',
-  `device` int NOT NULL DEFAULT '0',
-  `value` varchar(32) NOT NULL DEFAULT '1'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT;
-
-DROP TABLE IF EXISTS `folders`;
-
-CREATE TABLE `folders` (
-  `id` int NOT NULL,
-  `time` int NOT NULL DEFAULT '0',
-  `title` varchar(32) NOT NULL DEFAULT '',
-  `comment` varchar(200) NOT NULL DEFAULT ''
+  `errors` int NOT NULL DEFAULT '0',
+  `msg` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `link_incoming`;
 
 CREATE TABLE `link_incoming` (
-  `id` int NOT NULL,
+  `id` int(9) NOT NULL,
   `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `device` int NOT NULL DEFAULT '0',
-  `step` int NOT NULL DEFAULT '0',
+  `device` int(9) NOT NULL DEFAULT '0',
+  `step` int(9) NOT NULL DEFAULT '0',
   `answer` text NOT NULL,
   `uniq` varchar(8) NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Ответы агрегаторов';
 
 DROP TABLE IF EXISTS `link_outgoing`;
 
 CREATE TABLE `link_outgoing` (
-  `id` int NOT NULL,
+  `id` int(9) NOT NULL,
   `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `device` int NOT NULL DEFAULT '0',
-  `step` int NOT NULL DEFAULT '0',
+  `device` int(9) NOT NULL DEFAULT '0',
+  `step` int(9) NOT NULL DEFAULT '0',
   `command` text NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Очередь команд для агрегаторов';
 
 DROP TABLE IF EXISTS `modems`;
 
 CREATE TABLE `modems` (
-  `id` int NOT NULL,
-  `time` int NOT NULL DEFAULT '0',
-  `device` int NOT NULL DEFAULT '0',
-  `modems` text NOT NULL,
-  `row` int NOT NULL DEFAULT '0',
-  `numbers` varchar(255) NOT NULL DEFAULT '',
-  `pool_id` int NOT NULL DEFAULT '0'
+  `id` int(9) NOT NULL,
+  `time` int(11) NOT NULL DEFAULT '0',
+  `device` int(9) NOT NULL DEFAULT '0',
+  `modems` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `operators`;
 
 CREATE TABLE `operators` (
-  `id` int NOT NULL,
+  `id` int(9) NOT NULL,
   `title` varchar(60) NOT NULL DEFAULT '',
-  `title_r` varchar(60) NOT NULL DEFAULT '',
   `name` varchar(32) NOT NULL DEFAULT '',
   `color` varchar(6) NOT NULL DEFAULT '',
-  `color_r` varchar(6) NOT NULL DEFAULT '',
-  `prefix` varchar(6) NOT NULL DEFAULT '',
-  `prefix_r` varchar(6) NOT NULL DEFAULT '',
   `get_number` varchar(32) NOT NULL DEFAULT '',
   `get_number_type` enum('ussd','sms','none') NOT NULL DEFAULT 'none',
   `get_balance` varchar(32) NOT NULL DEFAULT '',
   `get_balance_type` enum('ussd','sms','none','') NOT NULL DEFAULT 'none',
-  `get_number_r` varchar(32) NOT NULL DEFAULT '',
-  `get_number_type_r` enum('ussd','sms','none') NOT NULL DEFAULT 'none',
-  `get_balance_r` varchar(32) NOT NULL DEFAULT '',
-  `get_balance_type_r` enum('ussd','sms','none','') NOT NULL DEFAULT 'none',
-  `time` int NOT NULL DEFAULT '0'
+  `time` int(11) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Сотовые операторы';
 
-INSERT INTO `operators` (`id`, `title`, `title_r`, `name`, `color`, `color_r`, `prefix`, `prefix_r`, `get_number`, `get_number_type`, `get_balance`, `get_balance_type`, `get_number_r`, `get_number_type_r`, `get_balance_r`, `get_balance_type_r`, `time`) VALUES
-(1, 'Билайн', '', 'BEE', 'FFBB00', '', '7', '', '*110*10#', 'sms', '#102#', 'ussd', '', 'none', '', 'none', 1588081415),
-(2, 'МТС', '', 'MTS', 'FF0000', '', '7', '', '*111*0887#', 'sms', '#100#', 'ussd', '', 'none', '', 'none', 1588081415),
-(3, 'Мегафон', '', 'MEGAFON', '00AA66', '', '7', '', '*205#', 'ussd', '*100#', 'ussd', '', 'none', '', 'none', 1588081415),
-(4, 'Теле2', '', 'TELE2', '000000', '', '7', '', '*201#', 'ussd', '*105#', 'ussd', '', 'none', '', 'none', 1588081415),
-(5, 'Yota', '', 'YOTA', '0088FF', '', '7', '', '*103#', 'ussd', '*100#', 'ussd', '', 'none', '', 'none', 1588081415),
-(6, 'Ростелеком', '', 'ROSTELECOM', 'b863fd', '000000', '7', '', '*110#', 'sms', '*122#', 'sms', '', 'none', '', 'none', 1588081415);
+INSERT INTO `operators` (`id`, `title`, `name`, `color`, `get_number`, `get_number_type`, `get_balance`, `get_balance_type`, `time`) VALUES
+(1, 'Билайн', 'Bee Line GSM', 'FFBB00', '*110*10#', 'sms', '#102#', 'ussd', 1588081415),
+(2, 'МТС', 'MTS', 'FF0000', '*111*0887#', 'sms', '#100#', 'ussd', 1583842346),
+(3, 'Мегафон', 'MegaFon', '00AA66', '*205#', 'ussd', '*100#', 'ussd', 1588078856),
+(4, 'Теле2', 'tele2', '000000', '', 'none', '', 'none', 0),
+(5, 'Yota', 'Yota', '0088FF', '*103#', 'ussd', '*100#', 'ussd', 1588084453);
 
 DROP TABLE IF EXISTS `pools`;
 
 CREATE TABLE `pools` (
-  `id` int NOT NULL,
+  `id` int(9) NOT NULL,
   `title` varchar(32) NOT NULL DEFAULT '',
-  `time` int NOT NULL DEFAULT '0',
-  `status` enum('free','inprogress','waiting','') NOT NULL DEFAULT 'free',
-  `marker` int NOT NULL DEFAULT '0',
-  `key` varchar(32) NOT NULL DEFAULT ''
+  `time` int(11) NOT NULL DEFAULT '0',
+  `status` enum('free','inprogress','waiting','') NOT NULL DEFAULT 'free'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `reports`;
@@ -213,24 +219,20 @@ CREATE TABLE `reports` (
   `count` int NOT NULL DEFAULT '0',
   `success` int NOT NULL DEFAULT '0',
   `errors` int NOT NULL DEFAULT '0',
-  `user_id` int NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT;
+  `report` text NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 ROW_FORMAT=COMPACT;
 
 DROP TABLE IF EXISTS `sms_incoming`;
 
 CREATE TABLE `sms_incoming` (
-  `id` int NOT NULL,
-  `time` int NOT NULL DEFAULT '0',
-  `time_receive` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `modified` int NOT NULL DEFAULT '0',
+  `id` int(9) NOT NULL,
+  `time` int(11) NOT NULL DEFAULT '0',
+  `modified` int(11) NOT NULL DEFAULT '0',
   `number` varchar(15) NOT NULL DEFAULT '',
   `sender` varchar(15) NOT NULL DEFAULT '',
   `txt` text NOT NULL,
-  `header` varchar(17) NOT NULL DEFAULT '',
-  `done` tinyint(1) NOT NULL DEFAULT '0',
-  `readed` tinyint(1) NOT NULL DEFAULT '0',
-  `user_id` int NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  `readed` tinyint(1) NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Входящие SMS';
 
 DROP TABLE IF EXISTS `staff`;
 
@@ -240,8 +242,9 @@ CREATE TABLE `staff` (
   `name` varchar(32) NOT NULL DEFAULT '',
   `login` varchar(32) NOT NULL DEFAULT '',
   `pass` varchar(32) NOT NULL DEFAULT '',
-  `pool` int NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT;
+  `pool` int NOT NULL DEFAULT '0',
+  `timer` int NOT NULL DEFAULT '300'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `users`;
 
@@ -258,18 +261,17 @@ INSERT INTO `users` (`id`, `login`, `pass`, `email`) VALUES
 DROP TABLE IF EXISTS `values`;
 
 CREATE TABLE `values` (
-  `id` int NOT NULL,
+  `id` int(9) NOT NULL,
   `name` varchar(32) NOT NULL DEFAULT '',
   `value` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 INSERT INTO `values` (`id`, `name`, `value`) VALUES
-(1, 'main_menu', 'Настройки - setup.php\r\nАгрегаторы - setup_devices.php;submenu\r\nОператоры связи - setup_operators.php;submenu\r\nSIM-карты - cards.php\r\nПулы - pools.php;submenu\r\nДиски - folders.php;submenu\r\nOnline - online.php;submenu\r\nSMS - sms.php\r\nЗадачи - actions.php\r\nОтчеты - reports.php;submenu\r\nСотрудники - staff.php\r\nTerminal - terminal.php'),
-(2, 'page_limit', '1000'),
-(3, 'code_block', '1'),
-(4, 'term_int', '1000'),
-(5, 'email', ''),
-(6, 'log_size', '1000');
+(1, 'page_limit', '100'),
+(2, 'main_menu', 'Настройки - setup.php\r\nАгрегаторы - setup_devices.php;submenu\r\nОператоры - setup_operators.php;submenu\r\nSIM-карты - cards.php\r\nПулы - pools.php;submenu\r\nДиски - folders.php;submenu\r\nOnline - online.php;submenu\r\nВызовы - call.php\r\nSMS - sms.php\r\nЗадачи - actions.php\r\nОтчеты - reports.php;submenu\r\nTerminal - terminal.php'),
+(3, 'term_int', '500'),
+(4, 'phone_prefix', '7'),
+(5, 'log_size', '1000');
 
 ALTER TABLE `actions`
   ADD PRIMARY KEY (`id`),
@@ -286,39 +288,37 @@ ALTER TABLE `card2action`
   ADD KEY `action` (`action`) USING BTREE,
   ADD KEY `modems` (`row`) USING BTREE;
 
+ALTER TABLE `cards2folder`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`),
+  ADD KEY `folder_id` (`folder_id`),
+  ADD KEY `done` (`done`);
+
 ALTER TABLE `card2pool`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `card2pool` (`pool`,`card`) USING BTREE,
   ADD KEY `card` (`card`),
-  ADD KEY `pool` (`pool`),
-  ADD KEY `done` (`done`);
+  ADD KEY `pool` (`pool`);
+
+ALTER TABLE `call_incoming`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `time` (`time`),
+  ADD KEY `number` (`number`),
+  ADD KEY `user_id` (`device`),
+  ADD KEY `incoming` (`incoming`);
 
 ALTER TABLE `cards`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `combo` (`place`,`number`),
+  ADD UNIQUE KEY `number` (`number`),
+  ADD KEY `operator` (`number`),
   ADD KEY `time` (`number`),
+  ADD KEY `title` (`title`),
   ADD KEY `time_number` (`time_number`),
   ADD KEY `time_balance` (`time_balance`),
   ADD KEY `time_sms` (`time_sms`),
+  ADD KEY `folder` (`folder`),
   ADD KEY `place` (`place`) USING BTREE,
-  ADD KEY `status` (`status`),
-  ADD KEY `title` (`title`),
-  ADD KEY `number` (`number`),
-  ADD KEY `operator` (`operator`);
-
-ALTER TABLE `cards2folder`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `folder_id` (`folder_id`),
-  ADD KEY `done` (`done`);
-
-ALTER TABLE `devices`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `token_remote` (`token_remote`),
-  ADD KEY `ip` (`id`),
-  ADD KEY `time` (`id`),
-  ADD KEY `pause` (`pause`),
-  ADD KEY `serial` (`serial`),
-  ADD KEY `serial_time` (`serial_time`);
+  ADD KEY `status` (`status`);
 
 ALTER TABLE `flags`
   ADD UNIQUE KEY `namedev` (`name`,`device`),
@@ -329,6 +329,12 @@ ALTER TABLE `flags`
 ALTER TABLE `folders`
   ADD PRIMARY KEY (`id`),
   ADD KEY `title` (`title`);
+
+ALTER TABLE `devices`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `token_remote` (`token_remote`),
+  ADD KEY `ip` (`id`),
+  ADD KEY `time` (`id`);
 
 ALTER TABLE `link_incoming`
   ADD PRIMARY KEY (`id`),
@@ -344,8 +350,7 @@ ALTER TABLE `link_outgoing`
 ALTER TABLE `modems`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `device` (`device`) USING BTREE,
-  ADD KEY `time` (`id`),
-  ADD KEY `pool_id` (`pool_id`);
+  ADD KEY `time` (`id`);
 
 ALTER TABLE `operators`
   ADD PRIMARY KEY (`id`),
@@ -354,13 +359,11 @@ ALTER TABLE `operators`
 ALTER TABLE `pools`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `title` (`title`),
-  ADD KEY `status` (`status`),
-  ADD KEY `key` (`key`);
+  ADD KEY `status` (`status`);
 
 ALTER TABLE `reports`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `time` (`time_begin`),
-  ADD KEY `user_id` (`user_id`);
+  ADD KEY `time` (`time_begin`);
 
 ALTER TABLE `sms_incoming`
   ADD PRIMARY KEY (`id`),
@@ -368,10 +371,7 @@ ALTER TABLE `sms_incoming`
   ADD KEY `sender` (`sender`),
   ADD KEY `readed` (`readed`),
   ADD KEY `number` (`number`),
-  ADD KEY `modified` (`modified`) USING BTREE,
-  ADD KEY `user_id` (`user_id`),
-  ADD KEY `header` (`header`),
-  ADD KEY `time_receive` (`time_receive`);
+  ADD KEY `modified` (`modified`) USING BTREE;
 
 ALTER TABLE `staff`
   ADD PRIMARY KEY (`id`),
@@ -380,30 +380,37 @@ ALTER TABLE `staff`
   ADD KEY `time` (`time`),
   ADD KEY `pool` (`pool`);
 
+ALTER TABLE `users`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `login` (`id`);
+
 ALTER TABLE `values`
   ADD UNIQUE KEY `id` (`id`),
   ADD KEY `name` (`name`);
 
 ALTER TABLE `actions`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
+  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 ALTER TABLE `answer`
-  MODIFY `step` int NOT NULL AUTO_INCREMENT;
+  MODIFY `step` int(9) NOT NULL AUTO_INCREMENT;
+
+ALTER TABLE `call_incoming`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 ALTER TABLE `card2action`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
-
-ALTER TABLE `card2pool`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
-
-ALTER TABLE `cards`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 ALTER TABLE `cards2folder`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
+
+ALTER TABLE `card2pool`
+  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
+
+ALTER TABLE `cards`
+  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 ALTER TABLE `devices`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(1) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 ALTER TABLE `flags`
   MODIFY `id` int NOT NULL AUTO_INCREMENT;
@@ -412,30 +419,31 @@ ALTER TABLE `folders`
   MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 ALTER TABLE `link_incoming`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 ALTER TABLE `link_outgoing`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 ALTER TABLE `modems`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 ALTER TABLE `operators`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 ALTER TABLE `pools`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 ALTER TABLE `reports`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 ALTER TABLE `sms_incoming`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 ALTER TABLE `staff`
   MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
-ALTER TABLE `values`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+ALTER TABLE `users`
+  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
-COMMIT;
+ALTER TABLE `values`
+  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;

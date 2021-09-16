@@ -57,7 +57,7 @@ if (count($devices)<1)
 <br>
 <em>— Сначала нужно добавить в список свой агрегатор!</em>
 <br><br>
-<a href="setup_devices.php?edit=new" class="link" style="margin: margin: 0 10px 10px 0">Добавить Агрегатор</a>
+<a href="devices.php?edit=new" class="link" style="margin: margin: 0 10px 10px 0">Добавить Агрегатор</a>
 <?
 }
 else
@@ -90,21 +90,17 @@ var term_int=<?=$GLOBALS['set_data']['term_int']?>;
 </div>
 <br>
 Команда:
-<input type="text" id="command" name="command" style="margin: 6px 0 10px 0;">
-Или список команд:<div class="icon_cont"><i class="icon-trash" title="Очистить команды" onclick="document.getElementById('command').value='';"></i></div>
-<?
-/*
-<textarea id="command" name="command"></textarea>
-*/
-?>
+<input type="text" id="command" name="command" style="margin: 6px 0 0 0;">
 <input type="hidden" id="step" name="step" value="0">
 <br><br>
 <input type="button" value="Отправить" style="padding: 10px; float: left;" onclick="getRequest();return false;">
-<div class="example" onclick="document.getElementById('command').value='m:help'">m:help</div>
-<div class="example" onclick="document.getElementById('command').value='restart'">restart</div>
-<div class="example" onclick="document.getElementById('command').value='buffer'">buffer></div>
-<div class="example" onclick="document.getElementById('command').value='modem'">modem></div>
-<div class="example" onclick="document.getElementById('command').value='sms'">sms></div>
+<? 
+$a=explode(';',$GLOBALS['set_data']['terminal_hot']);
+foreach ($a AS $data)
+{
+	echo '<div class="example" onclick="document.getElementById(\'command\').value=\''.$data.'\'">'.$data.'</div>';
+}
+?>
 <div style="clear: both;"><span></span></div>
 </form>
 Лог команд:<div class="icon_cont"><i class="icon-trash" title="Очистить буфер" onclick="document.getElementById('result_send').innerHTML='';"></i></div>

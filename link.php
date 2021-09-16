@@ -1,4 +1,4 @@
-<?                             
+<?
 // ===================================================================
 // Sim Roulette -> Connection with SIM Roulette
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
@@ -41,6 +41,7 @@ if (!flagGet($id,'connect') || flagGet($id,'connect',1)+$data['carrier_limit']>t
 			if (!flagGet($id,'connect'))
 			{
 				flagSet($id,'connect');
+				flagSet($id,'connect_delay');
 			}
 		}
 		else
@@ -53,8 +54,9 @@ if (!flagGet($id,'connect') || flagGet($id,'connect',1)+$data['carrier_limit']>t
 }
 elseif (flagGet($id,'connect') && flagGet($id,'connect',1)+$data['carrier_limit']*2.3<time())
 {
-	setlog('Does not respond! ('.(time()-flagGet($id,'connect',1)).') '.$_GET['data'],'link_'.$id);
+	setlog('Ready to restart! ('.(time()-flagGet($id,'connect',1)).') '.$_GET['data'],'link_'.$id);
 	flagDelete($id,'connect');
+	flagDelete($id,'connect_delay');
 	exit();
 }
 elseif (flagGet($id,'connect') && $_GET['data']=='REQUEST')
@@ -73,6 +75,40 @@ if ($_GET['data']!='REQUEST')
 	`answer`='".$_GET['data']."'".$uniq;
 	mysqli_query($db,$qry);
 	flagDelete($id,'connect');
+	flagDelete($id,'connect_delay');
+	flagSet($id,'request');
+}
+if (strpos($_GET['data'],'+CLIP:')!==false)
+{
+	preg_match('!"(.*)"!Uis', $_GET['data'], $test);
+	if ($test[1])
+	{
+		$msg['type']='RING';
+		$msg['time']=time();
+		$msg['data']=$test[1];
+		mysqli_query($db,"UPDATE `devices` SET `msg`='".serialize($msg)."' WHERE `id`=".$id);
+		if ($result = mysqli_query($db, 'SELECT `modems` FROM `modems` WHERE `device`='.$id)) 
+		{
+			if ($row=mysqli_fetch_assoc($result))
+			{
+				$modems=unserialize($row['modems']);
+				if ($result = mysqli_query($db, 'SELECT `number` FROM `cards` WHERE `place`="'.$modems[0].'" AND `device`='.$id)) 
+				{
+					if ($row=mysqli_fetch_assoc($result))
+					{
+						$number=$row['number'];
+					}
+				}
+			}
+		}
+		if ($result = mysqli_query($db, 'SELECT `id` FROM `call_incoming` WHERE `device`='.$id.' AND `time`>'.(time()-20)." ORDER BY `id` LIMIT 1")) 
+		{
+			if (!mysqli_fetch_assoc($result))
+			{
+				mysqli_query($db,"INSERT INTO `call_incoming` SET `number`='".$number."', `incoming`='".str_replace('+','',$test[1])."', `time`=".time().",`device`=".$id);
+			}
+		}
+	}
 }
 setlog('IN > '.$_GET['step'].' | '.stripslashes($_GET['data']).' OUT > '.$step.' | '.$out,'link_'.$id);
 ?>

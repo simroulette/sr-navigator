@@ -37,6 +37,7 @@ else
 	$txt='';
 	$actions=';'.$_GET['actions'].';';
 	$a=explode(';',$_GET['actions']);
+	for ($i=0;$i<count($a);$i++){$a[$i]=(int)$a[$i];}
 	if ($result = mysqli_query($db, "SELECT * FROM `actions` WHERE `id` IN (".implode(',',$a).")")) 
 	{
 		while ($row = mysqli_fetch_assoc($result))
@@ -63,6 +64,10 @@ else
 			elseif ($row['status']=='suspension')
 			{
 				$txt.='3###';
+			}
+			elseif ($row['status']=='preparing')
+			{
+				$txt.='4###';
 			}
 			else
 			{
