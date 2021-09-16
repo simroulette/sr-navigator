@@ -63,8 +63,7 @@ CREATE TABLE `cards2folder` (
   `time_sms` int NOT NULL DEFAULT '0',
   `comment` text NOT NULL,
   `folder_id` int NOT NULL DEFAULT '0',
-  `done` tinyint NOT NULL DEFAULT '0',
-  `user_id` int NOT NULL DEFAULT '0'
+  `done` tinyint NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=COMPACT;
 
 DROP TABLE IF EXISTS `card2pool`;
@@ -115,8 +114,7 @@ CREATE TABLE `folders` (
   `id` int NOT NULL,
   `time` int NOT NULL DEFAULT '0',
   `title` varchar(32) NOT NULL DEFAULT '',
-  `comment` varchar(200) NOT NULL DEFAULT '',
-  `user_id` int NOT NULL DEFAULT '0'
+  `comment` varchar(200) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 INSERT INTO `folders` (`id`, `title`, `comment`) VALUES
@@ -292,7 +290,6 @@ ALTER TABLE `card2action`
 
 ALTER TABLE `cards2folder`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `user_id` (`user_id`),
   ADD KEY `folder_id` (`folder_id`),
   ADD KEY `done` (`done`);
 
@@ -306,7 +303,6 @@ ALTER TABLE `call_incoming`
   ADD PRIMARY KEY (`id`),
   ADD KEY `time` (`time`),
   ADD KEY `number` (`number`),
-  ADD KEY `user_id` (`device`),
   ADD KEY `incoming` (`incoming`);
 
 ALTER TABLE `cards`
