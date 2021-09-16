@@ -187,7 +187,7 @@ CREATE TABLE `operators` (
   `get_balance` varchar(32) NOT NULL DEFAULT '',
   `get_balance_type` enum('ussd','sms','none','') NOT NULL DEFAULT 'none',
   `time` int(11) NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Сотовые операторы';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 INSERT INTO `operators` (`id`, `title`, `name`, `color`, `get_number`, `get_number_type`, `get_balance`, `get_balance_type`, `time`) VALUES
 (1, 'Билайн', 'Bee Line GSM', 'FFBB00', '*110*10#', 'sms', '#102#', 'ussd', 1588081415),
@@ -359,7 +359,7 @@ ALTER TABLE `operators`
 
 ALTER TABLE `pools`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `title` (`user_id`,`title`),
+  ADD UNIQUE KEY `title` (`title`),
   ADD KEY `status` (`status`),
   ADD KEY `key` (`key`);
 
