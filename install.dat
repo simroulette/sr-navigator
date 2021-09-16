@@ -112,10 +112,12 @@ CREATE TABLE `flags` (
 DROP TABLE IF EXISTS `folders`;
 
 CREATE TABLE `folders` (
-  `id` int(9) NOT NULL,
+  `id` int NOT NULL,
+  `time` int NOT NULL DEFAULT '0',
   `title` varchar(32) NOT NULL DEFAULT '',
-  `comment` text NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Сменные диски';
+  `comment` varchar(200) NOT NULL DEFAULT '',
+  `user_id` int NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 INSERT INTO `folders` (`id`, `title`, `comment`) VALUES
 (1, 'default', 'Диск по умолчанию');
