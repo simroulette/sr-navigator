@@ -130,8 +130,8 @@ if ($_GET['change']) // Changing the disk | Смена диска
 
 		if ($status)
 		{			
-//			header('location:folders.php');
-//			exit();
+			header('location:folders.php');
+			exit();
 		}
 	}
 	elseif ($_POST['save'])
