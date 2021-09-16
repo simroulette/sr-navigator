@@ -230,24 +230,6 @@ else // List of operators | Список операторов
 	$def=0;
 	foreach ($table as $data)
 {
-	if ($def==0)
-	{
-		$def=2;
-?>
-		<tr>
-			<td colspan="3">ИНДИВИДУАЛЬНЫЕ НАСТРОЙКИ:</td>
-		</tr>
-<?
-	}
-	elseif ($def==1)
-	{
-		$def=2;
-?>
-		<tr>
-			<td colspan="3">НАСТРОЙКИ ПО УМОЛЧАНИЮ:</td>
-		</tr>
-<?
-	}
 ?>
 	<tr>
 	<td<? if ($data['color']){?> style="color: #<?=$data['color']?>; background:#<?=$data['bg']?>"<? } ?>><?=$data['title']?></td><td><?=$data['name']?></td>
