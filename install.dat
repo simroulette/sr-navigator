@@ -273,7 +273,8 @@ INSERT INTO `values` (`id`, `name`, `value`) VALUES
 (2, 'main_menu', 'Настройки - setup.php\r\nАгрегаторы - setup_devices.php;submenu\r\nОператоры - setup_operators.php;submenu\r\nSIM-карты - cards.php\r\nПулы - pools.php;submenu\r\nДиски - folders.php;submenu\r\nOnline - online.php;submenu\r\nВызовы - call.php\r\nSMS - sms.php\r\nЗадачи - actions.php\r\nОтчеты - reports.php;submenu\r\nTerminal - terminal.php'),
 (3, 'term_int', '500'),
 (4, 'phone_prefix', '7'),
-(5, 'log_size', '1000');
+(5, 'terminal_hot', 'restart;buffer>;modem>;sms>;version;ATH0;AT+CREG?'),
+(6, 'log_size', '1000');
 
 ALTER TABLE `actions`
   ADD PRIMARY KEY (`id`),
@@ -447,4 +448,4 @@ ALTER TABLE `users`
   MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 ALTER TABLE `values`
-  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;

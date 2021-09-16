@@ -22,7 +22,7 @@ if ($result = mysqli_query($db, "SELECT * FROM `devices` WHERE `token_remote`='"
 	}
 	else
 	{
-		setlog('Device not identified!','link_'.$id);  // Устройство не опознано
+		setlog('Device not identified!','link_error');  // Устройство не опознано
 		exit(); 
 	}
 }

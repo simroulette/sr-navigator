@@ -1566,7 +1566,6 @@ function get_number($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 				`time`='".time()."'";
 				mysqli_query($db,$qry);
 			}
-			setlog('[get_number:'.$dev.'] Save number: '.$qry,'link_'.$dev);
 		}
 	}
 	return($status);
@@ -1907,7 +1906,6 @@ function do_call($dev=0,$curRow='',$place='',$adata='',$operator='',$roaming=0)
 			$answer=sr_answer($dev,0,3,'NO CARRIER');
 			if ($answer=='NO CARRIER');
 			{
-				setlog('[put_call:'.$dev.'] NO CARRIER','link_'.$dev);
 				break;
 			}
 		}
