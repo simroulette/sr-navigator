@@ -1,17 +1,12 @@
 <?
-// ===================================================================
-// Sim Roulette -> API
-// License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
-// Author: Nikita Zabelin
-// ===================================================================
-
 $cron=1;
 $_SERVER['DOCUMENT_ROOT']='';
 $root="[path]";
 include($root.'_func.php');
 
 if (!$_POST){$_POST=$_GET;}
+
+$_POST['number']=str_replace('+','',trim($_POST['number']));
 
 if (!$_POST['pool_key'])
 {
@@ -20,11 +15,12 @@ if (!$_POST['pool_key'])
 }
 else
 {
-	if ($result = mysqli_query($db, "SELECT `id` FROM `pools` WHERE `key`='".$_POST['pool_key']."'")) 
+	if ($result = mysqli_query($db, "SELECT `id`,`user_id` FROM `pools` WHERE `key`='".$_POST['pool_key']."'")) 
 	{
 		if ($row = mysqli_fetch_assoc($result))
 		{
 			$pool_id=$row['id'];
+			$user_id=$row['user_id'];
 		}
 		else
 		{
@@ -69,13 +65,14 @@ $channels=array(
 'SR-Train'=>16,
 'SR-Organizer'=>2,
 'SR-Box-8'=>8,
+'SR-Box-Bank'=>8,
 );
 
 if ($_POST['action']=='getAgregators')
 {
 	$devices=array();
 	$qry="SELECT c.`number`, c.`device`,c.`operator`,d.`model` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
+	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
 	INNER JOIN `devices` d ON d.`id`=c.`device`
 	WHERE p.`pool`='".$pool_id."' AND p.`done`=0 ORDER BY c.`device`,c.`operator`";
 
@@ -98,7 +95,7 @@ else if ($_POST['action']=='getOperators')
 {
 	$operators=array();
 	$qry="SELECT c.`number`, c.`device`,c.`operator` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
+	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
 	WHERE p.`pool`='".$pool_id."' AND p.`done`=0 ORDER BY c.`operator`";
 
 	if ($result = mysqli_query($db, $qry)) 
@@ -123,7 +120,7 @@ else if ($_POST['action']=='getPoolStatus')
 
 elseif ($_POST['action']=='poolRestart')
 {
-	// Выключаем устройства пула
+// Выключаем устройства пула
 	$qry="SELECT c.`device` FROM `card2pool` p 
 	INNER JOIN `cards` c ON c.`number`=p.`card`
 	WHERE p.`pool`='".$pool_id."'";
@@ -155,11 +152,11 @@ elseif ($_POST['action']=='poolRestart')
 else if ($_POST['action']=='getNumbers')
 {
 	$numbers=array();
-	$qry="SELECT c.`number`,c.`device` AS `device_id`,d.`model`,c.`operator`,IF (p.`done`,'USED','FREE') AS `status` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
+	$qry="SELECT c.`number`,c.`place`,c.`device` AS `device_id`,d.`model`,c.`operator`,IF (p.`done`,'USED','FREE') AS `status`,m.`row`,m.`modems` FROM `card2pool` p 
+	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
 	INNER JOIN `devices` d ON d.`id`=c.`device`
 	LEFT JOIN `modems` m ON m.`device`=c.`device`
-	WHERE p.`pool`='".$pool_id."' ORDER BY p.`done`,c.`device`,c.`operator`";
+	WHERE p.`pool`='".$pool_id."' ORDER BY p.`done`,c.`device`,CHAR_LENGTH(c.`place`),c.`place`";
 	if ($result = mysqli_query($db, $qry)) 
 	{
 		$dev=0;
@@ -168,8 +165,51 @@ else if ($_POST['action']=='getNumbers')
 		$max=0;
 		while ($row = mysqli_fetch_assoc($result))
 		{
-			$row['number']=str_replace($_POST['phone_exception'],'',$row['number']);
-			$numbers[]=$row;
+			if ($row['model']=='SR-Train')
+			{
+				$place=explode('-',$row['place']);
+				if ($row['row']==$place[0] || $row['row']+3==$place[0])
+				{			
+					$row['position']='ONLINE';
+				}
+				else
+				{
+					$row['position']='HOLD';
+				}
+			}
+			elseif ($row['model']=='SR-Nano-500' || $row['model']=='SR-Nano-1000')
+			{
+				$m=unserialize($row['modems']);
+				if ($m[0]==$row['place'])
+				{			
+					$row['position']='ONLINE';
+				}
+				else
+				{
+					$row['position']='HOLD';
+				}
+			}
+			elseif ($row['model']=='SR-Box-Bank' || $row['model']=='SR-Box-Bank')
+			{
+				$m=unserialize($row['modems']);
+				$a=explode('-',$row['place']);
+				if ($m[$a[1]][0]==$a[0])
+				{			
+					$row['position']='ONLINE';
+				}
+				else
+				{
+					$row['position']='HOLD';
+				}
+			}
+			unset($row['row']);
+			unset($row['modems']);
+
+			if ($_POST['position']!='ONLINE' || $row['position']=='ONLINE')
+			{
+				$row['number']=str_replace($_POST['phone_exception'],'',$row['number']);
+				$numbers[]=$row;
+			}
 		}
 	}
 	if (!count($numbers))
@@ -190,59 +230,85 @@ else if ($_POST['action']=='openNumber')
 		$where.=" AND c.`number`='".(int)trim($_POST['number'])."'";
 	}
 
-	$qry="SELECT c.`number`, c.`place`,c.`device`,c.`user_id`,d.`model` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
+	$qry="SELECT c.`number`, c.`place`,c.`device`,c.`user_id`,d.`model`,m.`device` AS `busy`,m.`modems` FROM `card2pool` p 
+	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
 	INNER JOIN `devices` d ON d.`id`=c.`device`
 	LEFT JOIN `modems` m ON m.`device`=c.`device`
-	WHERE p.`pool`='".$pool_id."' AND m.`device` IS NULL AND p.`done`=0 LIMIT 1";
+	WHERE p.`pool`='".$pool_id."'";
+	if (!$_POST['mode']=='repeat'){$qry.=' AND p.`done`=0';}
+	$qry.=' LIMIT 1';
 	if ($result = mysqli_query($db, $qry)) 
 	{
 		if ($row = mysqli_fetch_assoc($result))
 		{
-			// Подключаем номер
-			$dev_row=0;
-			if ($row['model']=='SR-Train')
+// Подключаем номер
+			if ($row['busy'] && ($row['model']=='SR-Nano-500' || $row['model']=='SR-Nano-1000'))
 			{
-				$p=explode('-',$row['place']);
-				$dev_row=$_GET['row']=$p[0];
-			}
-			else if ($row['model']=='SR-Organizer')
-			{
-				$p=explode('-',$row['place']);
-				if ($p[0]=="1")
-				{
-					$_GET['row']=$p[1].'-1';
-				}
-				elseif ($p[0]=="2")
-				{
-					$_GET['row']='1-'.$p[1];
-				}
-			}
-			else if ($status['model']=='SR-Box')
-			{
-				$_GET['row']=0;
+				echo 'BUSY';
 			}
 			else
-			{
-				$_GET['row']=$row['place'];
-			}
-
-			$_GET['device']=$row['device'];
-			$card_num=$row['number'];
-			$out=str_replace($_POST['phone_exception'],'',$row['number']);
-
-			include($root.'ajax_online_create.php');
-			
-			// Записываем задействованные номера
-			$qry="UPDATE `modems` SET `numbers`='".$out."',`pool_id`=".$pool_id.",`row`=".$dev_row." WHERE `device`=".$_GET['device'];
-			mysqli_query($db, $qry);
-			
-			// Помечаем как отработанный
-			$qry="UPDATE `card2pool` SET `done`=1 WHERE `pool`='".$pool_id."' AND `card`='".$card_num."'";
-			mysqli_query($db, $qry);
+			{			
+				$dev_row=0;
+				if ($row['model']=='SR-Train')
+				{
+					$p=explode('-',$row['place']);
+					$dev_row=$_GET['row']=$p[0];
+				}
+				else if ($row['model']=='SR-Organizer')
+				{
+					$p=explode('-',$row['place']);
+					if ($p[0]=="1")
+					{
+						$_GET['row']=$p[1].'-1';
+					}
+					elseif ($p[0]=="2")
+					{
+						$_GET['row']='1-'.$p[1];
+					}
+				}
+				else if ($row['model']=='SR-Box-Bank')
+				{
+					$nm=array(1,1,1,1,1,1,1,1);
+					$nn=explode('-',$row['place']);
+					if ($row['modems'])
+					{
+						$modems=unserialize($row['modems']);
+						for ($i=1;$i<9;$i++)
+						{
+							$nm[$i-1]=$modems[$i][0];	
+						}
+					}
+					$nm[$nn[1]-1]=$nn[0];
+					$_GET['row']=implode(',',$nm);
 		
-			echo str_replace($_POST['phone_exception'],'',$out);
-		}
+//					$p=explode('-',$row['place']);
+//					$_GET['row']=$p[0];
+				}
+				else if ($status['model']=='SR-Box-8' || $status['model']=='SR-Box-2')
+				{
+					$_GET['row']=0;
+				}
+				else
+				{
+					$_GET['row']=$row['place'];
+				}
+
+				$_GET['device']=$row['device'];
+				$sv_user_id=$row['user_id'];
+				$card_num=$row['number'];
+				$out=str_replace($_POST['phone_exception'],'',$row['number']);
+
+				include($root.'ajax_online_create.php');
+// Записываем задействованные номера
+				$qry="UPDATE `modems` SET `numbers`='".$out."',`pool_id`=".$pool_id.",`row`=".$dev_row." WHERE `device`=".$_GET['device'];
+				mysqli_query($db, $qry);
+// Помечаем как отработанный
+				$qry="UPDATE `card2pool` SET `done`=1 WHERE `pool`='".$pool_id."' AND `card`='".$card_num."'";
+				mysqli_query($db, $qry);
+			
+				echo str_replace($_POST['phone_exception'],'',$out);
+			}
+		}       	
 		else
 		{
 			echo 'NO_NUMBERS';
@@ -261,7 +327,7 @@ else if ($_POST['action']=='openNumbers')
 		{
 			$numbers.="'".trim($data)."',";
 		}
-		$where.=" AND c.`number`= IN(".trim($numbers,',').")";
+		$where.=" AND c.`number` IN(".trim($numbers,',').")";
 	}
 
 	$status=getPoolStatus();
@@ -278,7 +344,25 @@ else if ($_POST['action']=='openNumbers')
 		{
 			$dev_row=$_GET['row']=$status['places'][0][0];
 		}
-		else if ($status['model']=='SR-Box')
+		else if ($status['model']=='SR-Box-Bank')
+		{
+			$nm=array(1,1,1,1,1,1,1,1);
+			foreach($status['places'] AS $data)
+			{
+				$nn=explode('-',$data);
+				if ($status['modems'])
+				{
+					$modems=unserialize($status['modems']);
+					for ($i=1;$i<9;$i++)
+					{
+						$nm[$i-1]=$modems[$i][0];	
+					}
+				}
+				$nm[$nn[1]-1]=$nn[0];
+			}
+			$_GET['row']=implode(',',$nm);
+		}
+		else if ($status['model']=='SR-Box-8' || $status['model']=='SR-Box-2')
 		{
 			$_GET['row']=0;
 		}
@@ -302,14 +386,15 @@ else if ($_POST['action']=='openNumbers')
 		$count=count($numbers);
 		$numbers=implode(',',$numbers);
 		$_GET['device']=$status['device'];
+		$sv_user_id=$row['user_id'];
 
 		include($root.'ajax_online_create.php');
 
-		// Записываем задействованные номера
+// Записываем задействованные номера
 		$qry="UPDATE `modems` SET `numbers`='".$numbers."',`pool_id`=".$pool_id.",`row`=".$dev_row." WHERE `device`=".$_GET['device'];
 		mysqli_query($db, $qry);
 
-		// Помечаем как отработанный
+// Помечаем как отработанный
 		$qry="UPDATE `card2pool` SET `done`=1 WHERE `pool`='".$pool_id."' AND `card` IN ('".implode("','",$cards)."')";
 		mysqli_query($db, $qry);
 
@@ -398,8 +483,8 @@ else if ($_POST['action']=='getSimStatus')
 		$list[$data]=array('number'=>$data,'status'=>'NOT_FOUND');
 		$numbers[]='c.`number` LIKE "%'.$data.'%"';
 	}
-	$qry="SELECT c.`number`, c.`place`,c.`device`,d.`model`,m.`modems` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
+	$qry="SELECT c.`number`, c.`place`,c.`device`,c.`user_id`,d.`model`,d.`msg`,m.`modems`,m.`row` FROM `card2pool` p 
+	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
 	INNER JOIN `devices` d ON d.`id`=c.`device`
 	LEFT JOIN `modems` m ON m.`device`=c.`device`
 	WHERE p.`pool`='".$pool_id."' AND (".implode(' OR ',$numbers).")";
@@ -410,14 +495,22 @@ else if ($_POST['action']=='getSimStatus')
 			if ($row['model']=='SR-Train')
 			{
 				$modems=unserialize($row['modems']);
-				$place1=$row['row'];
 				$place2=explode('-',$row['place']);
+				$r=$place2[0];
 				$modem=$place2[1];
-				if ($place2[0]>$place1)
+				if ($r==$row['row'])
+				{
+	 				$status=statusAtrApi($row['device'],$modems[$modem][1]);
+				}
+				elseif ($r-3==$row['row'] && $modem<9)
 				{
 					$modem+=8;
+	 				$status=statusAtrApi($row['device'],$modems[$modem][1]);
 				}					
- 				$status=statusAtrApi($row['device'],$modems[$modem][1]);
+				else
+				{
+	 				$status='INACTIVE';
+				}
 			}
 			elseif ($row['model']=='SR-Organizer')
 			{
@@ -428,9 +521,26 @@ else if ($_POST['action']=='getSimStatus')
 			elseif ($row['model']=='SR-Nano-500' || $row['model']=='SR-Nano-1000')
 			{
 				$modems=unserialize($row['modems']);
- 				$status=str_replace('WAIT_SMS','WAIT_SMS_CALL',statusAtrApi($row['device'],$modems[1]));
+				if ($row['place']==$modems[0])
+				{
+					$m=unserialize($row['msg']);
+					if ($m['type']=='RING' && $m['time']>time()-10)
+					{
+						
+		 				$status=str_replace('WAIT_SMS','RING_['.$m['data'].']',statusAtrApi($row['device'],$modems[1]));
+					}
+					else
+					{
+		 				$status=str_replace('WAIT_SMS','WAIT_SMS_CALL',statusAtrApi($row['device'],$modems[1]));
+					}
+				}
+				else
+				{
+	 				$status='INACTIVE';
+				}
+
 			}
-			elseif ($row['model']=='SR-Box-8')
+			elseif ($row['model']=='SR-Box-8' || $row['model']=='SR-Box-2' || $row['model']=='SR-Box-Bank')
 			{
 				$modems=unserialize($row['modems']);
 				$place2=explode('-',$row['place']);
@@ -472,7 +582,7 @@ else if ($_POST['action']=='getLastSms')
 	}
 	$qry="SELECT s.`id`,s.`txt`,s.`readed` FROM `sms_incoming` s 
 	INNER JOIN `card2pool` c ON c.`card`=s.`number` AND c.`pool`=".$pool_id."
-	WHERE s.`done`=1 AND s.`number` LIKE '%".(int)$_POST['number']."%'".$where.' ORDER BY s.`time_receive` DESC LIMIT 1';
+	WHERE s.`user_id`=".$user_id." AND s.`done`=1 AND s.`number` LIKE '%".(int)$_POST['number']."%'".$where.' ORDER BY s.`time_receive` DESC LIMIT 1';
 
 	if ($result = mysqli_query($db, $qry)) 
 	{
@@ -516,8 +626,8 @@ else if ($_POST['action']=='getSms')
 		$list[$data]=array('number'=>$data,'status'=>'NOT_FOUND_NUMBER','sms_counter'=>'0');
 		$numbers[]='c.`number` LIKE "%'.$data.'%"';
 	}
-	$qry="SELECT c.`number`, c.`place`,c.`device`,d.`model`,m.`modems` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
+	$qry="SELECT c.`number`, c.`place`,c.`device`,c.`user_id`,d.`model`,d.`msg`,m.`modems`,m.`row` FROM `card2pool` p 
+	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
 	INNER JOIN `devices` d ON d.`id`=c.`device`
 	LEFT JOIN `modems` m ON m.`device`=c.`device`
 	WHERE p.`pool`='".$pool_id."' AND (".implode(' OR ',$numbers).")";
@@ -528,15 +638,24 @@ else if ($_POST['action']=='getSms')
 			if ($row['model']=='SR-Train')
 			{
 				$modems=unserialize($row['modems']);
-				$place1=$row['row'];
 				$place2=explode('-',$row['place']);
+				$r=$place2[0];
 				$modem=$place2[1];
-				if ($place2[0]>$place1)
+				if ($r==$row['row'])
+				{
+	 				$status=statusAtrApi($row['device'],$modems[$modem][1]);
+				}
+				elseif ($r-3==$row['row'] && $modem<9)
 				{
 					$modem+=8;
+	 				$status=statusAtrApi($row['device'],$modems[$modem][1]);
 				}					
+				else
+				{
+	 				$status='INACTIVE';
+				}
 				$sms_numbers[]=$row['number'];
- 				$status=statusAtrApi($row['device'],$modems[$modem][1]);
+
 			}
 			elseif ($row['model']=='SR-Organizer')
 			{
@@ -548,10 +667,26 @@ else if ($_POST['action']=='getSms')
 			elseif ($row['model']=='SR-Nano-500' || $row['model']=='SR-Nano-1000')
 			{
 				$modems=unserialize($row['modems']);
- 				$status=str_replace('WAIT_SMS','WAIT_SMS_CALL',statusAtrApi($row['device'],$modems[1]));
+				if ($row['place']==$modems[0])
+				{
+					$m=unserialize($row['msg']);
+					if ($m['type']=='RING' && $m['time']>time()-10)
+					{
+						
+		 				$status=str_replace('WAIT_SMS','RING_['.$m['data'].']',statusAtrApi($row['device'],$modems[1]));
+					}
+					else
+					{
+		 				$status=str_replace('WAIT_SMS','WAIT_SMS_CALL',statusAtrApi($row['device'],$modems[1]));
+					}
+				}
+				else
+				{
+	 				$status='INACTIVE';
+				}
 				$sms_numbers[]=$row['number'];
 			}
-			elseif ($row['model']=='SR-Box-8')
+			elseif ($row['model']=='SR-Box-8' || $row['model']=='SR-Box-2' || $row['model']=='SR-Box-Bank')
 			{
 				$modems=unserialize($row['modems']);
 				$place2=explode('-',$row['place']);
@@ -568,6 +703,7 @@ else if ($_POST['action']=='getSms')
 		}
 		if (count($sms_numbers))
 		{
+// Проверяем SMS
 			$where="";	
 			if (!$_POST['period']){$_POST['period']=60;}
 			$where=' AND unix_timestamp(c.`time_receive`)>'.(time()-$_POST['period']);	
@@ -582,7 +718,7 @@ else if ($_POST['action']=='getSms')
 			$out=array();
 			$qry="SELECT c.`id`,c.`number`,c.`txt`,c.`time`,c.`readed`,c.`sender` FROM `sms_incoming` c 
 			INNER JOIN `card2pool` p ON p.`card`=c.`number` AND p.`pool`=".$pool_id."
-			WHERE c.`done`=1 AND (".implode(' OR ',$numbers).")".$where.' ORDER BY c.`time_receive` DESC';
+			WHERE c.`user_id`=".$user_id."  AND c.`done`=1 AND (".implode(' OR ',$numbers).")".$where.' ORDER BY c.`time_receive` DESC';
 			if ($result = mysqli_query($db, $qry)) 
 			{
 				while ($row = mysqli_fetch_assoc($result))
@@ -612,7 +748,6 @@ else if ($_POST['action']=='getSms')
 								}
 								$list[$key]['sms'][]=array('id'=>$row['id'],'sender'=>$row['sender'],'text'=>$row['txt'],'time'=>date('H:i:s d.m.Y',$row['time']),'timestamp'=>$row['time'],'status'=>$status);
 								$list[$key]['sms_counter']++;
-
 							}
 						}
 						$out[]=$n;
@@ -650,19 +785,170 @@ else if ($_POST['action']=='deleteSms')
 	exit();
 }
 
+else if ($_POST['action']=='getCall')
+{
+	if (!$_POST['number'])
+	{
+		echo 'NO_NUMBER';
+		exit();
+	}
+	$numbers=array();
+	$list=array();
+	$call_numbers=array();
+	$out=array();
+	$_POST['number']=explode(',',$_POST['number']);
+	foreach ($_POST['number'] AS $data)
+	{
+		$list[$data]=array('number'=>$data,'status'=>'NOT_FOUND_NUMBER','call_counter'=>'0');
+		$numbers[]='c.`number` LIKE "%'.$data.'%"';
+	}
+	$qry="SELECT c.`number`, c.`place`,c.`device`,c.`user_id`,d.`model`,d.`msg`,m.`modems` FROM `card2pool` p 
+	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
+	INNER JOIN `devices` d ON d.`id`=c.`device`
+	LEFT JOIN `modems` m ON m.`device`=c.`device`
+	WHERE p.`pool`='".$pool_id."' AND (".implode(' OR ',$numbers).")";
+	if ($result = mysqli_query($db, $qry)) 
+	{
+		while ($row = mysqli_fetch_assoc($result))
+		{
+			if ($row['model']=='SR-Train')
+			{
+				$modems=unserialize($row['modems']);
+				$place2=explode('-',$row['place']);
+				$r=$place2[0];
+				$modem=$place2[1];
+				if ($r==$row['row'])
+				{
+	 				$status=statusAtrApi($row['device'],$modems[$modem][1]);
+				}
+				elseif ($r-3==$row['row'] && $modem<9)
+				{
+					$modem+=8;
+	 				$status=statusAtrApi($row['device'],$modems[$modem][1]);
+				}					
+				else
+				{
+	 				$status='INACTIVE';
+				}
+			}
+			elseif ($row['model']=='SR-Organizer')
+			{
+				$modems=unserialize($row['modems']);
+				$place2=explode('-',$row['place']);
+				$call_numbers[]=$row['number'];
+ 				$status=str_replace('WAIT_SMS','WAIT_SMS_CALL',statusAtrApi($row['device'],$modems[$place2[0]][1]));
+			}
+			elseif ($row['model']=='SR-Nano-500' || $row['model']=='SR-Nano-1000')
+			{
+				$modems=unserialize($row['modems']);
+				if ($row['place']==$modems[0])
+				{
+					$m=unserialize($row['msg']);
+					if ($m['type']=='RING' && $m['time']>time()-10)
+					{
+						
+		 				$status=str_replace('WAIT_SMS','RING_['.$m['data'].']',statusAtrApi($row['device'],$modems[1]));
+					}
+					else
+					{
+		 				$status=str_replace('WAIT_SMS','WAIT_SMS_CALL',statusAtrApi($row['device'],$modems[1]));
+					}
+				}
+				else
+				{
+	 				$status='INACTIVE';
+				}
+				$call_numbers[]=$row['number'];
+			}
+			elseif ($row['model']=='SR-Box-8' || $row['model']=='SR-Box-2' || $row['model']=='SR-Box-Bank')
+			{
+				$modems=unserialize($row['modems']);
+				$place2=explode('-',$row['place']);
+ 				$status=str_replace('WAIT_SMS','WAIT_SMS_CALL',statusAtrApi($row['device'],$modems[$place2[1]][1]));
+				$sms_numbers[]=$row['number'];
+			}
+			foreach ($list AS $key=>$data)
+			{
+				if (strpos($row['number'],"$key")!==false)
+				{
+					$list[$key]['status']=$status;
+				}
+			}
+		}
+		if (count($call_numbers))
+		{
+// Проверяем Вызовы
+			$where="";	
+			if (!$_POST['period']){$_POST['period']=60;}
+			$where=' AND c.`time`>'.(time()-$_POST['period']);	
+			$out=array();
+			$qry="SELECT c.`id`,c.`number`,c.`incoming`,c.`time` FROM `call_incoming` c 
+			INNER JOIN `devices` d ON d.`user_id`=".$user_id." AND c.`device`=d.`id`
+			INNER JOIN `card2pool` p ON p.`card`=c.`number` AND p.`pool`=".$pool_id."
+			WHERE (".implode(' OR ',$numbers).")".$where.' ORDER BY c.`time` DESC';
+			if ($result = mysqli_query($db, $qry)) 
+			{
+				while ($row = mysqli_fetch_assoc($result))
+				{
+					if ($row['incoming'])
+					{
+						$n=array();
+						foreach ($list AS $key=>$data)
+						{
+							if (strpos($row['number'],"$key")!==false)
+							{
+								$list[$key]['call'][]=array('id'=>$row['id'],'incoming_number'=>$row['incoming'],'time'=>date('H:i:s d.m.Y',$row['time']),'timestamp'=>$row['time'],'status'=>$status);
+								$list[$key]['call_counter']++;
+							}
+						}
+						$out[]=$n;
+					}
+				}
+			}
+		}
+	}
+	$list=array_values($list);
+	echo json_encode($list);
+	exit();
+}
+
+else if ($_POST['action']=='deleteCall')
+{
+	if (!$_POST['call_id'])
+	{
+		echo 'BAD_ID';
+		exit();
+	}
+	$qry="SELECT s.`id` FROM `call_incoming` s
+	INNER JOIN `card2pool` p ON p.`card`=s.`number` AND p.pool=".$pool_id." 
+	WHERE s.`id`=".(int)$_POST['call_id'];
+	if ($result = mysqli_query($db, $qry)) 
+	{
+		while ($row = mysqli_fetch_assoc($result))
+		{
+			$qry="DELETE FROM `call_incoming` WHERE `id`=".$row['id'];
+			mysqli_query($db,$qry);
+			echo 'DONE';
+			exit();
+		}
+	}
+	echo 'NOT FOUND';
+	exit();
+}
+
 function getPoolStatus()
 {
-	global $db,$pool_id,$where,$channels;
+	global $db,$user_id,$pool_id,$where,$channels;
 
 	$places=array();
 	$total=0;
 
 	$numbers=array('total'=>0,'used'=>0,'free'=>0,'channels'=>0);
-	$qry="SELECT c.`number`, c.`place`, c.`device`,c.`operator`,d.`model`,p.`done`,m.`device` AS `dev` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
+	$qry="SELECT c.`number`, c.`place`, c.`device`,c.`operator`,d.`model`,p.`done`,m.`device` AS `dev`,m.`modems` FROM `card2pool` p 
+	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
 	INNER JOIN `devices` d ON d.`id`=c.`device`
 	LEFT JOIN `modems` m ON m.`device`=c.`device`
-	WHERE p.`pool`='".$pool_id."' ORDER BY c.`device`,c.`operator`";
+	WHERE p.`pool`='".$pool_id."' ORDER BY c.`device`,CHAR_LENGTH(c.`place`),c.`place`";
 	if ($result = mysqli_query($db, $qry)) 
 	{
 		$dev=0;
@@ -690,14 +976,15 @@ function getPoolStatus()
 			}
 			$dev=$row['device'];
 			$numbers['total']++;
-			if ($row['done'] || $row['dev'])
+			if ($row['done'] || (($row['model']=='SR-Nano-500' || $row['model']=='SR-Nano-1000') && $row['dev']))
 			{
 				$numbers['used']++;
 			}
-			else //if ($channels[$row['model']]>1)
+			else
 			{
 				$device[]=$row['place'];
 				$dev_numbers[$row['device']][$row['place']]=$row['number'];
+				$modems=$row['modems'];
 				$model=$row['model'];
 			}
 		}
@@ -722,13 +1009,27 @@ function getPoolStatus()
 	if (!$numbers['free']){$max=0;}
 	$numbers['channels']=$total;
 	$numbers['channels_device']=$max;
-	return(array('total'=>$numbers,'numbers'=>$dev_numbers_used[$d],'device'=>$d,'model'=>$m,'places'=>$places));
+	return(array('total'=>$numbers,'numbers'=>$dev_numbers_used[$d],'device'=>$d,'model'=>$m,'places'=>$places,'modems'=>$modems));
 }
 
 function test_place($model,$device)
 {
-	if ($model=='SR-Box-8')
+	if ($model=='SR-Box-8' || $model=='SR-Box-2')
 	{
+		return($device);
+	}
+	if ($model=='SR-Box-Bank')
+	{
+		$modems=array();
+		sort($device);
+		$busy=array();
+		foreach ($device AS $key => $data)
+		{
+			$a=explode('-',$data);
+			if ($busy[$a[1]]==1){unset($device[$key]);}
+			$busy[$a[1]]=1;
+		}
+		sort($device);
 		return($device);
 	}
 	if ($model=='SR-Organizer')
@@ -787,11 +1088,4 @@ function test_place($model,$device)
 
 echo 'BAD_ACTION';
 
-function json_out($out)
-{
- 	$out=json_encode($out);	
-	if ($out[0]=='['){$out[0]='{';}
-	if ($out[strlen($out)-1]==']'){$out[strlen($out)-1]='}';}
-	echo $out;
-}
 ?>
