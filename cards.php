@@ -89,7 +89,7 @@ if ($_GET['edit']) // Editing a SIM card | Редактирование СИМ-�
 
 	$operators=array();
 
-	$qry='SELECT * FROM `operators` ORDER BY `name`, `user_id` DESC';
+	$qry='SELECT * FROM `operators` ORDER BY `name`';
 	if ($result = mysqli_query($db, $qry)) 
 	{
 		$name='';
