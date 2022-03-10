@@ -241,7 +241,8 @@ CREATE TABLE `sms_incoming` (
   `number` varchar(15) NOT NULL DEFAULT '',
   `sender` varchar(15) NOT NULL DEFAULT '',
   `txt` text NOT NULL,
-  `readed` tinyint(1) NOT NULL DEFAULT '0'
+  `readed` tinyint(1) NOT NULL DEFAULT '0',
+  `done` tinyint(1) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Входящие SMS';
 
 DROP TABLE IF EXISTS `staff`;
