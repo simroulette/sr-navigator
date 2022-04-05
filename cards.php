@@ -503,7 +503,8 @@ if ($total>(int)$GLOBALS['set_data']['page_limit'])
 			<td><input type="checkbox" name="check[<?=$n++?>]" id="check" value="<?=$data['number'].';'.$data['place'].';'.$data['device'].';'.$data['id']?>"></td>
 			<td class="sidebar"><?=$data['num']?></td>
 			<? if ($title_td){?><td><?=$data['title']?></td><? } ?>
-			<? if ($GLOBALS['set_data']['iccid_show']){?><td class="sidebar"><?=$data['iccid']?></span><td><? } ?>
+			<? if ($GLOBALS['set_data']['iccid_show']){?><td class="sidebar"><?=$data['iccid']?></span></td><? } ?>
+			<td>
 			<?
 			if ($data['place']!=$data['number'] && $data['number']){
 			?>

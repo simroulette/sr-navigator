@@ -123,7 +123,7 @@ INSERT INTO `folders` (`id`, `title`, `comment`) VALUES
 DROP TABLE IF EXISTS `devices`;
 
 CREATE TABLE `devices` (
-  `id` int NOT NULL,
+  `id` int NOT NULL DEFAULT '0',
   `title` varchar(60) NOT NULL DEFAULT '',
   `model` enum('','SR-Train','SR-Nano-500','SR-Nano-1000','SR-Box-8','SR-Box-Bank','SR-Organizer') NOT NULL DEFAULT '',
   `token_local` varchar(5) NOT NULL DEFAULT '',
@@ -142,7 +142,7 @@ CREATE TABLE `devices` (
   `folder` varchar(255) NOT NULL DEFAULT 'a:3:{s:5:"title";s:7:"Default";s:4:"time";s:1:"0";s:7:"comment";s:23:"По умолчанию";}',
   `press` int NOT NULL DEFAULT '0',
   `errors` int NOT NULL DEFAULT '0',
-  `msg` varchar(255) NOT NULL
+  `msg` varchar(255) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 DROP TABLE IF EXISTS `link_incoming`;
