@@ -173,12 +173,13 @@ CREATE TABLE `devices_state` (
 DROP TABLE IF EXISTS `link_incoming`;
 
 CREATE TABLE `link_incoming` (
-  `id` int(9) NOT NULL,
+  `id` int(11) NOT NULL,
   `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `device` int(9) NOT NULL DEFAULT '0',
-  `step` int(9) NOT NULL DEFAULT '0',
+  `device` int(11) NOT NULL DEFAULT '0',
+  `step` int(11) NOT NULL DEFAULT '0',
   `answer` text NOT NULL,
-  `uniq` varchar(8) NOT NULL DEFAULT ''
+  `uniq` varchar(8) NOT NULL DEFAULT '',
+  `sign` varchar(16) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Ответы агрегаторов';
 
 DROP TABLE IF EXISTS `link_outgoing`;
@@ -411,7 +412,8 @@ ALTER TABLE `link_incoming`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq` (`device`,`step`,`uniq`) USING BTREE,
   ADD KEY `device` (`device`),
-  ADD KEY `step` (`step`);
+  ADD KEY `step` (`step`),
+  ADD KEY `sign` (`id`);
 
 ALTER TABLE `link_outgoing`
   ADD PRIMARY KEY (`id`),
@@ -491,7 +493,7 @@ ALTER TABLE `folders`
   MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 ALTER TABLE `link_incoming`
-  MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 ALTER TABLE `link_outgoing`
   MODIFY `id` int(9) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
