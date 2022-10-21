@@ -365,8 +365,6 @@ else // Device list | Список агрегаторов
 				'title'=>$row['title'],
 				'model'=>$row['model'],
 				'data'=>$row['data'],
-				'press_stat'=>$row['press_stat'],
-				'press_errors'=>$row['press_errors'],
 				'explane'=>$explane,
 				'token_local'=>$row['token_local'],
 				'token_remote'=>$row['token_remote'],
@@ -391,10 +389,6 @@ else // Device list | Список агрегаторов
 			$link=str_replace('//','/',$_SERVER['SERVER_NAME'].'/'.implode("/",$link).'/link.php?token='.$data['token_remote']);
 			$disk='';
 			if (strpos($data['model'],'Nano')){$disk=$data['folder']['title'];}
-			$stat=$data['press'];
-			if (!$p=$data['press_stat']){$p=0.0000001;}
-			$percent=round($data['press_errors']/($p/100),2);
-			$resume=stat_resume($data['press_stat'],$percent);
 
 			echo '<div class="device" id="device_'.$data['id'].'"';
 			if ($data['title']=='[create]')
@@ -464,22 +458,13 @@ else // Device list | Список агрегаторов
 			if ($data['ip']){echo '<tr><td>Локальный IP-адрес</td><td class="bg">'.$data['ip'].'</td></tr>';}
 			if ($data['token_local']){echo '<tr><td>Диск:</td><td class="bg">'.$data['token_local'].'</td></tr>';}
 			echo '<tr><td>URL удаленного подключения</td><td class="note device_note" onclick="copy(\''.$link.'\');soundClick();">'.$link.'</td></tr>';
-			if ($stat){echo '<tr><td><a href="stat.php">Статистика</a></td><td class="bg dev_stat">Обработано карт: '.$stat.' / '.$data['press_stat'].'<br>Ошибок: '.$data['press_errors'].' ['.$percent.'%]<br>Резюме: <div style="border-bottom: 3px solid #'.$resume[1].';">'.$resume[0].'</div></td></tr>';}
 			if (strpos($data['model'],'Box')!==false){echo '<tr><td>Примечание</td><td class="bg">После изменения конфигурации СИМ-банков требуется повторная инициализация</td></tr>';}
 			echo '<tr><td colspan="2" style="border: none;"><div class="tools">';
-//			if ($data['title']!='[create]')
-//			{
-				echo '<span class="but_win" data-id="win_action" data-title=\'Управление агрегатором'.$aa.'\' data-type="ajax_device_action.php?id='.$data['id'].'" data-height="400" data-width="600" title="Управление агрегатором"><i class="icon-cog"></i></span> <a href="devices.php?edit='.$data['id'].'" title="Настройка агрегатора"><i class="icon-wrench"></i></a> <a href="actions.php" title="Задачи"><i class="icon-tasks"></i></a> <a href="devices.php?stop='.$data['id'].'" title="Остановить задачи агрегатора"><i class="icon-stop" style="color: #F00;"></i></a> ';
-//			}
+			echo '<span class="but_win" data-id="win_action" data-title=\'Управление агрегатором'.$aa.'\' data-type="ajax_device_action.php?id='.$data['id'].'" data-height="400" data-width="600" title="Управление агрегатором"><i class="icon-cog"></i></span> <a href="devices.php?edit='.$data['id'].'" title="Настройка агрегатора"><i class="icon-wrench"></i></a> <a href="actions.php" title="Задачи"><i class="icon-tasks"></i></a> <a href="devices.php?stop='.$data['id'].'" title="Остановить задачи агрегатора"><i class="icon-stop" style="color: #F00;"></i></a> ';
 			echo '<a href="javascript:void();" onclick="if (confirm(\'Вы готовы отключить агрегатор? Включить агрегатор можно будет только через WEB-Интерфейс...\')){document.location=\'devices.php?unlink='.$data['id'].'\';}" title="Отключить связь с агрегатором"><i class="icon-lock"></i></a>';
 			echo '<a href="javascript:void();" onclick="if (confirm(\'Вы готовы удалить агрегатор?\')){document.location=\'devices.php?delete='.$data['id'].'\';}" title="Удалить агрегатор"><i class="icon-trash"></i></a>';
 			echo '</div></td></tr>';
 			echo '</table>';
-/*
-		<td></td>
-		<td class="sidebar" align="right"><?=$stat?></td>
-		<td id="status_<?=$data['id']?>"><?=$data['status']?></td>
-*/
 			echo '<div class="clr"><span></span></div></div>';
 		}
 	}
