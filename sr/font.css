@@ -9,7 +9,7 @@
   font-weight: normal;
   font-style: normal;
 }
- 
+
  [class^="icon-"]:before, [class*=" icon-"]:before {
   font-family: "sr";
   font-style: normal;
@@ -27,21 +27,49 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
- 
-.icon-googleplay:before { content: '\e800'; } 
-.icon-stop:before { content: '\e801'; }
-.icon-download:before { content: '\e802'; }
-.icon-folder:before { content: '\e803'; }
-.icon-folder-open:before { content: '\e804'; }
-.icon-comment:before { content: '\e805'; }
-.icon-phone:before { content: '\e807'; }
-.icon-flash:before { content: '\e808'; }
-.icon-pencil:before { content: '\e809'; }
-.icon-cancel:before { content: '\e80a'; }
-.icon-spin:before { content: '\e838'; }
-.icon-trash:before { content: '\f083'; }
 
-.icon-trash {
+ [class^="icon-"] {
+  color: #384861;
+}
+
+.icon-phone:before { content: '\e800'; } 
+.icon-pause:before { content: '\e801'; } 
+.icon-network:before { content: '\e802'; } 
+.icon-cog:before { content: '\e803'; } 
+.icon-wrench:before { content: '\e804'; } 
+.icon-phone-circled:before { content: '\e805'; } 
+.icon-play:before { content: '\e806'; } 
+.icon-stop:before { content: '\e807'; } 
+.icon-cog-alt:before { content: '\e808'; } 
+.icon-tasks:before { content: '\e809'; } 
+.icon-calendar-2:before { content: '\e80b'; } 
+.icon-error-alt:before { content: '\e80c'; } 
+.icon-folder:before { content: '\e80e'; } 
+.icon-folder-open:before { content: '\e80f'; } 
+.icon-eject:before { content: '\e810'; } 
+.icon-comment-3:before { content: '\e81b'; } 
+.icon-flash:before { content: '\e81e'; } 
+.icon-pencil:before { content: '\e824'; } 
+.icon-cancel:before { content: '\e82c'; } 
+.icon-cancel2:before { content: '\e82b'; } 
+.icon-trash:before { content: '\e82f'; } 
+.icon-download-1:before { content: '\e834'; } 
+.icon-download-alt:before { content: '\e835'; } 
+.icon-eye:before { content: '\e836'; } 
+.icon-eye-off:before { content: '\e837'; } 
+.icon-resize-full-1:before { content: '\e83a'; } 
+.icon-resize-small-1:before { content: '\e83b'; } 
+.icon-online:before { content: '\f07b'; } 
+.icon-bullseye:before { content: '\f140'; } 
+.icon-lock:before { content: '\f512'; } 
+.icon-lock-open:before { content: '\f513'; } 
+.icon-arrows:before { content: '\e811'; }
+
+.icon-eye, .icon-eye-off, .icon-arrows {
   cursor: pointer;
-  color: #bc0404;
+}
+
+.icon-trash, .icon-stop, .icon-lock {
+  cursor: pointer;
+  color: #DD0000 !important;
 }

@@ -1,7 +1,7 @@
 <?
 // ===================================================================
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2022 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -23,11 +23,11 @@ if ($_GET['edit'] && $_POST['save']) // Editing the Folder | Редактиро�
 {
 	if ($_POST['title'])
 	{
-		mysqli_query($db, "UPDATE `folders` SET `time`=".time().",`title`='".$_POST['title']."',`comment`='".$_POST['comment']."' WHERE `id`=".(int)$_GET['edit']);  
+		mysqli_query($db, "UPDATE `folders` SET `time`=".time().",`title`='".mysqli_real_escape_string($db,$_POST['title'])."',`comment`='".mysqli_real_escape_string($db,$_POST['comment'])."' WHERE `id`=".(int)$_GET['edit']);  
 	}
 	else
 	{
-		mysqli_query($db, "UPDATE `folders` SET `time`=".time().",`comment`='".$_POST['comment']."' WHERE `id`=".(int)$_GET['edit']);  
+		mysqli_query($db, "UPDATE `folders` SET `time`=".time().",`comment`='".mysqli_real_escape_string($db,$_POST['comment'])."' WHERE `id`=".(int)$_GET['edit']);  
 	}
 	header('location:folders.php');
 	exit();
@@ -40,8 +40,7 @@ if ($_GET['change']) // Changing the disk | Смена диска
 		{
 			if (!$_POST['title']){$_POST['title']='Новый диск';}
 			// Создаем новый диск
-			$qry="INSERT INTO `folders` SET `time`=".time().",`title`='".$_POST['title']."',`comment`='".$_POST['comment']."'";
-			mysqli_query($db, $qry);  
+			mysqli_query($db, "INSERT INTO `folders` SET `time`=".time().",`title`='".mysqli_real_escape_string($db,$_POST['title'])."',`comment`='".mysqli_real_escape_string($db,$_POST['comment'])."'");  
 			$_POST['folder_id']=mysqli_insert_id($db);
 		}
 
@@ -112,12 +111,13 @@ if ($_GET['change']) // Changing the disk | Смена диска
 			}
 		}
 
-		$folder=array();
+//		$folder=array();
 		if ($result = mysqli_query($db, "SELECT `folder`,`time` FROM `devices` WHERE `id`=".(int)$_GET['change']))  
 		{
 			if ($row = mysqli_fetch_assoc($result))
 			{
 				$folder=unserialize($row['folder']);
+echo "[".$folder;
 				if (!$folder['time']){$folder['time']=$row['time'];}
 				if (!$folder['title']){$folder['title']='default';}
 			}
@@ -126,7 +126,7 @@ if ($_GET['change']) // Changing the disk | Смена диска
 		mysqli_query($db, "UPDATE `devices` SET `folder`='".serialize($disk)."' WHERE `id`=".(int)$_GET['change']);  
 
 		// Обновляем данные о извлеченном диске
-		mysqli_query($db, "UPDATE `folders` SET `time`=".(int)$folder['time'].",`title`='".$folder['title']."',`comment`='".$folder['comment']."' WHERE `id`=".(int)$_POST['folder_id']);  
+		mysqli_query($db, "UPDATE `folders` SET `time`=".(int)$folder['time'].",`title`='".mysqli_real_escape_string($db,$folder['title'])."',`comment`='".$folder['comment']."' WHERE `id`=".(int)$_POST['folder_id']);  
 
 		if ($status)
 		{			
@@ -153,9 +153,6 @@ if ($_GET['change']) // Changing the disk | Смена диска
 		$folder=$device['title'].' → '.$folder;
 	}
 	sr_header('Смена диска '.$folder); // Output page title and title | Вывод титула и заголовка страницы
-?>
-<br>
-<?
 if (!$status)
 {
 ?>
@@ -213,7 +210,6 @@ elseif ($_GET['edit'])
 	}
 	sr_header("Редактирование диска ".$title); // Output page title and title | Вывод титул и заголовок страницы
 ?>
-<br>
 <form method="post">
 Название диска
 <br>
@@ -232,6 +228,7 @@ else
 {
 	$table=array();
 	$folders=array();
+	$d=0;
 
 	if ($result = mysqli_query($db, "SELECT d.*,count(c.id) AS `cards` FROM `devices` d 
 	LEFT JOIN `cards` c ON c.`device`=d.`id`
@@ -241,6 +238,7 @@ else
 		{
 			$disk=unserialize($row['folder']);
 			if (!$disk['time']){$disk['time']=$row['time'];}
+			$d=1;
 			$table[]=array(
 				'id'=>$row['id'],
 				'device'=>$row['title'],
@@ -252,7 +250,7 @@ else
 		}
 	}
 
-	if ($result = mysqli_query($db, "SELECT f.*,count(c.id) AS `cards` FROM `folders` f
+	if ($d && $result = mysqli_query($db, "SELECT f.*,count(c.id) AS `cards` FROM `folders` f
 	LEFT JOIN `cards2folder` c ON c.`folder_id`=f.`id` 
 	GROUP BY f.`id` ORDER BY f.`id`
 	"))  
@@ -270,9 +268,6 @@ else
 		}
 	}
 	sr_header("Список дисков"); // Output page title and title | Вывод титул и заголовок страницы
-?>
-<br>
-<?
 	if (count($table))
 	{
 ?>
@@ -295,16 +290,6 @@ else
 		$folder=0;
 		foreach ($table as $data)
 		{
-/*
-			if (!$folder=$folders[$data['folder_id']])
-			{
-				$folder='default';
-			}
-			else
-			{
-				unset($folders[$data['folder_id']]);
-			}
-*/								
 			if (!$data['device']){$data['device']='—';} else {$data['device']='<a href="folders.php?change='.$data['id'].'" title="Сменить диск">'.$data['device'].'</a>';}
 
 			if ($data['device']=='—' && !$folder)
@@ -349,7 +334,7 @@ else
 	else
 	{
 ?>
-<em>— Сначала нужно добавить в список свой агрегатор SR-Nano!</em>
+<div class="tooltip">— Сначала нужно <a href="devices.php?edit=new">добавить в список</a> свой агрегатор SR-Nano!</div>
 <br><br>
 <a href="devices.php?edit=new" class="link" style="margin: margin: 0 10px 10px 0">Добавить Агрегатор</a>
 <?

@@ -2,7 +2,7 @@
 // ===================================================================
 // Sim Roulette -> AJAX
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2022 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -75,6 +75,15 @@ var timerId = setInterval(function()
 	else
 	{
 		echo 'Ошибка!';
+		exit();
+	}
+}
+$qry='SELECT device FROM `modems` WHERE `device`='.(int)$_GET['device'];
+if ($result = mysqli_query($db, $qry)) 
+{
+	if ($row = mysqli_fetch_assoc($result))
+	{
+		echo '<div class="tooltip danger">— Перед сканирование следует отключить Онлайн-режим!</div><br><br><span class="link" onclick="location.href=\'online.php?device='.$_GET['device'].'\'">Выключить Онлайн</span>';
 		exit();
 	}
 }

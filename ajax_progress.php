@@ -2,11 +2,12 @@
 // ===================================================================
 // Sim Roulette -> AJAX
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2022 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
 include("_func.php");
+
 if ($_GET['action'])
 {
 	if ($result = mysqli_query($db, "SELECT * FROM `actions` WHERE `id`=".(int)$_GET['action'])) 
@@ -19,10 +20,11 @@ if ($_GET['action'])
 			$pd=$row['progress'];
 			if ($p>100){$p=100;}
 			$access=flagGet($row['device'],'answer',1);
+//			$access=file_get_contents($GLOBALS['root'].'flags/answer_'.$row['device']);
 			if ($access+30<time()){$o='Offline';$t=': '.time_calc(time()-$access);} else {$o='Online';$t='';}
 			if ($row['status']=='inprogress')
 			{
-				$m='<em>Задача выполняется...</em><br><br>';
+				$m='<em>Задача выполняется...</em>';
 			}
 		}
 		else
@@ -42,6 +44,7 @@ else
 	{
 		while ($row = mysqli_fetch_assoc($result))
 		{
+
 			$actions=str_replace(';'.$row['id'].';',';',$actions);
 			$p=round($row['progress']/($row['count']/100+0.000001),2);
 			if ($p>100){$p=100;}
@@ -51,7 +54,15 @@ else
 			$access=flagGet($row['device'],'answer',1);
 			if ($access+30<time()){$o='Offline';$t=': '.time_calc(time()-$access);} else {$o='Online';$t='';}
 			$el=time_calc(time()-$row['time']);
-			$lt=time_calc(($row['count']-$row['progress'])*((time()-$row['time'])/$row['progress']));
+
+		        if ($row['progress'])
+			{
+				$lt=time_calc(($row['count']-$row['progress'])*((time()-$row['time'])/$row['progress']));
+			}
+			else
+			{
+				$lt='∞';
+			}
 			$txt.=$row['id'].';'.$p.';'.$pd.';'.$e.';'.$s.';'.$o.';'.$t.';'.$el.';'.$lt.';';
 			if ($row['status']=='inprogress')
 			{
@@ -73,6 +84,7 @@ else
 			{
 				$txt.='0###';
 			}
+
 		}
 	}
 	$actions=trim($actions,';');
@@ -86,4 +98,5 @@ else
 	}
 	echo $txt;
 }
+
 ?>

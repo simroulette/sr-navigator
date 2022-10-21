@@ -1,7 +1,7 @@
 <?
 // ===================================================================
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -18,7 +18,14 @@ if ($_POST['delete']) // Deleting SMS | Удаление SMS
 	{
 		foreach ($_POST['check'] as $data)
 		{
-			$qry="DELETE FROM `sms_incoming` WHERE `id`=".(int)$data;
+			if ($sv_user_level=='god')
+			{
+				$qry="DELETE FROM `sms_incoming` WHERE `id`=".(int)$data;
+			}
+			else
+			{
+				$qry="DELETE FROM `sms_incoming` WHERE `id`=".(int)$data;
+			}
 			mysqli_query($db,$qry);
 		}
 	}
@@ -37,15 +44,19 @@ if ($_GET['number'])
 }
 if ($_GET['operator'])
 {
-	$where[]="(o.title LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%' OR o.name LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%')";
+	$where[]="(o1.title LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%' OR o1.`name` LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%' OR o2.title LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%' OR o2.`name` LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%')";
 }
 if ($_GET['device'])
 {
 	$where[]="c.device=".(int)$_GET['device'];
 }
+if ($_GET['sender'])
+{
+	$where[]="s.sender LIKE '%".mysqli_real_escape_string($db,$_GET['sender'])."%'";
+}
 if ($_GET['place'])
 {
-	$where[]="c.place LIKE '".mysqli_real_escape_string($db,$_GET['place'])."%'";
+	$where[]="c.place LIKE '%".mysqli_real_escape_string($db,$_GET['place'])."%'";
 }
 if ($_GET['balance'])
 {
@@ -73,10 +84,6 @@ elseif ($_GET['sort']==2)
 {
 	$order=' ORDER BY c.`place`,c.`device`,s.`time` DESC';
 }
-elseif ($_GET['sort']==3)
-{
-	$order=' ORDER BY c.`balance`,s.`time` DESC';
-}
 elseif ($_GET['sort']==4)
 {
 	$order=' ORDER BY c.`operator`,s.`time` DESC';
@@ -85,26 +92,18 @@ elseif ($_GET['sort']==5)
 {
 	$order=' ORDER BY c.`number`,s.`time` DESC';
 }
+elseif ($_GET['sort']==6)
+{
+	$order=' ORDER BY s.`sender`,s.`time` DESC';
+}
 
 	$operators=array();
 
-// Получаем список актуальных операторов
-$operators=array();
-if ($result = mysqli_query($db, 'SELECT * FROM `operators`')) 
-{
-	while ($row = mysqli_fetch_assoc($result))
-	{
-		$operators[$row['name']]['title']=$row['title'];
-		$operators[$row['name']]['title_r']=$row['title_r'];
-		$operators[$row['name']]['color']=$row['color'];
-		$operators[$row['name']]['color_r']=$row['color_r'];
-	}
-}
-
 $qry='SELECT count(s.id) AS counter FROM `cards` c 
+LEFT JOIN `operators` o1 ON o1.`name` LIKE CONCAT("%;",c.`operator`,";%") 
 INNER JOIN `sms_incoming` s ON s.`number`=c.`number` AND s.`done`=1
 LEFT JOIN `devices` d ON c.`device`=d.`id` 
-WHERE 1=1'.$where;
+WHERE 1'.$where;
 
 if ($result = mysqli_query($db, $qry))
 {
@@ -114,22 +113,18 @@ if ($result = mysqli_query($db, $qry))
 	}
 }
 
-$qry='SELECT c.*,s.sender,s.time,s.txt,s.readed,s.id AS sms_id,d.title AS device FROM `cards` c 
-INNER JOIN `sms_incoming` s ON s.`number`=c.`number` AND s.`done`=1 
+$qry='SELECT c.*, o1.`title` AS `operator_name`, o1.`color` AS `color`,s.sender,s.time,s.txt,s.readed,s.id AS sms_id,d.title AS device FROM `cards` c 
+LEFT JOIN `operators` o1 ON o1.`name` LIKE CONCAT("%;",c.`operator`,";%") 
+INNER JOIN `sms_incoming` s ON s.`number`=c.`number` AND s.`done`=1
 LEFT JOIN `devices` d ON c.`device`=d.`id` 
-WHERE 1=1'.$where.$order.$limit;
-
+WHERE 1'.$where.$order.$limit;
 if ($result = mysqli_query($db, $qry)) 
 {
 	$n=1;
 	while ($row = mysqli_fetch_assoc($result))
 	{
-		$o=$row['operator'];
-		$row['operator']=$operators[$o]['title'];
-		$row['operator_name']=$o;
-		$row['color']=$operators[$o]['color'];
-		if ($operators[$o]['title'] && $row['roaming']){$row['operator']=$operators[$o]['title_r'].' <span class="roaming">R</span> <div class="legend">'.$row['operator'].'</div>';$row['color']=$operators[$o]['color_r'];}
-		if (hexdec($row['color'])>8388607){$color='000';} else {$color='FFF';}
+		if (hexdec($row['color'])>8388607 || !$row['color']){$color='000';} else {$color='FFF';}
+		if ($row['number']){$row['number']='+'.$row['number'];} else {$row['number']='—';}
 		$table[]=array(
 			'num'=>$n+$GLOBALS['set_data']['page_limit']*($_GET['page']-1),
 			'number'=>$row['number'],
@@ -159,13 +154,20 @@ if ($result = mysqli_query($db, 'SELECT * FROM `devices` ORDER BY `title`'))
 		$devices[$row['id']]=$row['title'];
 	}
 }
+$a=$_GET; unset($a['page']); 
+if (empty($a) && count($table)){echo '<div id="filter_hint" onclick="fltr();">Отфильтровать</div>';} 
 ?>
-<br>
+<div id="filter"<? if (empty($a)){echo ' class="hide"';}?>>
 <form method="get">
 <div class="sidebar">
 Номер телефона
 </div>
 <input type="text" name="number" value="<?=$_GET['number']?>" maxlength="15" placeholder="Часть телефонного номера. Пример: 903">
+<div class="sidebar">
+<br>
+Отправитель
+</div>
+<input type="text" name="sender" value="<?=$_GET['sender']?>" maxlength="16" placeholder="Отправитель. Пример: Beeline">
 <div class="sidebar">
 <br>
 Оператор
@@ -200,21 +202,15 @@ if (count($devices)>1)
 <input type="text" name="place" value="<?=$_GET['place']?>" maxlength="7" placeholder="Место. Примеры: A0 или A или 2-8 или 2">
 <div class="sidebar">
 <br>
-Баланс (&lt;&gt;)
-</div>
-<input type="text" name="balance" value="<?=$_GET['balance']?>" maxlength="8" placeholder="Баланс. Пример: >100">
-<br>
-<div class="sidebar">
-<br>
 Отсортировать
 </div>
 <select name="sort">
 <option value="0"<? if (!$_GET['sort']){echo ' selected=1';}?>>По времени</option>
 <option value="1"<? if ($_GET['sort']==1){echo ' selected=1';}?>>По агрегаторам</option>
 <option value="2"<? if ($_GET['sort']==2){echo ' selected=1';}?>>По местам</option>
-<option value="3"<? if ($_GET['sort']==3){echo ' selected=1';}?>>По балансам</option>
 <option value="4"<? if ($_GET['sort']==4){echo ' selected=1';}?>>По операторам</option>
 <option value="5"<? if ($_GET['sort']==5){echo ' selected=1';}?>>По номерам телефонов</option>
+<option value="6"<? if ($_GET['sort']==6){echo ' selected=1';}?>>По отправителю</option>
 </select>
 <br>
 <?
@@ -242,11 +238,13 @@ if ($total>(int)$GLOBALS['set_data']['page_limit'])
 <div class="sidebar" style="margin-bottom: 10px;"></div>
 <input type="submit" name="save" value="Отфильтровать" style="padding: 10px; margin: 5px 0">
 </form>
+</div>
 <?
 if (count($table))
 {
 ?>
 <form method="post" id="sms" name="sms">
+<div class="table_box">
 	<table class="table table_sort table_adaptive">
 		<thead>
 			<tr>
@@ -255,8 +253,8 @@ if (count($table))
 				<th>Номер</th>
 				<th class="sidebar">Агрегатор</th>
 				<th class="sidebar">Место</th>
+				<th class="exttab" style="text-align: right;">М</th>
 				<th class="sidebar">Оператор</th>
-				<th class="sidebar">Баланс</th>
 				<th>От</th>
 				<th>SMS</th>
 				<th>Время</th>
@@ -271,11 +269,11 @@ foreach ($table as $data)
 		<tr<? if (!$data['readed']){echo ' class="rowsel"';}?>>
 			<td><input type="checkbox" name="check[<?=$n++?>]" id="check" value="<?=$data['sms_id']?>"></td>
 			<td class="sidebar"><?=$data['num']?></td>
-			<td>+<?=$data['number']?></td>
+			<td><?=$data['number']?></td>
 			<td class="sidebar"><?=$data['device']?></td>
-			<td class="sidebar"><?=$data['place']?></td>
-			<td class="sidebar"<? if ($data['color']){?> style="color: #<?=$data['color']?>; background:#<?=$data['bg']?>"<? } ?> align="center"><?=$data['operator']?></td>
-			<td align="right" class="sidebar"><?=$balance?></td>
+			<td class="sidebar" align="right"><?=$data['place']?></td>
+			<td class="exttab" align="right"<? if ($data['color']){?> style="color: #<?=$data['color']?>; background:#<?=$data['bg']?>"<? } ?>><?=$data['place']?></td>
+			<td class="sidebar"<? if ($data['color']){?> style="color: #<?=$data['color']?>; background:#<?=$data['bg']?>"<? } ?> align="center"><?=$data['operator_name']?></td>
 			<td><?=$data['sender']?></td>
 			<td><?=$data['sms']?></td>
 			<td><?=$data['time']?></td>
@@ -284,16 +282,18 @@ foreach ($table as $data)
 }
 ?>
 	</table>
+</div>
+<?=$scroller=scrollbar($total,$_GET['page'],$GLOBALS['set_data']['page_limit'],'page');?>
 <br>
-<input type="submit" name="delete" value="Удалить отмеченные SMS" style="float:left; margin-right: 10px">
-<a href="sms.php?delete=all" class="link" style="background:#FF0000; margin: 0 5px 10px 0">Удалить все SMS</a>
+<input type="submit" name="delete" value="Удалить отмеченные SMS" class="width">
+<a href="sms.php?delete=all" class="link red width">Удалить все SMS</a>
 </form>
 <?
 }
 else
 {
 ?>
-<em>— Список SMS пуст!</em>
+<div class="tooltip">— Список SMS пуст!</div>
 <?
 }
 

@@ -1,13 +1,47 @@
 <?
 // ===================================================================
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2022 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
 include("_func.php");
 $status=1;
-if ($_POST['del']) // Deleting a SIM card Pool | Удаление Пула СИМ-карт
+
+if ($_POST['restart'])
+{
+	foreach ($_POST['check'] as $data)
+	{
+// Выключаем устройства пула
+		$qry="SELECT c.`device` FROM `card2pool` p 
+		INNER JOIN `cards` c ON c.`number`=p.`card`
+		WHERE p.`pool`=".(int)$data; 
+		if ($result = mysqli_query($db, $qry)) 
+		{
+			while ($row = mysqli_fetch_assoc($result))
+			{
+				mysqli_query($db, "DELETE FROM `modems` WHERE `device`=".$row['device']);
+				if (flagGet($row['device'],'cron'))
+				{
+					if (!flagGet($row['device'],'stop'))
+					{
+						flagSet($row['device'],'stop');
+					}
+					flagDelete($row['device'],'cron');
+				}
+				elseif (flagGet($row['device'],'stop',1)<time()-60)
+				{
+					flagDelete($row['device'],'stop');
+				}
+			}
+			$qry="UPDATE `card2pool` SET `done`=0 WHERE `pool`='".(int)$data."'";
+			mysqli_query($db, $qry);
+		}
+	}
+	header('location:pools.php');
+	exit();
+}
+if ($_POST['sub']=='del') // Deleting a SIM card Pool | Удаление Пула СИМ-карт
 {
 	foreach ($_POST['check'] as $data)
 	{
@@ -80,9 +114,11 @@ if ($_GET['edit']) // Editing the Pool | Редактирование Пула
 	{
 		if ($_GET['edit']=='new')
 		{
+			$poolKey=md5(rand(1111,9999).rand(1111,9999).rand(1111,9999).rand(1111,9999));
+
 			$qry="INSERT `pools` SET
 			`title`='".trim($_POST['title'])."',
-			`key`='".md5(rand(0,10000000))."',
+			`key`='".$poolKey."',
 			`time`='".time()."'";
 		}
 		else
@@ -132,21 +168,23 @@ if ($_GET['edit']) // Editing the Pool | Редактирование Пула
 			}
 		}
 		$_POST['check']=array();
-		if ($result = mysqli_query($db, 'SELECT p.*,c.`place`,d.`title` FROM `card2pool` p 
-		INNER JOIN `cards` c ON c.`number`=p.`card` 
+		$balance_td=0;
+		$qry='SELECT p.*,c.`place`,c.`balance`,d.`title`, o1.`title` AS `operator`, o1.`color` AS `color` FROM `card2pool` p 
+		INNER JOIN `cards` c ON c.`number`=p.`card`
 		INNER JOIN `devices` d ON d.`id`=c.`device` 
-		WHERE p.`card`<>"" AND p.`pool`='.(int)$_GET['edit'].' ORDER BY CHAR_LENGTH(c.`place`),c.`place`')) 
+		LEFT JOIN `operators` o1 ON o1.`name` LIKE CONCAT("%;",c.`operator`,";%") 
+		WHERE p.`card`<>"" AND p.`pool`='.(int)$_GET['edit'].' ORDER BY CHAR_LENGTH(c.`place`),c.`place`';
+		if ($result = mysqli_query($db, $qry)) 
 		{
 			while ($row = mysqli_fetch_assoc($result))
 			{
-				$_POST['check'][]=$row['card'].';'.$row['place'].';'.$row['title'].';'.$row['done'];
+				if (hexdec($row['color'])>8388607 || !$row['color']){$color='000';} else {$color='FFF';}
+				$_POST['check'][]=$row['card'].';'.$row['place'].';'.$row['title'].';'.$row['done'].';'.$row['operator'].';'.$row['color'].';'.$color.';'.$row['balance'];
+				if ($row['balance']){$balance_td=1;}
 			}
 		}
 	}
 	sr_header("Редактирование пула СИМ-карт"); // Output page title and title | Вывод титул и заголовок страницы
-?>
-<br>
-<?
 	if (!count($_POST['check']))
 	{
 ?>
@@ -168,15 +206,29 @@ if ($_GET['edit']) // Editing the Pool | Редактирование Пула
 <br>
 <input type="text" name="title" value="<?=$_POST['title']?>" maxlength="32">
 <br><br>
-
+<div class="table_box">
 	<table class="table table_sort table_adaptive">
 		<thead>
 			<tr>
 				<th>№</th>
 				<th>Номер</th>
+<?
+if (count($devices)>1 && $_GET['edit']!='new')
+{
+?>
 				<th>Агрегатор</th>
-				<th>Место</th>
-				<th>Действие</th>
+<?
+}
+if ($_GET['edit']!='new'){
+?>
+				<th class="sidebar" style="text-align: right;">Место</th>
+				<th class="exttab"></th>
+				<th class="sidebar">Оператор</th>
+				<? if ($balance_td){?><th style="text-align:right;" class="sidebar">Баланс</th><? } ?>
+<?
+}
+?>
+				<th></th>
 			</tr>  
 		</thead>
 <?
@@ -188,8 +240,28 @@ if ($_GET['edit']) // Editing the Pool | Редактирование Пула
 		<tr<? if ($data[3]){echo ' class="rowsel"';}?>>
 			<td><?=($n+1)?><input type="hidden" name="check[<?=$n++?>]" value="<?=$data[0]?>"></td>
 			<td>+<?=$data[0]?></td>
+<?
+if (count($devices)>1 && $_GET['edit']!='new')
+{
+?>
 			<td><?=$data[2]?></td>
-			<td><?=$data[1]?></td>
+<?
+}
+if ($_GET['edit']!='new'){
+?>
+			<td class="sidebar" align="right"><?=$data[1]?></td>
+			<td class="exttab" align="right"<? if ($data[5]){?> style="color: #<?=$data[6]?>; background:#<?=$data[5]?>"<? } ?>><?=$data[1]?></td>
+
+			<td<? if ($data[5]){?> style="color: #<?=$data[6]?>; background:#<?=$data[5]?>"<? } ?> align="center" class="sidebar"><?=$data[4]?></td>
+<?
+			if ($balance_td)
+			{
+			?>
+			<td align="right" class="sidebar"><?=balance_out($data[7],'')?></td>
+			<? 
+			}
+}
+?>
 			<td align="center"><span onclick="deleteItem(this);"><i class="icon-trash" title="Удалить номер из пула"></i></span></td>
 		</tr>
 
@@ -198,8 +270,9 @@ if ($_GET['edit']) // Editing the Pool | Редактирование Пула
 	}	
 ?>
 	</table>
+</div>
 <br>
-<input type="submit" name="save" value="Сохранить" style="padding: 10px;">
+<input type="submit" name="save" value="Сохранить" class="green width">
 </form>
 <?
 	}
@@ -209,19 +282,24 @@ else // List of Pools | Список Пулов
 	sr_header("Пулы СИМ-карт"); // Выводим титул и заголовок страницы
 
 	$table=array();
+	
+	if ($_GET['number']){$w='INNER JOIN `card2pool` cp2 ON cp2.`pool`=p.id AND cp2.`card` LIKE "%'.(int)$_GET['number'].'%"';} else {$w='';}
 
-	if ($result = mysqli_query($db, 'SELECT 
+	$qry='SELECT 
 	p.*,
 	(SELECT count(pool) FROM `card2pool` WHERE `pool`=p.id) AS `count`,
 	(SELECT count(c.id) FROM `card2pool` cp INNER JOIN `cards` c ON c.`number`=cp.`card` WHERE cp.`pool`=p.id) AS `realcount`,
 	(SELECT sum(c.balance) 
 	FROM `card2pool` cp 
 	INNER JOIN `cards` c ON c.`number`=cp.`card` WHERE cp.`pool`=p.id) AS `balance` FROM `pools` p  
-	ORDER BY `title`')) 
+	'.$w.'
+	GROUP BY `id`
+	ORDER BY `title`';
+	if ($result = mysqli_query($db, $qry)) 
 	{
 		while ($row = mysqli_fetch_assoc($result))
 		{
-			if (hexdec($row['color'])>8388607){$color='000';} else {$color='FFF';}
+			if (hexdec($row['color'])>8388607 || !$row['color']){$color='000';} else {$color='FFF';}
 			if ($row['balance']==''){$row['balance']=0;}
 			$table[]=array(
 				'id'=>$row['id'],
@@ -235,23 +313,36 @@ else // List of Pools | Список Пулов
 			);
 		}
 	}
+?>
+<form method="get">
+<input type="text" name="number" value="<?=$_GET['number']?>" maxlength="15" style="width: 200px;" placeholder="Номер телефона">
+<input type="submit" name="save" value="Искать" style="padding: 10px; margin: 5px 0 10px 5px">
+</form>
 
+<?
 	if (count($table))
 	{
+		if ($_GET['number'] && count($table)>1)
+		{
+			?><div class="tooltip">— Номер найден в нескольких Пулах:</div><br><br><?
+		}
+		else if ($_GET['number'])
+		{
+			?><div class="tooltip">— Номер найден в одном Пуле</div><br><br><?
+		}
 ?>
-<br>
 <form method="post" id="cards" name="cards">
+<div class="table_box">
 	<table class="table">
 		<thead>
 		<tr>
 			<th><input type="checkbox" onclick="SelectGroup(checked,'cards','check')"></th>
 			<th>Пул</th>
 			<th style="text-align:right;">Номера</th>
-			<th class="sidebar">Баланс</th>
+			<th class="sidebar" style="text-align:right">Баланс</th>
 			<th class="sidebar">Модификация</th>
-			<th class="sidebar">Key</th>
-			<th>Действие</th>
-			<th>Статус</th>
+			<th class="sidebar">pool_key</th>
+			<th style="text-align: center;">Действие</th>
 		</tr>  
 		</thead>
 <?
@@ -261,29 +352,34 @@ else // List of Pools | Список Пулов
 ?>
 		<tr>
 			<td><input type="checkbox" name="check[<?=$n++?>]" id="check" value="<?=$data['id']?>"></td>
-			<td><span class="but_win" data-id="win_action" data-title='Управление пулом "<?=$data['title']?>"' data-type="ajax_pool_action.php?id=<?=$data['id']?>" data-height="400" data-width="600"><?=$data['title']?></span></td>
+			<td nowrap><span class="but_win" data-id="win_action" data-title='Управление пулом "<?=$data['title']?>"' data-type="ajax_pool_action.php?id=<?=$data['id']?>" data-height="400" data-width="600"><?=$data['title']?></span></td>
 			<td align="right"><?=num_out($data['realcount']).'/'.num_out($data['count'])?></td>
 			<td class="sidebar" align="right"><?=balance_out($data['balance'])?></td>
 			<td class="sidebar"><?=$data['time']?></td>
 			<td class="sidebar"><span class="legend note" onclick="copy('<?=$data['key']?>');soundClick();"><?=$data['key']?></span></td>
-			<td><a href="pools.php?edit=<?=$data['id']?>"><i class="icon-pencil" title="Редактировать пул"></i></a> <a href="pools.php?delete=<?=$data['id']?>"><i class="icon-trash" title="Удалить пул, но оставить телефонные номера"></i></a></td>
-			<td><em><?=$data['status']?></em></td>
+			<td align="center"><a href="pools.php?edit=<?=$data['id']?>"><i class="icon-pencil"></i></a> <a href="pools.php?delete=<?=$data['id']?>"><i class="icon-trash" title="Удалить пул, но оставить телефонные номера"></i></a></td>
 		</tr>
 <?
 }
 ?>
 	</table>
-
+</div>
 <br>
-<input type="submit" name="merge" value="Объединить пулы" style="float:left; margin-right: 10px">
+<input type="submit" name="merge" value="Объединить Пулы" class="width">
+<input type="submit" name="restart" value="Перезапустить Пулы для API" class="width">
 </form>
+<?
+	}
+	elseif ($_GET['number'])
+	{
+?>
+<div class="tooltip danger">— Номер <b><?=$_GET['number']?></b> в Пулах не найден!</div>
 <?
 	}
 	else
 	{
 ?>
-<br>
-<em>— Пулов СИМ-карт нет!</em>
+<div class="tooltip">— Для создания Пула нужно отметить <a href="cards.php">СИМ-карты в списке</a>!</div>
 <?
 	}
 }

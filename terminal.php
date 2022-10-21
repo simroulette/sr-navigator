@@ -1,7 +1,7 @@
 <?
 // ===================================================================
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2022 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -25,7 +25,7 @@ if ($_POST['save'] && $_POST['commands'] && $_POST['device'])
 		{
 			$qry="INSERT `link_outgoing` SET
 			`device`='".(int)$_POST['device']."',
-			`command`='".$c."',
+			`command`='".mysqli_real_escape_string($db,$c)."',
 			`step`=".(int)$step++;
 			mysqli_query($db,$qry);
 		}
@@ -54,8 +54,7 @@ if ($result = mysqli_query($db, 'SELECT * FROM `devices` ORDER BY `title`'))
 if (count($devices)<1)
 {
 ?>
-<br>
-<em>— Сначала нужно добавить в список свой агрегатор!</em>
+<div class="tooltip">— Сначала нужно добавить в список свой агрегатор!</div>
 <br><br>
 <a href="devices.php?edit=new" class="link" style="margin: margin: 0 10px 10px 0">Добавить Агрегатор</a>
 <?
@@ -63,7 +62,6 @@ if (count($devices)<1)
 else
 {
 ?>
-<br>
 Ответ Sim Roulette:
 <div class="icon_cont"><i class="icon-trash" title="Очистить буфер" onclick="document.getElementById('result_receive').innerHTML='';"></i></div>
 <div id="result_receive" class="term_answer"></div>
@@ -91,6 +89,12 @@ var term_int=<?=$GLOBALS['set_data']['term_int']?>;
 <br>
 Команда:
 <input type="text" id="command" name="command" style="margin: 6px 0 0 0;">
+<?
+/*
+Или список команд:<div class="icon_cont"><i class="icon-trash" title="Очистить команды" onclick="document.getElementById('command').value='';"></i></div>
+<textarea id="command" name="command"></textarea>
+*/
+?>
 <input type="hidden" id="step" name="step" value="0">
 <br><br>
 <input type="button" value="Отправить" style="padding: 10px; float: left;" onclick="getRequest();return false;">
@@ -98,7 +102,10 @@ var term_int=<?=$GLOBALS['set_data']['term_int']?>;
 $a=explode(';',$GLOBALS['set_data']['terminal_hot']);
 foreach ($a AS $data)
 {
-	echo '<div class="example" onclick="document.getElementById(\'command\').value=\''.$data.'\'">'.$data.'</div>';
+	if ($data)
+	{
+		echo '<div class="example" onclick="document.getElementById(\'command\').value=\''.$data.'\'">'.$data.'</div>';
+	}
 }
 ?>
 <div style="clear: both;"><span></span></div>

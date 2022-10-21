@@ -2,7 +2,7 @@
 // ===================================================================
 // Sim Roulette -> AJAX
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2022 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -17,16 +17,14 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 	$cards=array();
 	$dev=array();
 	$operators=array();
-
+	
 	$a=trim(file_get_contents($file));
 
 	if (mb_detect_encoding($a, 'UTF-8, Windows-1251')=='Windows-1251')
 	{
 		$a=iconv('windows-1251//IGNORE', 'UTF-8//IGNORE', $a);
 	}
-	
 	$a=explode("\n",$a);
-
 // Импорт с SR-Nano
 	if (strpos($a[0],'Track:')!==false)
 	{
@@ -58,7 +56,7 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 				if ($number[1])
 				{
 					$count++;
-					$qry="DELETE FROM `cards2folder` WHERE (`number`='".(int)$number[1]."' OR `place`='".$track.($i-1)."')";
+					$qry="DELETE FROM `cards2folder` WHERE (`number`='".(int)$number[1]."' OR `place`='".mysqli_real_escape_string($db,$track.($i-1))."')";
 					mysqli_query($db,$qry);
 
 					$qry="INSERT INTO `cards2folder` SET
@@ -86,15 +84,32 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 		{
 			if (trim($a[$i]))
 			{
-				$b=explode("\t",$a[$i]);
-				if (!$b[1]){$b=explode(";",$a[$i]);}	
-				else if (!$b[1]){$b=explode(",",$a[$i]);}	
-				$cards[$i-1]['number']=str_replace('+','',trim($b[0]));	
-				$cards[$i-1]['place']=str_replace('P:','',trim($b[3]));	
-				$model='SR-Train';
-				$c=trim($cards[$i-1]['place']);	
-				if (ord($c[0])>=65){$model='';}
-				$cards[$i-1]['balance']=trim($b[4]);	
+
+				if (strpos($a[$i],"\t")!==false)
+				{
+					$b=explode("\t",$a[$i]);
+				}
+				elseif (strpos($a[$i],';')!==false)
+				{
+					$b=explode(";",$a[$i]);
+				}
+				elseif (strpos($a[$i],',')!==false)
+				{
+					$b=explode(",",$a[$i]);
+				}
+				else
+				{
+					jsOnResponse("{'message':'<h2>Ошибка импорта!</h2><br>Неверный формат файла.<br>В качестве разделителей допустимы только символы: <b>[TAB] ; ,</b>'}");  
+					unlink($file);  
+					exit();
+				}	
+				$dev=(int)trim($b[1]);
+				$model=$b[0];
+				$cards[$i-1]['iccid']=trim($b[2]);	
+				$cards[$i-1]['number']=str_replace('+','',trim($b[3]));	
+				$cards[$i-1]['place']=str_replace('P:','',trim($b[4]));	
+				$cards[$i-1]['balance']=trim($b[5]);	
+				$cards[$i-1]['operator']=trim($b[6]);	
 				$t=explode(' ',trim($b[7]));	
 				$t1=explode('.',$t[0]);	
 				$t2=explode(':',$t[1]);	
@@ -102,130 +117,82 @@ if (move_uploaded_file($_FILES['loadfile']['tmp_name'], $file))
 				$cards[$i-1]['title']=trim($b[8]);	
 				$cards[$i-1]['comment']=trim($b[9]);	
 
-				// Ищем устройство
-				if (!$dev[trim($b[2])])
+				// Ищем устройство по ID
+				if ($dev)
 				{
-					if ($result = mysqli_query($db, 'SELECT id FROM `devices` WHERE `id`='.(int)trim($b[2]))) 
+					if ($result = mysqli_query($db, 'SELECT id FROM `devices` WHERE `id`='.$dev)) 
 					{
 						if ($row = mysqli_fetch_assoc($result))
 						{
-							$dev[trim($b[2])]=$row['id'];
+							$cards[$i-1]['id']=$row['id'];
+							$msg='СИМ-карты привязаны к указанному в списке агрегатору.';
 						}
 					}
 				}
-				if (!$dev[trim($b[2])])
+				if (!$cards[$i-1]['id'])
 				{
-					if ($result = mysqli_query($db, 'SELECT id FROM `devices` WHERE `title`="'.mysqli_real_escape_string($db,trim($b[1])).'" ORDER BY `title` DESC')) 
-					{
-						if ($row = mysqli_fetch_assoc($result))
-						{
-							$dev[trim($b[2])]=$row['id'];
-						}
-					}
-				}
 
-				if (!$dev[trim($b[2])] && $model) // Добавляем новое устройство
-				{
-					$qry="INSERT `devices` SET
-					`title`='".trim($b[1])."',
-					`model`='".$model."',
-					`type`='client',
-					`token_local`='',
-					`token_remote`='".rand(11111,99999).rand(11111,99999)."',
-					`modems`='1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16',
-					`data`='a:4:{s:9:\"row_begin\";s:1:\"0\";s:4:\"rows\";s:2:\"20\";s:10:\"time_limit\";s:3:\"180\";s:13:\"carrier_limit\";s:2:\"60\";}',
-					`time`='".time()."'";
-					mysqli_query($db,$qry);
-					$dev[trim($b[2])]=mysqli_insert_id($db);
-					$newdev=trim($b[1]);
-				}
-				else if (!$dev[trim($b[2])] && !$model) // Добавляем новое устройство
-				{
-					$qry="INSERT `folders` SET
-					`title`='".trim($b[1])."',
-					`comment`='Импорт из CSV',
-					`time`='".time()."'";
-					mysqli_query($db,$qry);
-					$dev[trim($b[2])]='F'.mysqli_insert_id($db);
-				}
-				if ($dev[trim($b[2])])
-				{
-					$cards[$i-1]['dev']=$dev[trim($b[2])];
-				}
-
-				// Ищем оператора
-				if (!$operators[trim($b[6])])
-				{
-					if ($result = mysqli_query($db, 'SELECT name FROM `operators` WHERE `name` LIKE "%'.mysqli_real_escape_string($db,trim($b[6])).'%"  ORDER BY `name`="'.mysqli_real_escape_string($db,trim($b[6])).'" LIMIT 1')) 
+					$qry='SELECT id,`title` FROM `devices` WHERE `model`="'.mysqli_real_escape_string($db,$model).'" ORDER BY `title` DESC';
+					if ($result = mysqli_query($db, $qry)) 
 					{
 						if ($row = mysqli_fetch_assoc($result))
 						{
-							$operators[trim($b[6])]=$row['name'];
+							$cards[$i-1]['id']=$row['id'];
+							$msg='СИМ-карты привязаны к агрегатору <b>'.$row['title'].'</b> (ID #'.$id.').';
 						}
 					}
-				}
-				if (!$operators[trim($b[6])])
-				{
-					if ($result = mysqli_query($db, 'SELECT id FROM `operators` WHERE `title` LIKE "'.mysqli_real_escape_string($db,trim($b[5])).'" OR `name` LIKE "'.trim($b[5]).'"')) 
-					{
-						if ($row = mysqli_fetch_assoc($result))
-						{
-							$operators[trim($b[6])]=$row['name'];
-						}
-					}
-				}
-				if ($operators[trim($b[6])])
-				{
-					$cards[$i-1]['operator']=$operators[trim($b[6])];
 				}
 			}
-
 		}
-		$noop=0;
-		$message='<h2>Импорт успешно завершен!</h2><br>Обработано карт: '.count($cards).'<br>';
-		for ($i=0;$i<count($cards);$i++)
+/*
+    [0] => SR-Nano-500
+    [1] => 4436
+    [2] => 8970199160502281818f
+    [3] => +79656149321
+    [4] => P:A0
+    [5] => 96.46
+    [6] => BEELINE
+    [7] => 
+    [8] => 22.05.2022 23:01:51
+    [9] => 
+    [10] => 
+*/
+		if (!$message)
 		{
-			if ((int)$cards[$i]['operator']){$noop=1;}
-			if ($cards[$i]['dev'][0]=='F')
+			$imp=0;
+			for ($i=0;$i<count($cards);$i++)
 			{
-				$qry="INSERT INTO `cards2folder` SET
-				`number`='".$cards[$i]['number']."',
-				`place`='".$cards[$i]['place']."',
-				`balance`='".str_replace(',','.',$cards[$i]['balance'])."',
-				`time`=".$cards[$i]['time'].",
-				`operator`='".$cards[$i]['operator']."',
-				`folder_id`=".(int)substr($cards[$i]['dev'],1,255).",
-				`title`='".$cards[$i]['title']."',
-				`comment`='".$cards[$i]['comment']."'"
-				$status1=1;
+				if ($cards[$i]['id'])
+				{
+					$imp++;
+					$qry="REPLACE INTO `cards` SET
+					`iccid`='".$cards[$i]['iccid']."',
+					`number`='".$cards[$i]['number']."',
+					`place`='".$cards[$i]['place']."',
+					`balance`='".str_replace(',','.',$cards[$i]['balance'])."',
+					`time`='".$cards[$i]['time']."',
+					`operator`='".$cards[$i]['operator']."',
+					`device`=".$cards[$i]['id'].",
+					`title`='".$cards[$i]['title']."',
+					`comment`='".$cards[$i]['comment']."'";
+					mysqli_query($db,$qry);
+				}
+			}
+			if ($imp==count($cards))
+			{
+				$message='<h2>Импорт успешно завершен!</h2><br>Обработано карт: <b>'.count($cards).'</b><br>'.$msg;
+			}
+			elseif ($imp)
+			{
+				$message='<h2>Импортированы не все карты!</h2><br>Импортировано <b>'.count($cards).'</b> из <b>'.$imp.'</b><br>'.$msg;
 			}
 			else
 			{
-				$qry="REPLACE INTO `cards` SET
-				`number`='".$cards[$i]['number']."',
-				`place`='".$cards[$i]['place']."',
-				`balance`='".str_replace(',','.',$cards[$i]['balance'])."',
-				`time`=".$cards[$i]['time'].",
-				`operator`='".$cards[$i]['operator']."',
-				`device`=".(int)$cards[$i]['dev'].",
-				`title`='".$cards[$i]['title']."',
-				`comment`='".$cards[$i]['comment']."'"
-				if ($newdev)
-				{
-					$status2=1;
-				}
+				$message='<h2>Ошибка импорта!</h2><br>Не найдено подходящего агрегатора...';
 			}
-			mysqli_query($db,$qry);
-		}
-		if ($status1)
-		{
-			$message.='<br>Импортированные карты помещены на новый диск <b><a href=\"folders.php\">Импорт из CSV</a></b>.<br>';
-		}
-		if ($status2)
-		{
-			$message.='<br>Импортированные карты привязаны к новому агрегатору <b><a href=\"devices.php\">'.$newdev.'</a></b>.';
 		}
 	}
+//echo $message;
 	jsOnResponse("{'message':'".$message."'}");  
 	unlink($file);  
 }

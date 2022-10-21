@@ -1,7 +1,7 @@
 <?
 // ===================================================================
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2022 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -74,7 +74,7 @@ ORDER BY a.`id`'))
 	$n=1;
 	while ($row = mysqli_fetch_assoc($result))
 	{
-		if (hexdec($row['color'])>8388607){$color='000';} else {$color='FFF';}
+		if (hexdec($row['color'])>8388607 || !$row['color']){$color='000';} else {$color='FFF';}
 		$s=round($row['progress']/($row['count']/100+0.000001),2);
 		if ($s>100){$s=100;}
 		if ($row['status']=='inprogress' && $s==100)
@@ -102,24 +102,28 @@ ORDER BY a.`id`'))
 			$s='...';
 		}
 		$place='';
+		$pl=array();
 		if ($result2 = mysqli_query($db, 'SELECT * FROM `card2action` WHERE `action`='.$row['id'].' ORDER BY `place`')) 
 		{
 			while ($row2 = mysqli_fetch_assoc($result2))
 			{
 				if ($row['model']=='SR-Train')
-				{
+				{       
 					$a=explode(',',$row2['place']);
 					for ($i=0;$i<count($a);$i++)
 					{
 						if ($a[$i]<=8)
 						{
-							$place.=$row2['row'].'-'.$a[$i].',';
+							$pl[$row2['row'].$a[$i]]=$row2['row'].'-'.$a[$i];
 						}
 						else
 						{
-							$place.=($row2['row']+3).'-'.($a[$i]-8).',';
+							$pl[($row2['row']+3).($a[$i]-8)]=($row2['row']+3).'-'.($a[$i]-8);
 						}
 					}
+					ksort($pl);
+//					$pl=array_flip($pl);
+					$place=implode(',',$pl).',';
 				}
 				elseif (strpos($row['model'],'SR-Box-8')!==false)
 				{
@@ -173,9 +177,6 @@ if ($result = mysqli_query($db, 'SELECT * FROM `devices` ORDER BY `title`'))
 		$devices[$row['id']]=$row['title'];
 	}
 }
-?>
-<br>
-<? 
 if (count($devices)>1)
 {
 ?>
@@ -202,6 +203,7 @@ if (count($table))
 {
 ?>
 <form method="post" name="actions" id="actions">
+<div class="table_box">
 	<table class="table table_sort">
 		<thead>
 			<tr>
@@ -211,7 +213,7 @@ if (count($table))
 <? if (count($devices)>1){?>
 				<th>Агрегатор</th>
 <? } ?>
-				<th class="sidebar">Места</th>
+				<th class="sidebar">Позиции</th>
 				<th class="sidebar">Время</th>
 				<th>Статус</th>
 			</tr>  
@@ -236,6 +238,7 @@ if (count($table))
 	}
 ?>
 	</table>
+</div>
 <br>
 
 <script>
@@ -245,16 +248,16 @@ setInterval(function()
 }, 1000);
 </script>
 
-<input type="submit" name="delete" value="Отменить задачу" style="background: #FF0000; float:left; margin: 0 10px 10px 0;">
-<input type="submit" name="suspend" value="Приостановить задачу" style="float:left; margin: 0 10px 10px 0;">
-<input type="submit" name="unsuspend" value="Продолжить выполнение" style="float:left; margin: 0 10px 10px 0;">
+<input type="submit" name="delete" value="Отменить задачу" style="background: #FF0000;" class="width">
+<input type="submit" name="suspend" value="Приостановить задачу" class="width">
+<input type="submit" name="unsuspend" value="Продолжить выполнение" class="width">
 </form>
 <?
 }
 else
 {
 ?>
-<em>— Очередь пуста!</em>
+<div class="tooltip">— Очередь задач пуста!</div>
 <?
 }
 

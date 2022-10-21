@@ -8,9 +8,10 @@
 var send="";
 var receive="";
 var connect=0;
+var com_id=0;
 setInterval(function()
 {
-	SendRequest('terminal_answer.php');
+	SendRequest('terminal_answer.php?com_id='+com_id);
 }, term_int);
 function SendRequest(url)
 {
@@ -22,6 +23,7 @@ function SendRequest(url)
 			if (Request.responseText)
 			{
 				var str=Request.responseText.split("#!#");
+				if (str[2]){com_id=str[2];}
 				if (send!=str[0])
 				{
 					if (str[0]){document.getElementById("result_send").innerHTML=str[0]+document.getElementById("result_send").innerHTML;}
@@ -93,5 +95,5 @@ function SendRequest(url)
 function getRequest(){
 	var com=encodeURIComponent(document.getElementById('command').value);
 	document.getElementById('step').value=parseInt(document.getElementById('step').value)+1;
-	SendRequest('terminal_answer.php?step='+document.getElementById('step').value+'&command='+com+'&device='+document.getElementById('device').value);
+	SendRequest('terminal_answer.php?com_id='+com_id+'&&step='+document.getElementById('step').value+'&command='+com+'&device='+document.getElementById('device').value);
 }

@@ -2,13 +2,15 @@
 // ===================================================================
 // Sim Roulette -> AJAX
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2022 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
 include("_func.php");
+if (!$_SERVER['HTTP_REFERER']){$_SERVER['HTTP_REFERER']='/index.php';}
 $url=explode('/',$_SERVER['HTTP_REFERER']);
 $url=$url[count($url)-1];
+if (!$url){$url='index.php';}
 $txt=trim(file_get_contents('help.txt'));
 while (1)
 {
@@ -36,6 +38,7 @@ for ($i=count($a)-1;$i>0;$i--)
 			$out.='<h1>'.$c[1].'</h1>';
 			$out.=str_replace("
 ",'<br>',$b[1]);
+			break;
 		}
 	}
 }

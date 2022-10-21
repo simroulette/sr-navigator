@@ -2,10 +2,9 @@
 // ===================================================================
 // Sim Roulette -> Connection with SIM Roulette
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2022 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
-
 $_SERVER['DOCUMENT_ROOT']='';
 $root="[path]";
 include($root.'_func.php');
@@ -22,11 +21,15 @@ if ($result = mysqli_query($db, "SELECT * FROM `devices` WHERE `token_remote`='"
 	}
 	else
 	{
-		setlog('Device not identified!','link_error');  // Устройство не опознано
+		setlog('Device not identified!','link_unknown');  // Устройство не опознано
 		exit(); 
 	}
 }
-
+if (!strlen($_GET['step']))
+{
+	include('link2.php');
+	exit();
+}
 $out='RESTART';
 
 if (!flagGet($id,'connect') || flagGet($id,'connect',1)+$data['carrier_limit']>time())
@@ -64,11 +67,15 @@ elseif (flagGet($id,'connect') && $_GET['data']=='REQUEST')
 	setlog('Does not respond! ('.(time()-flagGet($id,'connect',1)).') '.$_GET['data'],'link_'.$id);
 	exit();
 } 
-
 // Saving the response received from the device | Сохранение полученного от агрегатора ответа
 if ($_GET['data']!='REQUEST')
 {
 	if (!$_GET['step']){$uniq=",`uniq`='".rand(1111,9999).rand(1111,9999)."'";} else {$uniq="";} // If there is an out-of-order response from the device, we generate a random number to save as a unique response in the table | Если внеочередной ответ агрегатора - генерируем случайное число, чтобы сохранить в таблице как уникальный ответ
+	if (strpos($_GET['data'],'+CPIN: NOT READY OUT')!==false)
+	{
+		setlog('PIN','pin_'.$id);  // Устройство не опознано
+		flagSet($id,'pin');
+	}
 	$qry="INSERT `link_incoming` SET
 	`device`='".$id."',
 	`step`=".(int)$_GET['step'].",
@@ -78,34 +85,75 @@ if ($_GET['data']!='REQUEST')
 	flagDelete($id,'connect_delay');
 	flagSet($id,'request');
 }
-if (strpos($_GET['data'],'+CLIP:')!==false)
+if (strpos($_GET['data'],'+CLIP:')!==false && strpos($_GET['data'],'+CLIP:')<12)
 {
+	$number='';
 	preg_match('!"(.*)"!Uis', $_GET['data'], $test);
 	if ($test[1])
 	{
-		$msg['type']='RING';
-		$msg['time']=time();
-		$msg['data']=$test[1];
-		mysqli_query($db,"UPDATE `devices` SET `msg`='".serialize($msg)."' WHERE `id`=".$id);
-		if ($result = mysqli_query($db, 'SELECT `modems` FROM `modems` WHERE `device`='.$id)) 
+		if ($result = mysqli_query($db, 'SELECT `numbers` FROM `modems` WHERE `device`='.$id)) 
 		{
 			if ($row=mysqli_fetch_assoc($result))
 			{
-				$modems=unserialize($row['modems']);
-				if ($result = mysqli_query($db, 'SELECT `number` FROM `cards` WHERE `place`="'.$modems[0].'" AND `device`='.$id)) 
+				$number=$msg['number']=$row['numbers'];
+			}
+		}
+		$msg['modem']=$_GET['data'][0];
+		$msg['type']='RING';
+		$msg['time']=time();
+		$msg['data']=$test[1];
+		if (!$number)
+		{
+			if ($result = mysqli_query($db, 'SELECT `modems` FROM `modems` WHERE `device`='.$id)) 
+			{
+				if ($row=mysqli_fetch_assoc($result))
 				{
-					if ($row=mysqli_fetch_assoc($result))
+					$modems=unserialize($row['modems']);
+//setlog(print_r($modems,1).'='.$msg['modem'],'link_'.$id);
+					if ($msg['modem']==1)
 					{
-						$number=$row['number'];
+						for ($i=1;$i<5;$i++)
+						{
+							if ($modems[$i][1]==1 || $modems[$i][1]==5)
+							{
+								$msg['modem']=$i;
+								$card=$modems[$i][0];
+								$modems=array();
+								$modems[0]=chr(64+$i).$card;
+							}	
+						}
+					}
+					if ($msg['modem']==2)
+					{
+						for ($i=5;$i<9;$i++)
+						{
+							if ($modems[$i][1]==1 || $modems[$i][1]==5)
+							{
+								$msg['modem']=$i;
+								$card=$modems[$i][0];
+								$modems=array();
+								$modems[0]=chr(64+$i).$card;
+							}	
+						}
+					}
+					$qry='SELECT `number` FROM `cards` WHERE `place`="'.$modems[0].'" AND `device`='.$id;
+					if ($result = mysqli_query($db, $qry)) 
+					{
+						if ($row=mysqli_fetch_assoc($result))
+						{
+							$msg['number']=$row['number'];
+						}
 					}
 				}
 			}
 		}
-		if ($result = mysqli_query($db, 'SELECT `id` FROM `call_incoming` WHERE `device`='.$id.' AND `time`>'.(time()-20)." ORDER BY `id` LIMIT 1")) 
+		mysqli_query($db,"UPDATE `devices` SET `msg`='".serialize($msg)."' WHERE `id`=".$id);
+		if ($result = mysqli_query($db, 'SELECT `id` FROM `call_incoming` WHERE `device`='.$id.' AND `time`>'.(time()-30)." ORDER BY `id` LIMIT 1")) 
 		{
 			if (!mysqli_fetch_assoc($result))
 			{
 				mysqli_query($db,"INSERT INTO `call_incoming` SET `number`='".$number."', `incoming`='".str_replace('+','',$test[1])."', `time`=".time().",`device`=".$id);
+				ring_notification($number,str_replace('+','',$test[1]),time());
 			}
 		}
 	}

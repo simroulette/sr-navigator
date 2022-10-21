@@ -2,7 +2,7 @@
 // ===================================================================
 // Sim Roulette -> Hardware functions
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -32,10 +32,12 @@ function sr_answer_clear($dev=0,$sr=0)
 	}
 	elseif (!$sr)
 	{
+		setlog('Clear incoming','link_'.$dev);
 		mysqli_query($db, 'DELETE FROM `link_incoming` WHERE `device`='.(int)$dev); 
 	}
 	else
 	{
+		setlog('Clear incoming SR','link_'.$dev);
 		mysqli_query($db, "DELETE FROM `link_incoming` WHERE `device`=".(int)$dev." AND `answer`!='SR start'"); 
 	}
 }
@@ -67,7 +69,7 @@ function sr_command($dev,$command,$wait=0,$transaction_code='',$transaction_time
 //	$transaction_code	A code (random number) for subsequent access within the transaction
 //	$transaction_time	The automatic completion of the transaction
 	global $db;
-
+	setlog('[sr_command:'.$dev.'] Command:'.$command,'link_'.$dev);
 	if (!$dev){return('error:device is not selected');} // Ошибка - Устройство не указано
 
 	// Transaction processing for priority access to the device | Обработка транзакций для приоритетного доступа к устройcтву
@@ -79,21 +81,21 @@ function sr_command($dev,$command,$wait=0,$transaction_code='',$transaction_time
 	if ($transaction_code && $transaction_code==$data[1] && !$transaction_time && !$command)
 	{
 		unlink($GLOBALS['root'].'flags/command_'.$dev);
-		setlog('[sr_command:'.$dev.'] Transaction exit','com_'.$dev);
+		setlog('[sr_command:'.$dev.'] Transaction exit','link_'.$dev);
 		return;
 	}
 	// Checking whether the transaction is open | Проверяем открыта ли транзакция
-
-	if ((!$transaction_code || $transaction_code!=$data[1]) && $data[0]>time())
-	{
-		while ($data[0]>time())
+	if (!$GLOBALS['terminal_mode']){
+		if ((!$transaction_code || $transaction_code!=$data[1]) && $data[0]>time())
 		{
-			setlog('[sr_command:'.$dev.'] Waiting for the transaction to end','com_'.$dev); // Ожидание окончания транзакции
-			if (!file_exists($GLOBALS['root'].'flags/command_'.$dev)){break;}
-			sleep(1);
-		}
-	}       	
-
+			while ($data[0]>time())
+			{
+				setlog('[sr_command:'.$dev.'] Waiting for the transaction to end','link_'.$dev); // Ожидание окончания транзакции
+				if (!file_exists($GLOBALS['root'].'flags/command_'.$dev)){break;}
+				sleep(1);
+			}
+		}       	
+	}
 	if ($transaction_code && $transaction_time)
 	{
 		file_put_contents('flags/command_'.$dev,(time()+$transaction_time).';'.$transaction_code);
@@ -107,6 +109,8 @@ function sr_command($dev,$command,$wait=0,$transaction_code='',$transaction_time
 		if ($row = mysqli_fetch_assoc($result))
 		{
 			$step=$s=$row['step'];
+			
+			$ss=$s;
 			if ($row['type']=='server') // Accessing the server device | Обращение к агрегатору-серверу
 			{
 				$link='http://'.$row['ip'].'/port?data='.$row['token_local'].urlencode('||'.$s.'||'.$command);
@@ -132,8 +136,8 @@ function sr_command($dev,$command,$wait=0,$transaction_code='',$transaction_time
 					} 
 					$qry="INSERT `link_incoming` SET
 					`device`='".(int)$dev."',
-					`step`=".$answer[0].",
-					`answer`='".$answer[1]."'".$uniq;
+					`step`=".(int)$answer[0].",
+					`answer`='".mysqli_real_escape_string($db,$answer[1]."'".$uniq);
 					mysqli_query($db,$qry);
 				}
 				$qry="UPDATE `devices` SET
@@ -149,7 +153,7 @@ function sr_command($dev,$command,$wait=0,$transaction_code='',$transaction_time
 				{
 					$out=sr_answer($dev,$step,$wait);
 				}
-				setlog('[sr_command:'.$dev.'] Out:'.$out,'com_'.$dev);
+				setlog('[sr_command:'.$dev.'] Out:'.$out,'link_'.$dev);
 				return($out);
 			}
 		}
@@ -157,8 +161,8 @@ function sr_command($dev,$command,$wait=0,$transaction_code='',$transaction_time
 	}
 
 	// Accessing the client device | Обращение к агрегатору-клиенту
-
 	// Save the command to the "link_outgoing" table | Сохраняем команду в таблицу "link_outgoing"
+
 	if ($c=trim($command))
 	{
 		// Ждем устройство 30 минут
@@ -180,7 +184,16 @@ function sr_command($dev,$command,$wait=0,$transaction_code='',$transaction_time
 		`device`='".(int)$dev."',
 		`command`='".$c."',
 		`step`=".(int)$s++;
+
 		mysqli_query($db,$qry);
+
+		if ($result = mysqli_query($db, "SELECT * FROM `link_outgoing` WHERE `device`=".(int)$dev." ORDER BY `id` DESC LIMIT 10")) 
+		{
+			while ($row = mysqli_fetch_assoc($result))
+			{
+				setlog('[sr_command:'.$dev.'] '.$row['command'].':'.$row['step'],'link_'.$dev);
+			}
+		}
 	}
 	else
 	{
@@ -200,6 +213,159 @@ function sr_command($dev,$command,$wait=0,$transaction_code='',$transaction_time
 	else
 	{
 		$out=sr_answer($dev,$step,$wait);
+	}
+	if (!$transaction_time)
+	{
+		unlink($GLOBALS['root'].'flags/command_'.$dev);
+	}
+	return($out);
+}
+
+function sr_command_smart($dev,$command,$sign="",$wait=0,$transaction_code='',$transaction_time=0)
+{
+//	$dev			Device ID
+//	$command		Command
+//	$wait			How many seconds to wait for a response / 0-don't wait
+//	$transaction_code	A code (random number) for subsequent access within the transaction
+//	$transaction_time	The automatic completion of the transaction
+	global $db;
+	setlog('[sr_command_smart:'.$dev.'] Command:'.$command,'link_'.$dev);
+	if (!$dev){return('error:device is not selected');} // Ошибка - Устройство не указано
+
+	// Transaction processing for priority access to the device | Обработка транзакций для приоритетного доступа к устройcтву
+
+	if (file_exists($GLOBALS['root'].'flags/command_'.$dev))
+	{
+		$data=explode(';',file_get_contents($GLOBALS['root'].'flags/command_'.$dev));
+	}
+	if ($transaction_code && $transaction_code==$data[1] && !$transaction_time && !$command)
+	{
+		unlink($GLOBALS['root'].'flags/command_'.$dev);
+		setlog('[sr_command_smart:'.$dev.'] Transaction exit','link_'.$dev);
+		return;
+	}
+	// Checking whether the transaction is open | Проверяем открыта ли транзакция
+	if (!$GLOBALS['terminal_mode'])
+	{
+		if ((!$transaction_code || $transaction_code!=$data[1]) && $data[0]>time())
+		{
+			while ($data[0]>time())
+			{
+				setlog('[sr_command_smart:'.$dev.'] Waiting for the transaction to end','link_'.$dev); // Ожидание окончания транзакции
+				if (!file_exists($GLOBALS['root'].'flags/command_'.$dev)){break;}
+				sleep(1);
+			}
+		}       	
+	}
+	if ($transaction_code && $transaction_time)
+	{
+		file_put_contents('flags/command_'.$dev,(time()+$transaction_time).';'.$transaction_code);
+	}
+	else
+	{
+		file_put_contents('flags/command_'.$dev,time()+30);
+	}
+	if ($result = mysqli_query($db, "SELECT `type`,`ip`,`token_local` FROM `devices` WHERE `id`=".(int)$dev)) 
+	{
+		if ($row = mysqli_fetch_assoc($result))
+		{
+			if ($row['type']=='server') // Accessing the server device | Обращение к агрегатору-серверу
+			{
+				$link='http://'.$row['ip'].'/port?data='.$row['token_local'].urlencode('||'.$s.'||'.$command);
+			       	$ch = curl_init();
+			       	curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+		        	curl_setopt($ch, CURLOPT_HEADER, 0);
+			       	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 0);
+			        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+				curl_setopt($ch, CURLOPT_URL, $link);
+		        	$answer = curl_exec($ch);
+			       	curl_close($ch);
+				$answer=explode('#!#',$answer);
+				if ($answer[1]) // Saving the response received from the device | Сохранение полученного от агрегатора ответа
+				{
+					flagSet($dev,'answer');
+					if (!$answer[0]) // If there is an out-of-order response from the device, we generate a random number to save as a unique response in the table | Если внеочередной ответ агрегатора - генерируем случайное число, чтобы сохранить в таблице как уникальный ответ
+					{
+						$uniq=",`uniq`='".rand(1111,9999).rand(1111,9999)."'";
+					} 
+					else 
+					{
+						$uniq="";
+					} 
+					$qry="INSERT `link_incoming` SET
+					`device`='".(int)$dev."',
+					`answer`='".mysqli_real_escape_string($db,$answer[1]."'".$uniq);
+					mysqli_query($db,$qry);
+				}
+				$qry="UPDATE `devices` SET
+				`step`=".($s+1)."
+				WHERE `id`=".(int)$dev;
+				mysqli_query($db,$qry);
+
+				if (!$wait) // Exit without waiting for a response | Выход без ожидания ответа
+				{
+					$out=$step;
+				} 
+				else
+				{
+					$out=sr_answer($dev,$step,$wait);
+				}
+				setlog('[sr_command_smart:'.$dev.'] Out:'.$out,'link_'.$dev);
+				return($out);
+			}
+		}
+		else {return('error:device not found');} // Ошибка - Агрегатор отсутсвует
+	}
+
+	// Accessing the client device | Обращение к агрегатору-клиенту
+	// Save the command to the "link_outgoing" table | Сохраняем команду в таблицу "link_outgoing"
+
+	setlog('[sr_command_smart:'.$dev.'] Next','link_'.$dev);
+
+
+	if ($c=trim($command))
+	{
+		// Ждем устройство 30 минут
+		$time=time();
+		for ($w=0;$w<180;$w++)
+		{
+			$access=flagGet($dev,'answer',1);
+			if ($access+10<time())
+			{
+				sleep(10);
+			}
+			else
+			{
+				break;
+			}
+		}
+		$GLOBALS['time_correct']=$GLOBALS['time_correct']+(time()-$time);
+		$qry="INSERT `link_outgoing` SET
+		`device`='".(int)$dev."',
+		`command`='".mysqli_real_escape_string($db,$c)."'";
+		mysqli_query($db,$qry);
+
+		if ($result = mysqli_query($db, "SELECT * FROM `link_outgoing` WHERE `device`=".(int)$dev." ORDER BY `id` DESC LIMIT 10")) 
+		{
+			while ($row = mysqli_fetch_assoc($result))
+			{
+				setlog('[sr_command_smart:'.$dev.'] '.$row['command'],'link_'.$dev);
+			}
+		}
+	}
+	else
+	{
+		setlog('[sr_command_smart:'.$dev.'] error:no command specified','link_'.$dev);
+		return('error:no command specified');
+	}
+
+	if (!$wait) // Exit without waiting for a response | Выход без ожидания ответа
+	{
+		$out=1;
+	} 
+	else
+	{
+		$out=sr_answer_smart($dev,$sign,$wait);
 	}
 	if (!$transaction_time)
 	{
@@ -246,7 +412,7 @@ function sr_answer($dev,$step=0,$wait=20,$search="")
 					{
 						$GLOBALS['set_data']['flags']['not_ready']=1;
 					}
-					mysqli_query($db, 'DELETE FROM `link_incoming` WHERE `id`='.$subRow['id']); 
+					mysqli_query($db, 'DELETE FROM `link_incoming` WHERE `id`='.(int)$subRow['id']); 
 		
 					if ($search && (mb_strpos($subRow['answer'],$search)!==false || ($search2 && mb_strpos($subRow['answer'],$search2))!==false))
 					{
@@ -259,7 +425,7 @@ function sr_answer($dev,$step=0,$wait=20,$search="")
 				}
 			}
 
-			// Getting from the device | Полусение ответа
+			// Getting from the device | Получение ответа
 			$n=0;
 			while ($time>time() || !$n)
 			{
@@ -310,7 +476,8 @@ function sr_answer($dev,$step=0,$wait=20,$search="")
 
 	while ($time>time())
 	{
-		if ($result = mysqli_query($db, 'SELECT * FROM `link_incoming` WHERE `device`='.(int)$dev.' AND `step`='.(int)$step.' ORDER BY id LIMIT 1')) 
+		br($dev);
+		if ($result = mysqli_query($db, 'SELECT * FROM `link_incoming` WHERE `device`='.(int)$dev.' AND `step`='.(int)$step.' ORDER BY id')) 
 		{
 			while ($row = mysqli_fetch_assoc($result))
 			{
@@ -342,6 +509,139 @@ function sr_answer($dev,$step=0,$wait=20,$search="")
 	return('error:no answer');
 }
 
+// Getting the device response
+// Получение ответа от агрегатора
+function sr_answer_smart($dev,$sign="",$wait=20,$search="") 
+{
+//	$dev		Device ID
+//	$step		Device Step OR 0
+//	$wait		How many seconds to wait for a response
+//	$search		Поиск в ответе агрегатора
+
+	global $db;
+	if (!$dev){return('error:device is not selected');} // Ошибка - Устройство не указано
+	$time=time()+$wait;
+
+	$search2=explode('||',$search);
+	$search2=$search2[1];
+	
+	// Accessing the server device | Обращение к агрегатору-серверу
+	$qry="SELECT `ip`,`token_local` FROM `devices` WHERE `type`='server' AND `ip`<>'' AND `id`=".(int)$dev;
+	if ($result = mysqli_query($db, $qry)) 
+	{
+		if ($row = mysqli_fetch_assoc($result))
+		{
+			// Reading the response from the table | Читаем ответ из таблицы
+			if ($subResult = mysqli_query($db, 'SELECT * FROM `link_incoming` WHERE `device`='.(int)$dev.' AND `step`='.(int)$step.' ORDER BY id')) 
+			{
+				while ($subRow = mysqli_fetch_assoc($subResult))
+				{
+					if ($step)
+					{
+						return($subRow['answer']);
+					}			
+					elseif (trim($subRow['answer'])=='SR start')
+					{
+						$GLOBALS['set_data']['flags']['restart']=1;
+					}
+					elseif (trim($subRow['answer'])=='NOT READY')
+					{
+						$GLOBALS['set_data']['flags']['not_ready']=1;
+					}
+					mysqli_query($db, 'DELETE FROM `link_incoming` WHERE `id`='.(int)$subRow['id']); 
+		
+					if ($search && (mb_strpos($subRow['answer'],$search)!==false || ($search2 && mb_strpos($subRow['answer'],$search2))!==false))
+					{
+						return($subRow['answer']);
+					}
+					elseif (!$search)
+					{
+						return($subRow['answer']);
+					}
+				}
+			}
+
+			// Getting from the device | Получение ответа
+			$n=0;
+			while ($time>time() || !$n)
+			{
+	                        $n=1;
+				$link='http://'.$row['ip'].'/port?data='.$row['token_local'].'||0||REQUEST';
+			       	$ch = curl_init();
+			       	curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+		        	curl_setopt($ch, CURLOPT_HEADER, 0);
+			       	curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 0);
+			        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+				curl_setopt($ch, CURLOPT_URL, $link);
+		        	$answer = curl_exec($ch);
+			       	curl_close($ch);
+				$answer=explode('#!#',$answer);
+
+				if ($answer[1])
+				{
+					flagSet($dev,'answer');
+				}
+
+				if ($step && $step==$answer[0])
+				{
+					return($answer[1]);
+				}			
+				elseif (trim($answer[1])=='SR start')
+				{
+					$GLOBALS['set_data']['flags']['restart']=1;
+				}
+				elseif (trim($answer[1])=='NOT READY')
+				{
+					$GLOBALS['set_data']['flags']['not_ready']=1;
+				}
+				if ($search && mb_strpos($answer[1],$search)!==false)
+				{
+					return($answer[1]);
+				}
+				elseif (!$search && $answer[0] && $answer[1])
+				{
+					return($answer[1]);
+				}
+				if ($time>time()){sleep(1);}
+			}
+			return('error:no answer');
+		}
+	}
+
+	// Accessing the client device | Обращение к агрегатору-клиенту
+
+	while ($time>time())
+	{
+		br($dev);
+		if ($sign)
+		{
+			$signCom=' AND `sign`="'.$sign.'"';
+		}
+		$qry='SELECT * FROM `link_incoming` WHERE `device`='.(int)$dev.$signCom.' ORDER BY id LIMIT 1';
+		if ($result = mysqli_query($db, $qry)) 
+		{
+			while ($row = mysqli_fetch_assoc($result))
+			{
+				mysqli_query($db, 'DELETE FROM `link_incoming` WHERE `id`='.(int)$row['id']); 
+				if ($sign)
+				{
+					return($row['answer']);
+				}			
+				if ($search && (mb_strpos($row['answer'],$search)!==false || ($search2 && mb_strpos($row['answer'],$search2))!==false))
+				{
+					return($row['answer']);
+				}
+				elseif (!$search)
+				{
+					return($row['answer']);
+				}
+			}
+		}
+		if ($time>time()){sleep(1);}
+	}
+	return('error:no answer');
+}
+
 // Stopping an action
 // Остановка задачи
 function action_stop($id)
@@ -350,7 +650,7 @@ function action_stop($id)
 
 	global $db;
 	if ($result = mysqli_query($db, 'SELECT a.* FROM `actions` a 
-	INNER JOIN `devices` d ON AND d.id=a.device 
+	INNER JOIN `devices` d ON d.id=a.device 
 	WHERE a.`id`='.(int)$id)) 
 	{
 		if ($row = mysqli_fetch_assoc($result))
@@ -359,15 +659,15 @@ function action_stop($id)
 			mysqli_query($db, "DELETE FROM `card2action` WHERE `action`=".(int)$id);
 			if ($row['pool_id'])
 			{
-				$qry="UPDATE `pools` SET `status`='free' WHERE `id`=".$row['pool_id'];
+				$qry="UPDATE `pools` SET `status`='free' WHERE `id`=".(int)$row['pool_id'];
 				mysqli_query($db,$qry);
 			}
 			elseif ($row['card_number'])
 			{
-				$qry="UPDATE `cards` SET `status`='free' WHERE `number`=".$row['card_number'];
+				$qry="UPDATE `cards` SET `status`='free' WHERE `number`=".(int)$row['card_number'];
 				mysqli_query($db,$qry);
 			}
-			flagSet($row['device'],'act_'.(int)$id);
+			flagSet($row['device'],'act_'.(int)$id); // ???
 			flagSet($row['device'],'stop');
 		}		
 	}
@@ -465,43 +765,60 @@ function action_card_create($number,$type,$data='')
 					}						
 				}
 				if (!$status){return(array('status'=>0));}
-				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row['device'].",`action`=".$act_id.",`row`=".$place[0].",`place`='".$place[1]."'");
+				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".(int)$row['device'].",`action`=".$act_id.",`row`=".$place[0].",`place`='".$place[1]."'");
 			}
-			else if ($row['model']=='SR-Box-8' || $row['model']=='SR-Box-Bank')
+			else if ($row['model']=='SR-Box-8' || $row['model']=='SR-Box-2' || $row['model']=='SR-Box-Bank' || $row['model']=='SR-Box-2-Bank' || $row['model']=='SR-Board')
 			{
-				// Getting a row and a place | Получение ряда и места
-				$place=explode('-',$row['place']);
-				// Checking whether this modem is enabled | Проверка задействован ли модем
-				if ($row['model']=='SR-Box-Bank')
+				// Getting a place | Получение места
+				$placeColumn=ord($row['place'][0])-65;
+				if (strlen($row['place'])>1)
 				{
-					$row['modems']='1,2,3,4,5,6,7,8';
-				} 
+					$placeRow=substr($row['place'],1,10);
+				}
+				else
+				{
+					$placeRow=0;
+				}
+				// Checking whether this modem is enabled | Проверка задействован ли модем
 				$modems=explode(',',$row['modems']);
 				$status=0;
 				for ($i=0;$i<count($modems);$i++)
 				{
-					if ($place[1]==$modems[$i])
+					if (ord($row['place'])-64==$modems[$i])
 					{
 						$status=1;
 						break;
 					}
 				}
 				if (!$status){return(array('status'=>0));}
-				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row['device'].",`action`=".$act_id.",`row`=".$place[0].",`place`='".$place[1]."'");
+				$qry="INSERT INTO `card2action` SET `device`=".$row['device'].",`action`=".$act_id.",`row`=".$placeRow.",`place`='".(ord($row['place'])-64)."'";
+				mysqli_query($db,$qry);
 			}
-			else if ($row['model']=='SR-Organizer') // !!! - Добавлено и Не проверено 25.05.2021
+			else if ($row['model']=='SR-Organizer')
 			{
 				// Getting a row and a place | Получение ряда и места
 				$place=explode('-',$row['place']);
-				if (!$status){return(array('status'=>0));}
-				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row['device'].",`action`=".$act_id.",`row`=".$place[0].",`place`='".$place[1]."'");
+				if (!$place[0] || !$place[1]){return(array('status'=>0));}
+				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".(int)$row['device'].",`action`=".(int)$act_id.",`row`=0,`place`='".$row['place']."'");
+			}
+			else if ($row['model']=='SR-Organizer')
+			{
+				// Getting a row and a place | Получение ряда и места
+				$place=explode('-',$row['place']);
+				if (!$place[0] || !$place[1]){return(array('status'=>0));}
+				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".(int)$row['device'].",`action`=".(int)$act_id.",`row`=0,`place`='".$row['place']."'");
+			}
+			else if ($row['model']=='SR-Organizer-Smart')
+			{
+				// Getting a row and a place | Получение ряда и места
+				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".(int)$row['device'].",`action`=".(int)$act_id.",`row`=0,`place`='".$row['place']."'");
 			}
 			elseif ($row['model']=='SR-Nano-500')
 			{
 				$l=$row['place'][0];
 				$p=substr($row['place'],1,3);
 				if (strlen($p)<2){$p='0'.$p;}
-				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row['device'].",`action`=".$act_id.",`place`='".$l.$p."'");
+				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".(int)$row['device'].",`action`=".(int)$act_id.",`place`='".$l.$p."'");
 			}		
 			elseif ($row['model']=='SR-Nano-1000')
 			{
@@ -509,7 +826,7 @@ function action_card_create($number,$type,$data='')
 				$p=substr($row['place'],1,3);
 				if (strlen($p)<2){$p='00'.$p;}
 				elseif (strlen($p)<3){$p='0'.$p;}
-				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row['device'].",`action`=".$act_id.",`place`='".$l.$p."'");
+				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".(int)$row['device'].",`action`=".(int)$act_id.",`place`='".$l.$p."'");
 			}		
 			return(array('status'=>1,'action'=>$act_id));
 		}
@@ -518,7 +835,7 @@ function action_card_create($number,$type,$data='')
 
 // Creating an action for scanning SIM cards
 // Создание задачи сканирования СИМ-карт
-function action_card_scanner($id,$span,$new)
+function action_card_scanner($id,$span,$new,$fool=0)
 {
 //	$id		Device ID
 //	$span		Span of SIM cards, examples ("0,1", "0-3", "A0,A1", "A10-B20" etc)
@@ -587,7 +904,7 @@ function action_card_scanner($id,$span,$new)
 							{
 								if (!$count)
 								{
-									mysqli_query($db,"INSERT INTO `actions` SET `report`='',`device`=".(int)$id.",`data`='',`action`='get_number',`time`=".time());
+									mysqli_query($db,"INSERT INTO `actions` SET `report`='',`device`=".(int)$id.",`data`='".serialize(array('fool'=>(int)$fool))."',`action`='get_number',`time`=".time());
 									$act_id=mysqli_insert_id($db);
 								}		
 								$count++;
@@ -620,11 +937,11 @@ function action_card_scanner($id,$span,$new)
 					{
 						if ($row['model']=='SR-Nano-500')
 						{
-							return(array('status'=>0,'message'=>'<h1>Ошибка!</h1><br><b>Выбраны места СИМ-карт за пределами диапазона дорожек:</b><br><br>A0-100<br>B0-90<br>C0-80<br>D0-68<br>E0-58<br>F0-46<br>G0-34<br>H0-24')); // Error - Place SIM cards outside of the track range
+							return(array('status'=>0,'message'=>'<div class="tooltip danger">— Выбраны места СИМ-карт за пределами диапазонов:<br><br>A0-100, B0-90, C0-80, D0-68, E0-58, F0-46, G0-34, H0-24</div><br><br><span class="link but_win" onclick="getActions(\'ajax_card_scanner.php?device='.(int)$id.'\');">Исправить</span>'));
 						}
 						elseif ($row['model']=='SR-Nano-1000')
 						{
-							return(array('status'=>0,'message'=>'<h1>Ошибка!</h1><br><b>Выбраны места СИМ-карт за пределами диапазона дорожек:</b><br><br>A0-139<br>B0-129<br>C0-119<br>D0-109<br>E0-100<br>F0-90<br>G0-80<br>H0-68<br>I0-58<br>J0-46<br>K0-34<br>L0-24')); // Error - Place SIM cards outside of the track range
+							return(array('status'=>0,'message'=>'<div class="tooltip danger">— Выбраны места СИМ-карт за пределами диапазонов:<br><br>A0-139, B0-129, C0-119, D0-109, E0-100, F0-90, G0-80, H0-68, I0-58, J0-46, K0-34, L0-24</div><br><br><span class="link but_win" onclick="getActions(\'ajax_card_scanner.php?device='.(int)$id.'\');">Исправить</span>'));
 						}
 					}
 				}
@@ -635,7 +952,6 @@ function action_card_scanner($id,$span,$new)
 					$to=ord($to[0])*1000+substr($to,1,255);
 					$let_max=substr($to,0,2);
 					$num_max=(int)substr($to,2,255);
-
 					for ($i=$from;$i<=$to;$i++)
 					{
 						$let=substr($i,0,2);
@@ -648,6 +964,7 @@ function action_card_scanner($id,$span,$new)
 							{
 								$num=$num-($cards[$let-65]);
 								$let++;
+								$i=$let*1000;
 							}
 							else
 							{
@@ -673,7 +990,7 @@ function action_card_scanner($id,$span,$new)
 						{
 							if (!$count)
 							{
-								mysqli_query($db,"INSERT INTO `actions` SET `report`='',`device`=".(int)$id.",`data`='',`action`='get_number',`time`=".time());
+								mysqli_query($db,"INSERT INTO `actions` SET `report`='',`device`=".(int)$id.",`data`='".serialize(array('fool'=>(int)$fool))."',`action`='get_number',`time`=".time());
 								$act_id=mysqli_insert_id($db);
 							}		
 							$count++;
@@ -697,7 +1014,7 @@ function action_card_scanner($id,$span,$new)
 						$qry="UPDATE `devices` SET `status`='waiting' WHERE `id`=".(int)$id;
 						mysqli_query($db,$qry);
 
-						$qry="UPDATE `actions` SET `count`=".$count." WHERE `id`=".$act_id;
+						$qry="UPDATE `actions` SET `count`=".$count." WHERE `id`=".(int)$act_id;
 						mysqli_query($db,$qry);
 			
 						return(array('status'=>0,'message'=>'ok','action'=>$act_id));
@@ -706,11 +1023,11 @@ function action_card_scanner($id,$span,$new)
 					{
 						if ($row['model']=='SR-Nano-500')
 						{
-							return(array('status'=>0,'message'=>'<h1>Ошибка!</h1><br><b>Выбраны места СИМ-карт за пределами диапазона дорожек:</b><br><br>A0-100<br>B0-90<br>C0-80<br>D0-68<br>E0-58<br>F0-46<br>G0-34<br>H0-24')); // Error - Place SIM cards outside of the track range
+							return(array('status'=>0,'message'=>'<div class="tooltip danger">— Выбраны места СИМ-карт за пределами диапазонов:<br><br>A0-100, B0-90, C0-80, D0-68, E0-58, F0-46, G0-34, H0-24</div><br><br><span class="link but_win" onclick="getActions(\'ajax_card_scanner.php?device='.(int)$id.'\');">Исправить</span>'));
 						}
 						elseif ($row['model']=='SR-Nano-1000')
 						{
-							return(array('status'=>0,'message'=>'<h1>Ошибка!</h1><br><b>Выбраны места СИМ-карт за пределами диапазона дорожек:</b><br><br>A0-139<br>B0-129<br>C0-119<br>D0-109<br>E0-100<br>F0-90<br>G0-80<br>H0-68<br>I0-58<br>J0-46<br>K0-34<br>L0-24')); // Error - Place SIM cards outside of the track range
+							return(array('status'=>0,'message'=>'<div class="tooltip danger">— Выбраны места СИМ-карт за пределами диапазонов:<br><br>A0-139, B0-129, C0-119, D0-109, E0-100, F0-90, G0-80, H0-68, I0-58, J0-46, K0-34, L0-24</div><br><br><span class="link but_win" onclick="getActions(\'ajax_card_scanner.php?device='.(int)$id.'\');">Исправить</span>'));
 						}
 					}
 				}
@@ -728,8 +1045,8 @@ function action_card_scanner($id,$span,$new)
 					{
 						if ($data['rows']<$i || $data['row_begin']>$i)
 						{
-							return(array('status'=>0,'message'=>'<h1>Ошибка!</h1><br>Диапазон агрегатора: '.$data['row_begin'].'...'.$data['rows']));
-						}
+							return(array('status'=>0,'message'=>'<div class="tooltip danger">— Выбраны ряды СИМ-карт за пределами диапазона: <b>'.$data['row_begin'].' — '.$data['rows'].'</b><br><br>— Диапазон задается в настройках агрегатора либо вычисляется в процессе инициализации</div><br><br><span class="link but_win" onclick="getActions(\'ajax_card_scanner.php?device='.(int)$id.'\');">Исправить</span>'));
+  						}
 					}
 					
 					$modems=explode(',',$row['modems']);
@@ -764,14 +1081,14 @@ function action_card_scanner($id,$span,$new)
 	                        		                	}
 								}
 							}
-							$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`row`=".$i.",`place`='".trim($m,',')."'";
+							$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".(int)$act_id.",`row`=".$i.",`place`='".trim($m,',')."'";
 							mysqli_query($db,$qry);
 						}
 					}
 					$qry="UPDATE `devices` SET `status`='waiting' WHERE `id`=".(int)$id;
 					mysqli_query($db,$qry);
 
-					$qry="UPDATE `actions` SET `count`=".$count." WHERE `id`=".$act_id;
+					$qry="UPDATE `actions` SET `count`=".$count." WHERE `id`=".(int)$act_id;
 					mysqli_query($db,$qry);
 			
 					return(array('status'=>0,'message'=>'ok','action'=>$act_id));
@@ -780,7 +1097,7 @@ function action_card_scanner($id,$span,$new)
 				{
 					if ($data['rows']<$to || $data['row_begin']>$from)
 					{
-						return(array('status'=>0,'message'=>'<h1>Ошибка!</h1><br>Диапазон агрегатора: '.$data['row_begin'].'...'.$data['rows']));
+						return(array('status'=>0,'message'=>'<div class="tooltip danger">— Выбраны ряды СИМ-карт за пределами диапазона: <b>'.$data['row_begin'].' — '.$data['rows'].'</b></div><br><br><span class="link but_win" onclick="getActions(\'ajax_card_scanner.php?device='.(int)$id.'\');">Исправить</span>'));
 					}
 
 					$modems=explode(',',$row['modems']);
@@ -813,7 +1130,7 @@ function action_card_scanner($id,$span,$new)
 		        	                                	}
 								}
 							}
-							$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`row`=".$i.",`place`='".trim($m,',')."'";
+							$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".(int)$act_id.",`row`=".$i.",`place`='".trim($m,',')."'";
 							mysqli_query($db,$qry);
 						}
 					}
@@ -821,101 +1138,36 @@ function action_card_scanner($id,$span,$new)
 					$qry="UPDATE `devices` SET `status`='waiting' WHERE `id`=".(int)$id;
 					mysqli_query($db,$qry);
 
-					$qry="UPDATE `actions` SET `count`=".$count." WHERE `id`=".$act_id;
+					$qry="UPDATE `actions` SET `count`=".$count." WHERE `id`=".(int)$act_id;
 					mysqli_query($db,$qry);
 			
 					return(array('status'=>0,'message'=>'ok','action'=>$act_id));
 				}
 			}
-			elseif ($row['model']=='SR-Box-8')
+			elseif ($row['model']=='SR-Box-8' || $row['model']=='SR-Box-2')
 			{
-				if ($from==-1)
+				$count=0;
+				$done=array();
+				$m='';
+				$modems=explode(',',$row['modems']);
+				for ($n=1;$n<9;$n++)
 				{
-					$from=0;
-					$to=$data['rows'];
+					if (in_array($n,$modems))
+					{
+						$m.=$n.',';
+						$count++;
+					}
 				}
-				if (is_array($select))
-				{
-					foreach ($select AS $i)
-					{
-						if ($data['rows']<$i || $data['row_begin']>$i)
-						{
-							return(array('status'=>0,'message'=>'<h1>Ошибка!</h1><br>Диапазон агрегатора: '.$data['row_begin'].'...'.$data['rows']));
-						}
-					}
-					
-					$modems=explode(',',$row['modems']);
+				mysqli_query($db,"INSERT INTO `actions` SET `report`='',`device`=".(int)$id.",`data`='',`action`='get_number',`count`=".$count.",`time`=".time());
+				$act_id=mysqli_insert_id($db);
 
-					mysqli_query($db,"INSERT INTO `actions` SET `report`='',`device`=".(int)$id.",`data`='',`action`='get_number',`time`=".time());
-					$act_id=mysqli_insert_id($db);
-
-					$count=0;
-					$done=array();
-					foreach ($select AS $i)
-					{
-						if (!in_array($i,$done))
-						{
-							$m='';
-							for ($n=1;$n<9;$n++)
-							{
-								if (in_array($n,$modems))
-								{
-									$m.=$n.',';
-									$count++;
-								}
-							}
-							$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`row`=".$i.",`place`='".trim($m,',')."'";
-							mysqli_query($db,$qry);
-						}
-					}
-					$qry="UPDATE `devices` SET `status`='waiting' WHERE `id`=".(int)$id;
-					mysqli_query($db,$qry);
-
-					$qry="UPDATE `actions` SET `count`=".$count." WHERE `id`=".$act_id;
-					mysqli_query($db,$qry);
-			
-					return(array('status'=>0,'message'=>'ok','action'=>$act_id));
-				}
-				else
-				{
-					if ($data['rows']<$to || $data['row_begin']>$from)
-					{
-						return(array('status'=>0,'message'=>'<h1>Ошибка!</h1><br>Диапазон агрегатора: '.$data['row_begin'].'...'.$data['rows']));
-					}
-
-					$modems=explode(',',$row['modems']);
-
-					mysqli_query($db,"INSERT INTO `actions` SET `report`='',`device`=".(int)$id.",`data`='',`action`='get_number',`time`=".time());
-					$act_id=mysqli_insert_id($db);
-					$count=0;
-					for ($i=$from;$i<=$to;$i++)
-					{
-						$m='';
-						if (!in_array($i,$done))
-						{
-							for ($n=1;$n<9;$n++)
-							{
-								if (in_array($n,$modems))
-								{
-									$m.=$n.',';
-									$count++;
-								}
-							}
-							$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`row`=".$i.",`place`='".trim($m,',')."'";
-							mysqli_query($db,$qry);
-						}
-					}
-
-					$qry="UPDATE `devices` SET `status`='waiting' WHERE `id`=".(int)$id;
-					mysqli_query($db,$qry);
-
-					$qry="UPDATE `actions` SET `count`=".$count." WHERE `id`=".$act_id;
-					mysqli_query($db,$qry);
-			
-					return(array('status'=>0,'message'=>'ok','action'=>$act_id));
-				}
+				$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".(int)$act_id.",`row`=0,`place`='".trim($m,',')."'";
+				mysqli_query($db,$qry);
+				$qry="UPDATE `devices` SET `status`='waiting' WHERE `id`=".(int)$id;
+				mysqli_query($db,$qry);
+				return(array('status'=>0,'message'=>'ok','action'=>$act_id));
 			}
-			elseif ($row['model']=='SR-Box-Bank')
+			elseif ($row['model']=='SR-Box-Bank' || $row['model']=='SR-Board')
 			{
 				$data['row_begin']=1;
 				$data['rows']=8;
@@ -925,7 +1177,6 @@ function action_card_scanner($id,$span,$new)
 					$data['row_begin']=1;
 					$data['rows']=64;
 				}
-
 				if ($from==-1)
 				{
 					$from=0;
@@ -933,27 +1184,37 @@ function action_card_scanner($id,$span,$new)
 				}
 				if (is_array($select))
 				{
+					$done=array();
 					foreach ($select AS $i)
 					{
-						if ($data['rows']<$i || $data['row_begin']>$i)
+						if (!in_array($i,$done))
 						{
-							return(array('status'=>0,'message'=>'<h1>Ошибка!</h1><br>Диапазон агрегатора с подключенным SIM-банком: '.$data['row_begin'].'...'.$data['rows']));
+							$done[]=$i;
+							if ($data['rows']<$i || $data['row_begin']>$i)
+							{
+								return(array('status'=>0,'message'=>'<div class="tooltip danger">— Диапазон вашего агрегатора с SIM-банком: <b>'.$data['row_begin'].' — '.$data['rows'].'</b></div><br><br><span class="link but_win" onclick="getActions(\'ajax_card_scanner.php?device='.(int)$id.'\');">Исправить</span>'));
+							}
 						}
 					}
 					
 					mysqli_query($db,"INSERT INTO `actions` SET `report`='',`device`=".(int)$id.",`data`='',`action`='get_number',`time`=".time());
 					$act_id=mysqli_insert_id($db);
 					$count=0;
+					$done=array();
 					foreach ($select AS $i)
 					{
-						$count=$count+8;
-						$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`row`=".$i.",`place`='1,2,3,4,5,6,7,8'";
-						mysqli_query($db,$qry);
+						if (!in_array($i,$done))
+						{
+							$done[]=$i;
+							$count=$count+8;
+							$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".(int)$act_id.",`row`=".$i.",`place`='1,2,3,4,5,6,7,8'";
+							mysqli_query($db,$qry);
+						}
 					}
 					$qry="UPDATE `devices` SET `status`='waiting' WHERE `id`=".(int)$id;
 					mysqli_query($db,$qry);
 
-					$qry="UPDATE `actions` SET `count`=".$count." WHERE `id`=".$act_id;
+					$qry="UPDATE `actions` SET `count`=".$count." WHERE `id`=".(int)$act_id;
 					mysqli_query($db,$qry);
 			
 					return(array('status'=>0,'message'=>'ok','action'=>$act_id));
@@ -963,7 +1224,7 @@ function action_card_scanner($id,$span,$new)
 				{
 					if ($data['rows']<$to || $data['row_begin']>$from)
 					{
-						return(array('status'=>0,'message'=>'<h1>Ошибка!</h1><br>Диапазон агрегатора с подключенным SIM-банком: '.$data['row_begin'].'...'.$data['rows']));
+						return(array('status'=>0,'message'=>'<div class="tooltip danger">— Диапазон вашего агрегатора с SIM-банком: <b>'.$data['row_begin'].' — '.$data['rows'].'</b></div><br><br><span class="link but_win" onclick="getActions(\'ajax_card_scanner.php?device='.(int)$id.'\');">Исправить</span>'));
 					}
 
 					mysqli_query($db,"INSERT INTO `actions` SET `report`='',`device`=".(int)$id.",`data`='',`action`='get_number',`time`=".time());
@@ -972,14 +1233,95 @@ function action_card_scanner($id,$span,$new)
 					for ($i=$from;$i<=$to;$i++)
 					{
 						$count=$count+8;
-						$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`row`=".$i.",`place`='1,2,3,4,5,6,7,8'";
+						$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".(int)$act_id.",`row`=".$i.",`place`='1,2,3,4,5,6,7,8'";
 						mysqli_query($db,$qry);
 					}
 
 					$qry="UPDATE `devices` SET `status`='waiting' WHERE `id`=".(int)$id;
 					mysqli_query($db,$qry);
 
-					$qry="UPDATE `actions` SET `count`=".$count." WHERE `id`=".$act_id;
+					$qry="UPDATE `actions` SET `count`=".$count." WHERE `id`=".(int)$act_id;
+					mysqli_query($db,$qry);
+			
+					return(array('status'=>0,'message'=>'ok','action'=>$act_id));
+				}
+			}
+			elseif ($row['model']=='SR-Box-2-Bank')
+			{
+				$data['row_begin']=1;
+				$data['rows']=8;
+				$d=unserialize($row['data']);
+				if ($d['map']>1)
+				{
+					$data['row_begin']=1;
+					$data['rows']=64;
+				}
+				if ($from==-1)
+				{
+					$from=0;
+					$to=$data['rows'];
+				}
+
+				if (is_array($select))
+				{
+					$done=array();
+					foreach ($select AS $i)
+					{
+						if (!in_array($i,$done))
+						{
+							$done[]=$i;
+							if ($data['rows']<$i || $data['row_begin']>$i)
+							{
+								return(array('status'=>0,'message'=>'<div class="tooltip danger">— Диапазон вашего агрегатора с SIM-банком: <b>'.$data['row_begin'].' — '.$data['rows'].'</b></div><br><br><span class="link but_win" onclick="getActions(\'ajax_card_scanner.php?device='.(int)$id.'\');">Исправить</span>'));
+							}
+						}
+					}
+					
+					mysqli_query($db,"INSERT INTO `actions` SET `report`='',`device`=".(int)$id.",`data`='',`action`='get_number',`time`=".time());
+					$act_id=mysqli_insert_id($db);
+					$count=0;
+					$done=array();
+					foreach ($select AS $i)
+					{
+						if (!in_array($i,$done))
+						{
+							$done[]=$i;
+							$count=$count+8;
+							$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".(int)$act_id.",`row`=".$i.",`place`='1,2,3,4,5,6,7,8'";
+							mysqli_query($db,$qry);
+						}
+					}
+					$qry="UPDATE `devices` SET `status`='waiting' WHERE `id`=".(int)$id;
+					mysqli_query($db,$qry);
+
+					$qry="UPDATE `actions` SET `count`=".$count." WHERE `id`=".(int)$act_id;
+					mysqli_query($db,$qry);
+			
+					return(array('status'=>0,'message'=>'ok','action'=>$act_id));
+
+				}
+				else
+				{
+					if ($data['rows']<$to || $data['row_begin']>$from)
+					{
+						return(array('status'=>0,'message'=>'<div class="tooltip danger">— Диапазон вашего агрегатора с SIM-банком: <b>'.$data['row_begin'].' — '.$data['rows'].'</b></div><br><br><span class="link but_win" onclick="getActions(\'ajax_card_scanner.php?device='.(int)$id.'\');">Исправить</span>'));
+					}
+
+					mysqli_query($db,"INSERT INTO `actions` SET `report`='',`device`=".(int)$id.",`data`='',`action`='get_number',`time`=".time());
+
+					$act_id=mysqli_insert_id($db);
+					$count=0;
+					for ($i=$from;$i<=$to;$i++)
+					{
+						$count=$count+8;
+						$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".(int)$act_id.",`row`=".$i.",`place`='1,2,3,4,5,6,7,8'";
+						mysqli_query($db,$qry);
+					}
+
+					$qry="UPDATE `devices` SET `status`='waiting' WHERE `id`=".(int)$id;
+					mysqli_query($db,$qry);
+
+					$qry="UPDATE `actions` SET `count`=".$count." WHERE `id`=".(int)$act_id;
 					mysqli_query($db,$qry);
 			
 					return(array('status'=>0,'message'=>'ok','action'=>$act_id));
@@ -987,15 +1329,41 @@ function action_card_scanner($id,$span,$new)
 			}
 			elseif ($row['model']=='SR-Organizer')
 			{
-				$count=explode(',',$row['modems']);
+				$count=16;
+				$place='1-1,1-2,1-3,1-4,1-5,1-6,1-7,1-8,2-1,2-2,2-3,2-4,2-5,2-6,2-7,2-8';
 				$count=count($count);			
 	
 				mysqli_query($db,"INSERT INTO `actions` SET `report`='',`device`=".(int)$id.",`data`='',`count`=".$count.",`action`='get_number',`time`=".time());
 				$act_id=mysqli_insert_id($db);
 
-				$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`place`='".$row['modems']."'";
+				$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".(int)$act_id.",`place`='".$place."'";
 				mysqli_query($db,$qry);
 
+				$qry="UPDATE `devices` SET `status`='waiting' WHERE `id`=".(int)$id;
+				mysqli_query($db,$qry);
+			
+				return(array('status'=>0,'message'=>'ok','action'=>$act_id));
+			}
+			elseif ($row['model']=='SR-Organizer-Smart')
+			{
+				if ($data['lines']==3)
+				{
+					$place=array('A1','A2','A3','A4','A5','A6','A7','A8','B1','B2','B3','B4','B5','B6','B7','B8','C1','C2','C3','C4','C5','C6','C7','C8');
+				}
+				else
+				{
+					$place=array('A1','A2','A3','A4','A5','A6','A7','A8','B1','B2','B3','B4','B5','B6','B7','B8');
+				}
+				$count=count($place);				
+	
+				mysqli_query($db,"INSERT INTO `actions` SET `report`='',`device`=".(int)$id.",`data`='',`count`=".$count.",`action`='get_number',`time`=".time());
+				$act_id=mysqli_insert_id($db);
+
+				for ($i=0;$i<$count;$i++)
+				{
+					$qry="INSERT INTO `card2action` SET `device`=".(int)$id.",`action`=".$act_id.",`place`='".$place[$i]."'";
+					mysqli_query($db,$qry);
+				}
 				$qry="UPDATE `devices` SET `status`='waiting' WHERE `id`=".(int)$id;
 				mysqli_query($db,$qry);
 			
@@ -1043,7 +1411,8 @@ function action_pool_create($id,$type,$data='')
 		{
 			// Getting a row and place | Получение ряда и места
 			$place=explode('-',$row[$k]['place']);
-			if ($row[$k]['model']=='SR-Box-Bank'){$row[$k]['modems']='1,2,3,4,5,6,7,8';}
+
+			if ($row[$k]['model']=='SR-Box-Bank' || $row[$k]['model']=='SR-Box-2-Bank' || $row[$k]['model']=='SR-Board'){$row[$k]['modems']='1,2,3,4,5,6,7,8';}
 			$modems=explode(',',$row[$k]['modems']);
 			$dt=unserialize($row[$k]['data']);
 			if ($device!=$row[$k]['device'])
@@ -1067,6 +1436,7 @@ function action_pool_create($id,$type,$data='')
 						$counter++;
 						$out=1;
 						$r=$place[0]-3;
+
 						if ($subResult = mysqli_query($db, 'SELECT * FROM `card2action` WHERE `device`='.$device.' AND `action`='.$act_id.' AND `row`='.$r)) 
 						{
 							if ($subRow = mysqli_fetch_assoc($subResult))
@@ -1109,6 +1479,7 @@ function action_pool_create($id,$type,$data='')
 							$counter++;
 							$out=1;
 							$r=$place[0];
+
 							if ($subResult = mysqli_query($db, 'SELECT * FROM `card2action` WHERE `device`='.$device.' AND `action`='.$act_id.' AND `row`='.$r)) 
 							{
 								if ($subRow = mysqli_fetch_assoc($subResult))
@@ -1127,24 +1498,103 @@ function action_pool_create($id,$type,$data='')
 					}
 				}
 			}
-			elseif ($row[$k]['model']=='SR-Box-Bank' || ($row[$k-1]['model']=='SR-Box-Bank' && $device!=$d))
+			elseif ($row[$k]['model']=='SR-Box-Bank' || $row[$k]['model']=='SR-Board')
 			{
 				$out=1;
 				$insert=1;
 				$counter++;
-				$qry='SELECT * FROM `card2action` WHERE `device`='.$device.' AND `action`='.$act_id.' AND `row`='.$place[0];
+				$rw=0;
+				$pl=$row[$k]['place'][0];
+				$qry='SELECT * FROM `card2action` WHERE `device`='.$device.' AND `action`='.$act_id.' ORDER BY `row`';
+				if ($subResult = mysqli_query($db, $qry)) 
+				{
+					while ($subRow = mysqli_fetch_assoc($subResult))
+					{
+						if (strpos($subRow['place'],$pl)===false)
+						{	
+							$qry="UPDATE `card2action` SET `place`='".trim($subRow['place'].','.$row[$k]['place'],',')."' WHERE `id`=".$subRow['id'];
+							mysqli_query($db,$qry);
+							$insert=0;
+							break;
+						}
+						$rw++;
+					}
+				}
+				if ($insert)
+				{
+					$qry="INSERT INTO `card2action` SET `device`=".$device.",`action`=".$act_id.",`row`=".$rw.",`place`='".$row[$k]['place']."'";
+					mysqli_query($db,$qry);
+				}
+			}
+			elseif ($row[$k]['model']=='SR-Box-2-Bank')
+			{
+				$out=1;
+				$insert=1;
+				$counter++;
+				$pl=ord($row[$k]['place'][0])-64;
+				$rw=substr($row[$k]['place'],1,100);
+				$qry='SELECT * FROM `card2action` WHERE `device`='.$device.' AND `action`='.$act_id.' ORDER BY `row`';
+				if ($subResult = mysqli_query($db, $qry)) 
+				{
+					while ($subRow = mysqli_fetch_assoc($subResult))
+					{
+						if (strpos($subRow['place'],$pl)===false)
+						{	
+							$qry="UPDATE `card2action` SET `place`='".trim($subRow['place'].','.$pl,',')."' WHERE `id`=".$subRow['id'];
+							mysqli_query($db,$qry);
+							$insert=0;
+							break;
+						}
+						$rw++;
+					}
+				}
+				if ($insert)
+				{
+					$qry="INSERT INTO `card2action` SET `device`=".$device.",`action`=".$act_id.",`row`=".$rw.",`place`='".$pl."'";
+					mysqli_query($db,$qry);
+				}
+			}
+			elseif ($row[$k]['model']=='SR-Box-8' || ($row[$k-1]['model']=='SR-Box-8' && $device!=$d))
+			{
+				$out=1;
+				$insert=1;
+				$counter++;
+				$place=ord($row[$k]['place'])-65;
+				$qry='SELECT * FROM `card2action` WHERE `device`='.$device.' AND `action`='.$act_id;
 				if ($subResult = mysqli_query($db, $qry)) 
 				{
 					if ($subRow = mysqli_fetch_assoc($subResult))
 					{
-						$qry="UPDATE `card2action` SET `place`='".trim($subRow['place'].','.$place[1],',')."' WHERE `id`=".$subRow['id'];
+						$qry="UPDATE `card2action` SET `place`='".trim($subRow['place'].','.$placeColumn,',')."' WHERE `id`=".$subRow['id'];
 						mysqli_query($db,$qry);
 						$insert=0;
 					}
 				}
 				if ($insert)
 				{
-					$qry="INSERT INTO `card2action` SET `device`=".$device.",`action`=".$act_id.",`row`=".$place[0].",`place`='".trim($place[1],',')."'";
+					$qry="INSERT INTO `card2action` SET `device`=".$device.",`action`=".$act_id.",`row`=0,`place`='".trim($placeColumn,',')."'";
+					mysqli_query($db,$qry);
+				}
+			}
+			elseif ($row[$k]['model']=='SR-Box-2' || ($row[$k-1]['model']=='SR-Box-2' && $device!=$d))
+			{
+				$out=1;
+				$insert=1;
+				$counter++;
+				$place=ord($row[$k]['place'])-65;
+				$qry='SELECT * FROM `card2action` WHERE `device`='.$device.' AND `action`='.$act_id;
+				if ($subResult = mysqli_query($db, $qry)) 
+				{
+					if ($subRow = mysqli_fetch_assoc($subResult))
+					{
+						$qry="UPDATE `card2action` SET `place`='".trim($subRow['place'].','.$placeColumn,',')."' WHERE `id`=".$subRow['id'];
+						mysqli_query($db,$qry);
+						$insert=0;
+					}
+				}
+				if ($insert)
+				{
+					$qry="INSERT INTO `card2action` SET `device`=".$device.",`action`=".$act_id.",`row`=0,`place`='".trim($placeColumn,',')."'";
 					mysqli_query($db,$qry);
 				}
 			}
@@ -1166,6 +1616,24 @@ function action_pool_create($id,$type,$data='')
 				if (strlen($p)<2){$p='00'.$p;}
 				elseif (strlen($p)<3){$p='0'.$p;}
 				mysqli_query($db,"INSERT INTO `card2action` SET `device`=".$row[$k]['device'].",`action`=".$act_id.",`place`='".$l.$p."'");
+			}		
+			elseif ($row[$k]['model']=='SR-Organizer')
+			{
+				$out=1;
+				$counter++;
+				$l=$row[$k]['place'][0];
+				$p=substr($row[$k]['place'],1,3);
+				$qry="INSERT INTO `card2action` SET `device`=".$row[$k]['device'].",`action`=".$act_id.",`place`='".$l.$p."'";
+				mysqli_query($db,$qry);
+			}		
+			elseif ($row[$k]['model']=='SR-Organizer-Smart')
+			{
+				$out=1;
+				$counter++;
+				$l=$row[$k]['place'][0];
+				$p=substr($row[$k]['place'],1,3);
+				$qry="INSERT INTO `card2action` SET `device`=".$row[$k]['device'].",`action`=".$act_id.",`place`='".$l.$p."'";
+				mysqli_query($db,$qry);
 			}		
 
 			$qry="UPDATE `actions` SET `count`=".$counter." WHERE `id`=".$act_id;
@@ -1213,7 +1681,7 @@ function action_device_create($id,$type)
 		$place=explode('-',$row['place']);
 		$modems=explode(',',$row['modems']);
 		$data=unserialize($row['data']);
-		$count=count($modems)*$data['rows'];
+		$count=1;
 		$qry="INSERT INTO `actions` SET `report`='',`device`=".$row['id'].",`data`='',`action`='".$type."',`count`='".$count."',`time`=".time();
 		mysqli_query($db,$qry);
 		$act_id=mysqli_insert_id($db);
@@ -1238,7 +1706,7 @@ function action_device_create($id,$type)
 
 // Getting ICCID
 // Получение ICCID
-function get_iccid($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
+function get_iccid($dev=0,$model,$row='',$place='',$adata='',$operator='',$roaming=0)
 {
 //	$dev		Device ID
 //	$row	        Panel row for positioning 1 modem line
@@ -1252,7 +1720,7 @@ function get_iccid($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 
 	global $db;
 
-	if (ord($place[0])<58) // SR Train
+	if ($model=='SR-Train') // Модель
 	{
 		if ($place>8)
 		{
@@ -1270,7 +1738,7 @@ function get_iccid($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 
 	for ($n=0;$n<3;$n++)
 	{
-		setlog('[get_iccid:'.$dev.'] Request ICCID','com_'.$dev);
+		setlog('[get_iccid:'.$dev.'] Request ICCID','link_'.$dev);
 		sr_command($dev,'modem>send:AT+CCID'); // Запрос ICCID
 		$answer=sr_answer($dev,0,20,'AT+CCID');
 		$iccid=str_replace('AT+CCID','',$answer);
@@ -1278,7 +1746,7 @@ function get_iccid($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 		$iccid=str_replace('"','',$iccid);
 		$iccid=str_replace('OK','',$iccid);
 		$iccid=trim($iccid);
-		setlog('[get_iccid:'.$dev.'] ICCID: '.$iccid,'com_'.$dev);
+		setlog('[get_iccid:'.$dev.'] ICCID: '.$iccid,'link_'.$dev);
 		if ($iccid)
 		{
 			// Saving the iccid | Сохраняем iccid
@@ -1307,9 +1775,9 @@ function get_iccid($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 	return(0);
 }
 
-// Getting a phone number
-// Получение номера телефона
-function get_number($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
+// Getting ICCID
+// Получение ICCID
+function get_iccid_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator='',$roaming=0)
 {
 //	$dev		Device ID
 //	$row	        Panel row for positioning 1 modem line
@@ -1321,39 +1789,85 @@ function get_number($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 		return;
 	}
 
+	global $db;
+
+	// Saving the iccid | Сохраняем iccid
+	$qry='SELECT `id` FROM `cards` WHERE `device`='.(int)$dev.' AND `place`="'.$place.'"';
+	if ($result = mysqli_query($db, $qry))
+	{	
+		if ($resRow = mysqli_fetch_assoc($result))
+		{
+			$qry="UPDATE `cards` SET
+			`iccid`='".$iccid."',
+			`time`='".time()."'
+			WHERE `id`=".$resRow['id'];
+		}
+		else
+		{
+			$qry="REPLACE INTO `cards` SET
+			`iccid`='".$iccid."',
+			`place`='".$place."',
+			`time`='".time()."'";
+		}
+		mysqli_query($db,$qry);
+	}
+	return(1);
+}
+
+// Getting a phone number
+// Получение номера телефона
+function get_number($dev=0,$model,$row='',$place='',$adata='',$operator='',$roaming=0)
+{
+//	$dev		Device ID
+//	$row	        Panel row for positioning 1 modem line
+//	$place	        Modem position relative to the device
+//	$adata		Array with additional data from action	
+
+	setlog($model.','.$row.','.$place.','.$adata.','.$operator.','.$roaming,'link_'.$dev);
+
+	if (!$dev)
+	{
+		return;
+	}
+
 	global $db,$pdu;
 
 	$status=0;
 
 	sr_command($dev,'modem>send:AT+ICCID');
-	setlog('[get_number:'.$dev.'] Getting the ICCID','com_'.$dev);
-	$answer=sr_answer($dev,0,20,'+ICCID');
+	setlog('[get_number:'.$dev.'] Getting the ICCID','link_'.$dev);
+	$answer=sr_answer($dev,0,50,'+ICCID');
 	if ($answer!='error:no answer')
 	{
+		$answer=str_replace('1:','',str_replace('2:','',$answer));
 		$iccid=explode(':',str_replace('OK','',$answer));
 		$iccid=trim($iccid[1]);
-		setlog('[get_number:'.$dev.'] ICCID: '.$iccid,'com_'.$dev);
+		setlog('[get_number:'.$dev.'] ICCID: '.$iccid,'link_'.$dev);
 	}
 	if (strpos($answer,'ERROR')!=false)
 	{
 		sr_command($dev,'modem>send:AT+CICCID');
-		setlog('[get_number:'.$dev.'] Getting the CICCID','com_'.$dev);
-		$answer=sr_answer($dev,0,20,'+CICCID');
+		setlog('[get_number:'.$dev.'] Getting the CICCID','link_'.$dev);
+		setlog('[get_number:'.$dev.'] !!! CSPN?','link_'.$dev);
+		$answer=sr_answer($dev,0,50,'+CICCID');
 		if ($answer!='error:no answer')
 		{
+			$answer=str_replace('1:','',str_replace('2:','',$answer));
 			$iccid=explode(':',str_replace('OK','',$answer));
 			$iccid=trim($iccid[1]);
-			setlog('[get_number:'.$dev.'] ICCID: '.$iccid,'com_'.$dev);
+			setlog('[get_number:'.$dev.'] ICCID: '.$iccid,'link_'.$dev);
 		}
 	}
+	$iccid=explode("\n",$iccid);
+	$iccid=$iccid[0];
 
 	sr_command($dev,'modem>send:AT+CSPN?'); // Repeated request for the operator name | Повторный запрос названия оператора
-	setlog('[get_number:'.$dev.'] Getting the name of the operator','com_'.$dev);
-	$answer=sr_answer($dev,0,15,'+CSPN');
+	setlog('[get_number:'.$dev.'] Getting the name of the operator','link_'.$dev);
+	$answer=sr_answer($dev,0,50,'+CSPN');
 	if ($answer=='error:no answer')
 	{
 		sr_command($dev,'modem>send:AT+CSPN?'); // Repeated request for the operator name | Повторный запрос названия оператора
-		$answer=sr_answer($dev,0,15,'+CSPN');
+		$answer=sr_answer($dev,0,50,'+CSPN');
 	}
 	if ($answer && strpos($answer,'error:')===false)
 	{
@@ -1363,7 +1877,7 @@ function get_number($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 	if (!$operator)
 	{
 		sr_command($dev,'modem>send:AT+COPS?'); // Repeated request for the operator name | Повторный запрос названия оператора
-		$answer=sr_answer($dev,0,15,'+COPS');
+		$answer=sr_answer($dev,0,50,'+COPS');
 		if ($answer && strpos($answer,'error:')===false)
 		{
 			preg_match('!"(.*)"!Uis', $answer, $test);
@@ -1371,15 +1885,14 @@ function get_number($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 		}
 		if (!$operator)
 		{
-			setlog('[get_number:'.$dev.'] The modem did not return a response to the operator\'s request!','com_'.$dev); // Модем не ответил на запрос оператора
+			setlog('[get_number:'.$dev.'] The modem did not return a response to the operator\'s request!','link_'.$dev); // Модем не ответил на запрос оператора
 			return($status);
 		}
 	}		
 	if ($operator)	
 	{
-		$operator_short=explode(' ',$operator);
 		// Getting rules for getting a number | Получение правил запроса номера
-		if ($result = mysqli_query($db, "SELECT * FROM `operators` WHERE `name` LIKE '%".$operator."%' OR `name` LIKE '%".$operator_short[0]."%' ORDER BY `name` DESC, id DESC LIMIT 1")) 
+		if ($result = mysqli_query($db, "SELECT * FROM `operators` WHERE `name` LIKE '%;".$operator.";%' ORDER BY `name` DESC, id DESC LIMIT 1")) 
 		{
 			if ($resRow = mysqli_fetch_assoc($result))
 			{
@@ -1392,39 +1905,85 @@ function get_number($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 				}
 				if (!$getNumber=$resRow['get_number'])
 				{
-					setlog('[get_number:'.$dev.'] There is no method for getting a number','com_'.$dev); // Нет методики получения номера
+					setlog('[get_number:'.$dev.'] There is no method for getting a number','link_'.$dev); // Нет методики получения номера
 					return($status);
 				}
 				$getNumberType=$resRow['get_number_type'];
-				$operatorName=$resRow['name'];
-				setlog('[get_number:'.$dev.'] The modem is connected to the '.$operator.' network (ID:'.$resRow['id'].')','com_'.$dev); 
+				setlog('[get_number:'.$dev.'] The modem is connected to the '.$operator.' network (ID:'.$resRow['id'].')','link_'.$dev); 
 			}
 			else
 			{
-				setlog('[get_number:'.$dev.'] '.$operator.' operator not found!','com_'.$dev); // Оператор не найден
+				setlog('[get_number:'.$dev.'] '.$operator.' operator not found!','link_'.$dev); // Оператор не найден
 				return($status);
 			}
 		}
 	}
+// Сохраняем оператора в пользовательской таблице
+	if ($operator)
+	{
+		$qry="INSERT INTO `operators_uniq` SET
+		`name`='".strtoupper($operator)."'";
+		mysqli_query($db,$qry);
+	}
+
 	sr_answer_clear($dev,1); // Clearing the response buffer of the modem | Очистка буфера ответов модема
 
 	if ($getNumberType=='sms' && !$k)
 	{
 		sr_command($dev,'modem>send:AT+CMGDA=5'); // Deleting all SMS messages from SIM card | Удаление всех SMS с SIM-карты
-		sr_command($dev,'modem>send:AT+CMGD=0,4'); // Deleting all SMS messages from SIM card | Удаление всех SMS с SIM-карты
+		$answer=sr_answer($dev,0,50,'AT+CMGD');
+		if (strpos($answer,'OK')===false)
+		{
+			sr_command($dev,'modem>send:AT+CMGD=0,4'); // Deleting all SMS messages from SIM card | Удаление всех SMS с SIM-карты
+			sr_answer($dev,0,50,'AT+CMGD');
+		}
 		$k=1;
 	}
-	setlog('[get_number:'.$dev.'] Request a phone number','com_'.$dev);
-	sr_command($dev,'modem>send:AT+CUSD=1,"'.$getNumber.'",15'); // Запрос номера телефона
+	setlog('[get_number:'.$dev.'] Request a phone number','link_'.$dev);
+	if (strpos($getNumber,'|'))
+	{
+		$gn=explode('|',$getNumber);
+		sr_command($dev,'modem>send:AT+CUSD=1,"'.$gn[0].'",15'); // Запрос 1 часть
+		sleep(10);
+		sr_command($dev,'modem>send:AT+CUSD=1,"'.$gn[1].'",15'); // Запрос 2 часть
+	}
+	else
+	{
+		sr_command($dev,'modem>send:AT+CUSD=1,"'.$getNumber.'",15'); // Запрос номера телефона
+	}
 
         $number='';
 	for ($n=0;$n<3;$n++)
 	{
 		if ($getNumberType=='sms') // The phone number is returned in an SMS | Номер телефона возвращается в SMS
 		{
-			if (ord($place[0])<58) // SR Train
+			if ($model=='SR-Box-2' || $model=='SR-Box-2-Bank') // Модель
 			{
- 				$answer=sr_answer($dev,0,20,'+CMTI: "');
+				sr_command($dev,'modem>send:AT+CMGL=0');
+				$answer=sr_answer($dev,0,40,'CMGL');
+				$ans=explode("CMGL:",$answer);
+
+				if (strpos(strtoupper($answer),'ERROR')===false)
+				{
+					foreach ($ans AS $d)
+					{
+						$d=explode('
+',$d);
+						$raw=$d[1];
+						$answer=$pdu->pduToText($raw);
+						$answer=$answer['message'];
+						$answer=trim_number($answer);
+        			        	preg_match('!([0-9]{10,13})!', $answer, $test);
+						if ($number=trim($test[1]))
+						{
+							break(2);
+						}
+					}	
+				}
+			}
+			elseif ($model=='SR-Train' || $model=='SR-Box-8' || $model=='SR-Box-Bank' || $model=='SR-Board') // Модель
+			{
+ 				$answer=sr_answer($dev,0,40,'+CMTI: "');
                 		preg_match('!CMTI: ".*",(.*)!is', $answer, $test);
 
 				if (strpos($answer,'CMTI: "')!==false)
@@ -1439,15 +1998,18 @@ function get_number($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 						{
 							preg_match('!CMGR:(.*)OK!Uis', $answer, $raw);
 							$raw=explode("\n",$raw[1]);
+							if (!$raw[1])
+							{
+								preg_match('!CMGR:(.*)!is', $answer, $raw);
+								$raw=explode("\n",$raw[1]);
+							}	
 							$answer=$pdu->pduToText($raw[1]);
 							$answer=$answer['message'];
-							setlog('[get_number:'.$dev.'] SMS: '.$answer,'com_'.$dev);
 
 							$answer=trim_number($answer);
 		        			        preg_match('!([0-9]{10,13})!', $answer, $test);
 							$number=trim($test[1]);
 				
-							setlog('[get_number:'.$dev.'] Number: '.$number,'com_'.$dev);
 							break;
 						}
 					}
@@ -1459,23 +2021,18 @@ function get_number($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 				$smsBuf=sr_command($dev,'modem>sms:4',30);
 				if ($smsBuf!="NO RESPONSE" && $smsBuf!="1")
 				{
-					setlog('[online_mode:'.$dev.'] SMS1: '.trim($smsBuf),'com_'.$dev); // Подготовка SMS
 					$data=explode('##',$smsBuf);
-					setlog('[online_mode:'.$dev.'] SMS2: '.trim(print_r($data,1)),'com_'.$dev); // Подготовка SMS
 					for ($i=1;$i<count($data);$i++)
 					{
 						if ($data[$i])
 						{
 							$raw=explode("\n",$data[$i]);
-							setlog('[online_mode:'.$dev.'] SMS: '.trim($raw[1]),'com_'.$dev); // Подготовка SMS
 							$sms=$pdu->pduToText($raw[1]);
-							setlog('[online_mode:'.$dev.'] SMS: '.print_r($sms,1),'com_'.$dev); // Подготовка SMS
 							if (!$sms['userDataHeader'])
 							{
 								$answer=trim_number($sms['message']);
 				        		        preg_match('!([0-9]{10,13})!', $answer, $test);
 								$number=trim($test[1]);
-								setlog('[online_mode:'.$dev.'] Number: '.$number,'com_'.$dev); // Подготовка SMS
 								break 2;
 							}
 						}
@@ -1488,7 +2045,7 @@ function get_number($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 		{		
 			$answer=sr_answer($dev,0,15,'CUSD:');
 			$answer=$pdu->decode_ussd($answer);
-			setlog('[get_number:'.$dev.'] Request a number: '.$answer,'com_'.$dev); // Запрос номера телефона
+			setlog('[get_number:'.$dev.'] Request a number: '.$answer,'link_'.$dev); // Запрос номера телефона
 			$answer=trim_number($answer);
 	                preg_match('!([0-9]{10,13})!', $answer, $test);
 			if ($number=trim($test[1]))
@@ -1499,14 +2056,14 @@ function get_number($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 	}
 	if ($number)
 	{
-		setlog('[get_number:'.$dev.'] Number: '.$number,'com_'.$dev); // Номер телефона не получен
+		setlog('[get_number:'.$dev.'] Number: '.$number,'link_'.$dev); // Номер телефона не получен
 		$status=1;
 		sr_command($dev,'modem>send:AT+CMGDA=5'); // Deleting all SMS messages from SIM card | Удаление всех SMS с SIM-карты
 		sr_command($dev,'modem>send:AT+CMGD=0,4'); // Deleting all SMS messages from SIM card | Удаление всех SMS с SIM-карты
 	}
 	else
 	{
-		setlog('[get_number:'.$dev.'] The phone number is not received!','com_'.$dev); // Номер телефона не получен
+		setlog('[get_number:'.$dev.'] The phone number is not received!','link_'.$dev); // Номер телефона не получен
 	}
 	if ($status)
 	{
@@ -1515,10 +2072,10 @@ function get_number($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 			$number=$prefix.$number;
 		}
 
-		setlog('[get_number:'.$dev.'] Received phone number: '.$number.' Place: '.$place,'com_'.$dev);
+		setlog('[get_number:'.$dev.'] Received phone number: '.$number.' Place: '.$place,'link_'.$dev);
 	}
 
-	if (ord($place[0])<58) // SR Train
+	if ($model=='SR-Train') // Модель
 	{
 		if ($place>8)
 		{
@@ -1529,12 +2086,190 @@ function get_number($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 			$place=$row.'-'.$place;
 		}
 	}
-	else
+	elseif ($model=='SR-Organizer') // Модель
+	{
+		$place=$row.'-'.$place;
+	}
+	elseif ($model!='SR-Box-8' && $model!='SR-Box-2' ) // Модель
 	{
 		$place=remove_zero($place);
 	}
 
-	if ($result = mysqli_query($db, "SELECT `id` FROM `cards` WHERE `place`='".$place."' AND `device`=".$dev)) 
+	$qry="SELECT `id` FROM `cards` WHERE `place`='".$place."' AND `device`=".$dev;
+	setlog('[get_number:'.$dev.'] Save number: '.$qry,'link_'.$dev);
+	if ($result = mysqli_query($db, $qry)) 
+	{
+		$ic='';
+		$nu='';
+		if ($iccid){$ic="`iccid`='".$iccid."',";}
+		if ($number){$nu="`number`='".$number."',";}
+		if ($iccid || $number)
+		{
+			if ($resRow = mysqli_fetch_assoc($result))
+			{
+				$qry="UPDATE `cards` SET
+				".$ic.$nu."				
+				`roaming`='".$roaming."',
+				`operator`='".strtoupper($operator)."',
+				`time_number`='".time()."',
+				`time`='".time()."'
+				WHERE `id`=".$resRow['id'];
+				mysqli_query($db,$qry);
+			}
+			else
+			{
+				// Saving the number | Сохраняем номер
+				$qry="INSERT INTO `cards` SET
+				".$ic.$nu."				
+				`place`='".$place."',
+				`roaming`='".$roaming."',
+				`device`=".(int)$dev.",
+				`operator`='".strtoupper($operator)."',
+				`time_number`='".time()."',
+				`time`='".time()."'";
+				mysqli_query($db,$qry);
+			}
+			setlog('[get_number:'.$dev.'] Save number: '.$qry,'link_'.$dev);
+		}
+	}
+	else
+	{
+		setlog('[get_number:'.$dev.'] No Result','link_'.$dev);
+	}
+	return($status);
+}
+
+function get_number_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator='',$roaming=0)
+{
+//	$dev		Device ID
+//	$row	        Panel row for positioning 1 modem line
+//	$place	        Modem position relative to the device
+//	$adata		Array with additional data from action	
+
+	if (!$dev)
+	{
+		return;
+	}
+
+	global $db;
+
+	$status=0;
+
+	if ($operator)	
+	{
+		$operator_short=explode(' ',$operator);
+		// Getting rules for getting a number | Получение правил запроса номера
+		if ($result = mysqli_query($db, "SELECT * FROM `operators` WHERE (`name` LIKE '%".$operator."%' OR `name` LIKE '%".$operator_short[0]."%') ORDER BY `name` DESC, id DESC LIMIT 1")) 
+		{
+			if ($resRow = mysqli_fetch_assoc($result))
+			{
+				$prefix=$resRow['prefix'];
+				if ($roaming)
+				{
+					$prefix=$resRow['prefix_r'];
+					$resRow['get_number']=$resRow['get_number_r'];
+					$resRow['get_number_type']=$resRow['get_number_type_r'];
+				}
+				if (!$getNumber=$resRow['get_number'])
+				{
+					setlog('[get_number:'.$dev.'] There is no method for getting a number','link_'.$dev); // Нет методики получения номера
+					return($status);
+				}
+				$getNumberType=$resRow['get_number_type'];
+				$operatorName=$resRow['name'];
+				setlog('[get_number:'.$dev.'] The modem is connected to the '.$operator.' network (ID:'.$resRow['id'].')','link_'.$dev); 
+			}
+			else
+			{
+				setlog('[get_number:'.$dev.'] '.$operator.' operator not found!','link_'.$dev); // Оператор не найден
+				return($status);
+			}
+		}
+	}
+// Сохраняем оператора в пользовательской таблице
+	if ($operator)
+	{
+		$qry="INSERT INTO `operators_uniq` SET
+		`name`='".strtoupper($operator)."'";
+		mysqli_query($db,$qry);
+	}
+		
+	sr_answer_clear($dev,1); // Clearing the response buffer of the modem | Очистка буфера ответов модема
+	setlog('[get_number:'.$dev.'] Request a phone number','link_'.$dev);
+	if (strpos($getNumber,'|'))
+	{
+		$gn=explode('|',$getNumber);
+		sr_command_smart($dev,'ussd:'.$gn[0].','.$modem); // Запрос 1 часть
+		sleep(10);
+		sr_command_smart($dev,'ussd:'.$gn[1].','.$modem); // Запрос 2 часть
+	}
+	else
+	{
+		sr_command_smart($dev,'ussd:'.$getNumber.','.$modem); // Запрос номера телефона
+	}
+
+        $number='';
+
+	if ($getNumberType=='ussd')
+	{
+		for ($i=0;$i<60;$i++)
+		{
+			$qry='SELECT `result` FROM `devices_events` WHERE `device_id`='.$dev.' AND `dev`="modem'.$modem.'" AND `event`="ussd" AND `time`>'.(time()-10);
+			if ($result_smart = mysqli_query($db, $qry)) 
+			{
+				while ($row_smart = mysqli_fetch_assoc($result_smart))
+				{
+					$answer=trim_number($row_smart['result']);
+       				        preg_match('!([0-9]{10,13})!', $answer, $test);
+					$number=trim($test[1]);
+					break(2);
+				}
+			}
+			br($dev);
+			sleep(2);
+		}
+	}
+	else
+	{	
+		for ($i=0;$i<30;$i++)
+		{
+			$qry='SELECT `result` FROM `devices_events` WHERE `device_id`='.$dev.' AND `dev`="modem'.$modem.'" AND `event`="sms" AND `time`>'.(time()-10);
+			if ($result_smart = mysqli_query($db, $qry)) 
+			{
+				while ($row_smart = mysqli_fetch_assoc($result_smart))
+				{
+					$answer=trim_number($row_smart['result']);
+       				        preg_match('!([0-9]{10,13})!', $answer, $test);
+					$number=trim($test[1]);
+					break(2);
+				}
+			}
+			br($dev);
+			sleep(2);
+		}
+	}
+	if ($number)
+	{
+		setlog('[get_number:'.$dev.'] Number: '.$number,'link_'.$dev); // Номер телефона не получен
+		$status=1;
+	}
+	else
+	{
+		setlog('[get_number:'.$dev.'] The phone number is not received!','link_'.$dev); // Номер телефона не получен
+	}
+	if ($status)
+	{
+		if ($prefix && strpos('!'.$number,'!'.$prefix)===false)
+		{
+			$number=$prefix.$number;
+		}
+
+		setlog('[get_number:'.$dev.'] Received phone number: '.$number.' Place: '.$place,'link_'.$dev);
+	}
+
+	$qry="SELECT `id` FROM `cards` WHERE `place`='".$place."' AND `device`=".$dev;
+	setlog('[get_number:'.$dev.'] Save number: '.$qry,'link_'.$dev);
+	if ($result = mysqli_query($db, $qry)) 
 	{
 		$ic='';
 		$nu='';
@@ -1566,14 +2301,20 @@ function get_number($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 				`time`='".time()."'";
 				mysqli_query($db,$qry);
 			}
+			setlog('[get_number:'.$dev.'] Save number: '.$qry,'link_'.$dev);
 		}
+	}
+	else
+	{
+		setlog('[get_number:'.$dev.'] No Result','link_'.$dev);
 	}
 	return($status);
 }
 
+
 // Getting a balance
 // Получение баланса
-function get_balance($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
+function get_balance($dev=0,$model,$row='',$place='',$adata='',$operator='',$roaming=0)
 {
 //	$dev		Device ID
 //	$row	        Panel row for positioning 1 modem line
@@ -1589,7 +2330,7 @@ function get_balance($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 
 	$status=0;
 
-	if (ord($place[0])<58) // SR-Train
+	if ($model=='SR-Train') // Модель
 	{
 		if ($place>8)
 		{
@@ -1600,13 +2341,16 @@ function get_balance($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 			$place=$row.'-'.$place;
 		}
 	}
-	else
+
+	elseif ($model=='SR-Nano')
 	{
 		$place=remove_zero($place);
 	}
 
-	$qry="SELECT c.*,o.`get_balance`,o.`get_balance_type` FROM `cards` c INNER JOIN `operators` o ON o.`name`=c.`operator` WHERE c.`device`='".$dev."' AND c.`place`='".$place."' LIMIT 1";
-	setlog($qry,'com_'.$dev);
+	$qry='SELECT c.*,o.`get_balance`,o.`get_balance_type` FROM `cards` c 
+	INNER JOIN `operators` o ON o.`name` LIKE CONCAT("%;",c.`operator`,";%")
+	WHERE c.`device`='.$dev.' AND c.`place`="'.$place.'" DESC LIMIT 1';
+	setlog($qry,'link_'.$dev);
 
 	// Getting balance request rules | Получение правил запроса баланса
 	if ($result = mysqli_query($db, $qry)) 
@@ -1623,14 +2367,14 @@ function get_balance($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 			}
 			if (!$getBalance=$resRow['get_balance'])
 			{
-				setlog('[get_balance:'.$dev.'] There is no method for getting a balance!','com_'.$dev); // Нет методики получения баланса
+				setlog('[get_balance:'.$dev.'] There is no method for getting a balance!','link_'.$dev); // Нет методики получения баланса
 				return($status);
 			}
 			$getBalanceType=$resRow['get_balance_type'];
 		}
 		else
 		{
-			setlog('[get_balance:'.$dev.'] SIM card or Operator not found!','com_'.$dev); // Нет методики получения баланса
+			setlog('[get_balance:'.$dev.'] SIM card or Operator not found!','link_'.$dev); // Нет методики получения баланса
 			return('SIM card or Operator not found!');
 		}
 	}
@@ -1639,12 +2383,24 @@ function get_balance($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 	{
 		if ($getBalanceType=='sms' && !$k)
 		{
-			setlog('[get_balance:'.$dev.'] Deleting all SMS from the SIM card!','com_'.$dev);
+			setlog('[get_balance:'.$dev.'] Deleting all SMS from the SIM card!','link_'.$dev);
 			sr_command($dev,'modem>send:AT+CMGDA=5'); // Удаление всех СМС с СИМ-карты
 			sr_command($dev,'modem>send:AT+CMGD=0,4'); // Deleting all SMS messages from SIM card | Удаление всех SMS с SIM-карты
 		}
-		setlog('[get_balance:'.$dev.'] Request a balance','com_'.$dev);
-		sr_command($dev,'modem>send:AT+CUSD=1,"'.$getBalance.'",15'); // Получение SMS с балансом
+		setlog('[get_balance:'.$dev.'] Request a balance','link_'.$dev);
+
+		if (strpos($getBalance,'|'))
+		{
+			$gb=explode('|',$getBalance);
+			sr_command($dev,'modem>send:AT+CUSD=1,"'.$gb[0].'",15'); // Запрос 1 часть
+			sleep(10);
+			sr_command($dev,'modem>send:AT+CUSD=1,"'.$gb[1].'",15'); // Запрос 2 часть
+		}
+		else
+		{
+			sr_command($dev,'modem>send:AT+CUSD=1,"'.$getBalance.'",15'); // Запрос номера телефона
+		}
+
 
 		for ($n=0;$n<2;$n++)
 		{
@@ -1655,7 +2411,7 @@ function get_balance($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 				if (!$test[1]){$test[1]=1;}
 				if ($sms=$test[1])
 				{
-					setlog('[get_balance:'.$dev.'] Getting an SMS #'.$sms,'com_'.$dev); // Получение SMS с балансом
+					setlog('[get_balance:'.$dev.'] Getting an SMS #'.$sms,'link_'.$dev); // Получение SMS с балансом
 					sr_command($dev,'modem>send:AT+CMGR='.$sms);
 					$answer=sr_answer($dev,0,40,'CMGR:');
 
@@ -1664,11 +2420,8 @@ function get_balance($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 					if ($raw[1])
 					{
 						$answer=$pdu->pduToText($raw[1]);
-						setlog('[get_balance:'.$dev.'] The balance: '.print_r($answer,1),'com_'.$dev); // Баланс не получен
+						setlog('[get_balance:'.$dev.'] The balance: '.print_r($answer,1),'link_'.$dev); // Баланс не получен
 						$h=explode(' ',trim($answer['userDataHeader']));
-
-       						setlog(':::'.print_r($h,1).'-'.count($h).'-'.$h[count($h)-1],'com_'.$dev); // Баланс не получен
-       						setlog(':::'.(int)$h[count($h)-1],'com_'.$dev); // Баланс не получен
 
 						while ((int)$h[count($h)-1]!=1)
 						{
@@ -1688,7 +2441,7 @@ function get_balance($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 							}
 						}									
 						$answer=$answer['message'];
-						setlog('[get_balance:'.$dev.'] SMS: '.$answer,'com_'.$dev);
+
 	                                        $balance=trim_balance($answer);
 					}
 					if ($balance || $balance=="0")
@@ -1699,12 +2452,12 @@ function get_balance($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 					}
 					else
 					{
-						setlog('[get_balance:'.$dev.'] The balance is not received!','com_'.$dev); // Баланс не получен
+						setlog('[get_balance:'.$dev.'] The balance is not received!','link_'.$dev); // Баланс не получен
 					}
 				}
 				else
 				{
-					setlog('[get_balance:'.$dev.'] SMS not received!','com_'.$dev); // SMS не получена
+					setlog('[get_balance:'.$dev.'] SMS not received!','link_'.$dev); // SMS не получена
 				}
 			}
 			else
@@ -1722,7 +2475,7 @@ function get_balance($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 	}
 	if ($status)
 	{
-		setlog('[get_balance:'.$dev.'] Received balance: '.$balance,'com_'.$dev);
+		setlog('[get_balance:'.$dev.'] Received balance: '.$balance,'link_'.$dev);
 		$qry="UPDATE `cards` SET
 		`last_balance`=`balance`,
 		`time_last_balance`=`time_balance`,
@@ -1736,7 +2489,134 @@ function get_balance($dev=0,$row='',$place='',$adata='',$operator='',$roaming=0)
 	return($status);
 }
 
-function get_sms($dev=0,$curRow='',$place='',$adata='',$operator='',$roaming=0)
+function get_balance_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator='',$roaming=0)
+{
+//	$dev		Device ID
+//	$row	        Panel row for positioning 1 modem line
+//	$place	        Modem position relative to the device
+//	$adata		Array with additional data from action	
+
+	if (!$dev)
+	{
+		return;
+	}
+
+	global $db;
+
+	$status=0;
+
+	$qry="SELECT c.*,o.`get_balance`,o.`get_balance_type` FROM `cards` c INNER JOIN `operators` o ON o.`name`=c.`operator` WHERE c.`device`='".$dev."' AND c.`place`='".$place."' DESC LIMIT 1";
+
+	// Getting balance request rules | Получение правил запроса баланса
+	if ($result = mysqli_query($db, $qry)) 
+	{
+		if ($resRow = mysqli_fetch_assoc($result))
+		{
+			$cardId=$resRow['id'];
+			$cardPlace=$resRow['place'];
+			$cardNumber=$resRow['number'];
+			if ($roaming)
+			{
+				$resRow['get_balance']=$resRow['get_balance_r'];
+				$resRow['get_balance_type']=$resRow['get_balance_type_r'];
+			}
+			if (!$getBalance=$resRow['get_balance'])
+			{
+				setlog('[get_balance:'.$dev.'] There is no method for getting a balance!','link_'.$dev); // Нет методики получения баланса
+				return($status);
+			}
+			$getBalanceType=$resRow['get_balance_type'];
+		}
+		else
+		{
+			setlog('[get_balance:'.$dev.'] SIM card or Operator not found!','link_'.$dev); // Нет методики получения баланса
+			return('SIM card or Operator not found!');
+		}
+	}
+
+	setlog('[get_balance:'.$dev.'] Request a balance','link_'.$dev);
+	if (strpos($getBalance,'|'))
+	{
+		$gb=explode('|',$getBalance);
+		sr_command_smart($dev,'ussd:'.$gb[0].','.$modem); // Запрос 1 часть
+		sleep(10);
+		sr_command_smart($dev,'ussd:'.$gb[1].','.$modem); // Запрос 1 часть
+	}
+	else
+	{
+		sr_command_smart($dev,'ussd:'.$getBalance.','.$modem); // Запрос баланса
+	}
+
+        $number='';
+
+	if ($getBalanceType=='ussd')
+	{
+		for ($i=0;$i<30;$i++)
+		{
+			$qry='SELECT `result` FROM `devices_events` WHERE `device_id`='.$dev.' AND `dev`="modem'.$modem.'" AND `event`="ussd" AND `time`>'.(time()-10);
+			if ($result_smart = mysqli_query($db, $qry)) 
+			{
+				while ($row_smart = mysqli_fetch_assoc($result_smart))
+				{
+					$balance=trim_balance($row_smart['result']);
+					if ($balance || $balance=="0")
+					{
+						$status=1;
+						break(2);
+					}
+				}
+			}
+			br($dev);
+			sleep(2);
+		}
+	}
+	else
+	{	
+		for ($i=0;$i<30;$i++)
+		{
+			$qry='SELECT `result` FROM `devices_events` WHERE `device_id`='.$dev.' AND `dev`="modem'.$modem.'" AND `event`="sms" AND `time`>'.(time()-10);
+			if ($result_smart = mysqli_query($db, $qry)) 
+			{
+				while ($row_smart = mysqli_fetch_assoc($result_smart))
+				{
+					$balance=trim_balance($row_smart['result']);
+					if ($balance || $balance=="0")
+					{
+						$status=1;
+						break(2);
+					}
+				}
+			}
+			br($dev);
+			sleep(2);
+		}
+	}
+	if ($balance || $balance=="0")
+	{
+		setlog('[get_balance:'.$dev.'] Balance: '.$balance,'link_'.$dev); // Баланс получен
+		$status=1;
+	}
+	else
+	{
+		setlog('[get_balance:'.$dev.'] The balance is not received!','link_'.$dev); // Баланс не получен
+	}
+	if ($status)
+	{
+		setlog('[get_balance:'.$dev.'] Received balance: '.$balance,'link_'.$dev);
+		$qry="UPDATE `cards` SET
+		`last_balance`=`balance`,
+		`time_last_balance`=`time_balance`,
+		`balance`='".$balance."',
+		`time_balance`='".time()."',
+		`time`='".time()."'
+		WHERE `id`='".$cardId."'";
+
+		mysqli_query($db,$qry);
+	}
+	return($status);
+}
+
+function get_sms($dev=0,$model,$curRow='',$place='',$adata='',$operator='',$roaming=0)
 {
 
 //	$dev		Device ID
@@ -1757,7 +2637,7 @@ function get_sms($dev=0,$curRow='',$place='',$adata='',$operator='',$roaming=0)
 
 	if ($place>=1 && $place<=16)
 	{
-		setlog('[get_sms:'.$dev.'] Select modem: '.$place,'com_'.$dev);
+		setlog('[get_sms:'.$dev.'] Select modem: '.$place,'link_'.$dev);
 		$com='modem>select:'.$place.'&&';
 	}
 	sr_answer_clear($dev,1); // Clearing the response buffer of the modem | Очистка буфера ответов модема
@@ -1769,15 +2649,15 @@ function get_sms($dev=0,$curRow='',$place='',$adata='',$operator='',$roaming=0)
 			$com="";
 			$answer=sr_answer($dev,0,30,'CMGR');
 	                preg_match('!AT\+CMGR.{0,200}(OK|ERROR)!s', $answer, $test);
-			setlog('[get_sms:'.$dev.'] SMS #'.$n.' received: '.$test[1],'com_'.$dev);
+			setlog('[get_sms:'.$dev.'] SMS #'.$n.' received: '.$test[1],'link_'.$dev);
 			if (strpos($answer,'error:')!==false && $k>0)
 			{
 				return(0);
 			}
 			elseif (strpos($answer,'error:')!==false)
 			{
-				setlog('[get_sms:'.$dev.'] Repeated request #1: '.sr_answer($dev,0),'com_'.$dev); // Повторный запрос #1
-				setlog('[get_sms:'.$dev.'] Repeated request #2: '.sr_answer($dev,0),'com_'.$dev); // Повторный запрос #2
+				setlog('[get_sms:'.$dev.'] Repeated request #1: '.sr_answer($dev,0),'link_'.$dev); // Повторный запрос #1
+				setlog('[get_sms:'.$dev.'] Repeated request #2: '.sr_answer($dev,0),'link_'.$dev); // Повторный запрос #2
 			}
 			elseif (strpos($answer,'error:')===false) 
 			{
@@ -1787,7 +2667,7 @@ function get_sms($dev=0,$curRow='',$place='',$adata='',$operator='',$roaming=0)
 		if ($test[1] && strlen($answer)<50)
 		{
 			if ($test[1]=='ERROR' && $n>1){$test[1]='OK';}
-			setlog('[get_sms:'.$dev.'] Completion with the status: '.$test[1],'com_'.$dev); // Завершение
+			setlog('[get_sms:'.$dev.'] Completion with the status: '.$test[1],'link_'.$dev); // Завершение
 			$out=1;
 			break;
 		}
@@ -1795,14 +2675,14 @@ function get_sms($dev=0,$curRow='',$place='',$adata='',$operator='',$roaming=0)
 		{
 			preg_match('!CMGR:(.*)OK!Uis', $answer, $raw);
 			$raw=explode("\n",$raw[1]);
-			setlog('[get_sms:'.$dev.'] SMS: '.trim($raw[1]),'com_'.$dev); // Подготовка SMS
+			setlog('[get_sms:'.$dev.'] SMS: '.trim($raw[1]),'link_'.$dev); // Подготовка SMS
 			$sms[]=$pdu->pduToText($raw[1]);
 			sr_command($dev,'modem>send:AT+CMGD='.$n,10);
 		}
 	}
 	if (count($sms))
 	{
-		if (ord($place[0])<58) // SR Train
+		if ($model=='SR-Train') // Модель
 		{
 			if ($place>8)
 			{
@@ -1827,29 +2707,13 @@ function get_sms($dev=0,$curRow='',$place='',$adata='',$operator='',$roaming=0)
 				{
 					$update=0;
 					// Saving to the database | Сохранение в БД
-					if (trim($sms[$i]['userDataHeader']))
-					{
-						$qry="`header`='".$sms[$i]['userDataHeader']."'";
-					}
-					else
-					{
-						$qry="`done`=1";
-					}
-					$qry="INSERT INTO `sms_incoming` SET
-					`number`='".$row['number']."',
-					`sender`='".$sms[$i]['number']."',
-					`time`=".$sms[$i]['unixTimeStamp'].",
-					`modified`=".time().",
-					`txt`='".$sms[$i]['message']."',
-					".$qry;
-					mysqli_query($db,$qry);
-					setlog('[get_sms:'.$dev.'] '.$qry,'com_'.$dev);
-					setlog('[get_sms:'.$dev.'] SMS saved','com_'.$dev);
+					sms_save($sms[$i]['userDataHeader'],$row['number'],$row['email'],'',$sms[$i]['number'],$sms[$i]['unixTimeStamp'],$sms[$i]['message']);
+					setlog('[get_sms:'.$dev.'] SMS saved','link_'.$dev);
 				}
 			}
 			else
 			{
-				setlog('[get_sms:'.$dev.'] The SIM card phone number is not received, the SMS is not saved!','com_'.$dev); // Номер SIM-карты не получен, SMS не сохранена
+				setlog('[get_sms:'.$dev.'] The SIM card phone number is not received, the SMS is not saved!','link_'.$dev); // Номер SIM-карты не получен, SMS не сохранена
 				return(0);
 			}
 		}
@@ -1861,9 +2725,27 @@ function get_sms($dev=0,$curRow='',$place='',$adata='',$operator='',$roaming=0)
 	return($out);
 }
 
+function get_sms_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator='',$roaming=0)
+{
+
+//	$dev		Device ID
+//	$curRow	        Panel row for positioning 1 modem line
+//	$place		Modem position in the device
+//	$adata		Array with additional data from action	
+
+	if (!$dev)
+	{
+		return;
+	}
+
+	sleep(60); // Ждем 60 секунд
+	return(1);
+}
+
+
 // Outgoing call from the specified modem
 // Осуществление вызова с указанного модема
-function do_call($dev=0,$curRow='',$place='',$adata='',$operator='',$roaming=0)
+function do_call($dev=0,$model,$curRow='',$place='',$adata='',$operator='',$roaming=0)
 {
 
 //	$dev		Device ID
@@ -1885,28 +2767,38 @@ function do_call($dev=0,$curRow='',$place='',$adata='',$operator='',$roaming=0)
 
 	if ($place>=1 && $place<=16)
 	{
-		setlog('[get_sms:'.$dev.'] Select modem: '.$place,'com_'.$dev);
+		setlog('[get_sms:'.$dev.'] Select modem: '.$place,'link_'.$dev);
 		$com='modem>select:'.$place.'&&';
 	}
 	sr_answer_clear($dev,1); // Clearing the response buffer of the modem | Очистка буфера ответов модема
-	setlog('[put_call:'.$dev.'] Calling '.$adata[0].'...','com_'.$dev);
+	setlog('[put_call:'.$dev.'] Calling '.$adata[0].'...','link_'.$dev);
 	sr_command($dev,$com.'modem>send:ATD'.$adata[0].';');
 	$answer=sr_answer($dev,0,30,'ATD');
 	if (strpos($answer,'ERROR')!==false)
 	{
-		setlog('[put_call:'.$dev.'] Error!','com_'.$dev);
+		setlog('[put_call:'.$dev.'] Error!','link_'.$dev);
 		return(0);
 	}
 	elseif (strpos($answer,'OK')!==false)
 	{
-		setlog('[put_call:'.$dev.'] Ok!','com_'.$dev);
+		setlog('[put_call:'.$dev.'] Ok!','link_'.$dev);
 		$timer=time()+$adata[1];
+		setlog('[put_call:'.$dev.'] Time:'.($timer-time()),'link_'.$dev);
 		while ($timer>time())
 		{
-			$answer=sr_answer($dev,0,3,'NO CARRIER');
-			if ($answer=='NO CARRIER');
+			if (!$GLOBALS['set_data']['no_carrier_ignore'])
 			{
-				break;
+				$answer=sr_answer($dev,0,3,'NO CARRIER');
+				setlog('[put_call:'.$dev.'] Answer:'.$answer.' Time:'.($timer-time()),'link_'.$dev);
+				if ($answer=='NO CARRIER')
+				{
+					setlog('[put_call:'.$dev.'] NO CARRIER','link_'.$dev);
+					break;
+				}
+			}
+			else
+			{
+				sleep(3);
 			}
 		}
 		if ($timer<=time())
@@ -1919,7 +2811,9 @@ function do_call($dev=0,$curRow='',$place='',$adata='',$operator='',$roaming=0)
 	return(0);
 }
 
-function send_sms($dev=0,$curRow='',$place='',$adata='',$operator='',$roaming=0)
+// Outgoing call from the specified modem
+// Осуществление вызова с указанного модема
+function do_call_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator='',$roaming=0)
 {
 
 //	$dev		Device ID
@@ -1927,6 +2821,132 @@ function send_sms($dev=0,$curRow='',$place='',$adata='',$operator='',$roaming=0)
 //	$place		Modem position in the device
 //	$adata		Array with additional data from action	
 
+	if (!$dev)
+	{
+		$out=array();
+		$out['options']=auto_field('Номер телефона (+7...)','f1',30).auto_field('Ожидание (сек.)','f2','number','',5);
+		$out['count']=2;
+		return($out);
+	}
+
+	global $db;
+	sr_answer_clear($dev,1); // Clearing the response buffer of the modem | Очистка буфера ответов модема
+	setlog('[put_call:'.$dev.'] Call '.$adata[0],'link_'.$dev);
+
+	mysqli_query($db, 'DELETE FROM `devices_events` WHERE `device_id`='.$dev.' AND `dev`="modem'.$modem.'" AND `event`="calling"');
+	sr_command_smart($dev,'call:'.$adata[0].','.$modem);
+
+// Ждем событие
+	$qry='SELECT `result` FROM `devices_events` WHERE `device_id`='.$dev.' AND `dev`="modem'.$modem.'" AND `event`="calling"';
+	$status=0;
+	for ($i=0;$i<20;$i++)
+	{
+		if ($result_smart = mysqli_query($db, $qry)) 
+		{
+			if ($row_smart = mysqli_fetch_assoc($result_smart))
+			{
+				setlog('[put_call:'.$dev.'] Calling...','link_'.$dev);
+				$status=1;
+				break;
+			}
+		}
+		sleep(2);
+	}
+
+	mysqli_query($db, 'DELETE FROM `devices_events` WHERE `device_id`='.$dev.' AND `dev`="modem'.$modem.'" AND `event`="no_carrier"');
+	$qry='SELECT `result` FROM `devices_events` WHERE `device_id`='.$dev.' AND `dev`="modem'.$modem.'" AND `event`="no_carrier"';
+	while ($timer>time())
+	{
+		if ($result_smart = mysqli_query($db, $qry)) 
+		{
+			if ($row_smart = mysqli_fetch_assoc($result_smart))
+			{
+				setlog('[put_call:'.$dev.'] NO CARRIER','link_'.$dev);
+				break;
+			}
+		}
+		sleep(2);
+	}
+	if ($timer<=time())
+	{
+		sr_command_smart($dev,'command:hangup,'.$modem);
+	}
+
+	return($status);
+}
+
+function send_sms($dev=0,$model,$curRow='',$place='',$adata='',$operator='',$roaming=0)
+{
+
+//	$dev		Device ID
+//	$curRow	        Panel row for positioning 1 modem line
+//	$place		Modem position in the device
+//	$adata		Array with additional data from action	
+
+	if (!$dev)
+	{
+		$out=array();
+		$out['options']=auto_field('Номера телефонов в столбик (+7...)','f1','minitxt').auto_field('Через сколько номеров менять СИМ-карту','f2','number','',1).auto_field('Текст SMS','f3',400);
+		$out['count']=3;
+		return($out);
+	}
+
+	global $db;
+	$sms=array();
+	$com='';
+
+	$ph=explode('
+',$adata[0]);
+	$phone=$ph[(int)$adata['line']];		
+	if (!$phone)
+	{
+		$phone=$ph[0];		
+		$adata['line']=0;
+	}
+	else
+	{
+		$adata['line']++;
+	}
+	while(1)
+	{
+		$counter++;
+		if ($adata[1]<$counter){break;}	
+		sr_command($dev,$com.'sms>send:'.$phone.';'.$adata[2]);
+		sleep(10);
+	}
+	$qry="UPDATE `actions` SET `data`='".serialize($adata)."' WHERE `id`=".$GLOBALS['taskRow']['id'];
+	mysqli_query($db,$qry);	
+
+	return(1);
+}
+
+function send_sms_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator='',$roaming=0)
+{
+
+//	$dev		Device ID
+//	$curRow	        Panel row for positioning 1 modem line
+//	$place		Modem position in the device
+//	$adata		Array with additional data from action	
+
+	if (!$dev)
+	{
+		$out=array();
+		$out['options']=auto_field('Номера телефонов в столбик (+7...)','f1','minitxt').auto_field('Через сколько номеров менять СИМ-карту','f2','number','',1).auto_field('Текст SMS','f3',400);
+		$out['count']=2;
+		return($out);
+	}
+
+	global $db;
+	$sms=array();
+	$com='';
+
+	if ($place>=1 && $place<=16)
+	{
+		setlog('[get_sms:'.$dev.'] Select modem: '.$place,'link_'.$dev);
+		$com='modem>select:'.$place.'&&';
+	}
+	$p=$adata[0];
+	$GLOBALS['adata']='xxx';
 	return(0);
 }
 
@@ -1955,14 +2975,13 @@ function autoStop() // Если аппарат простаивает больш
 						while ($row2 = mysqli_fetch_assoc($result2))
 						{
 							action_close($row2['id']);
+							mysqli_query($db, "DELETE FROM `link_incoming` WHERE `device`=".$dev.";DELETE FROM `actions` WHERE `device`=".$dev.";DELETE FROM `card2action` WHERE `device`=".$dev.";DELETE FROM `modems` WHERE `device`=".$dev.";DELETE FROM `flags` WHERE `name`<>'request' AND `device`=".$dev);
 						}
-						mysqli_query($db, "DELETE FROM `link_incoming` WHERE `device`=".$dev.";DELETE FROM `actions` WHERE `device`=".$dev.";DELETE FROM `card2action` WHERE `device`=".$dev.";DELETE FROM `modems` WHERE `device`=".$dev.";DELETE FROM `flags` WHERE `name`<>'request' AND `device`=".$dev);
 					}
 					else
 					{
 						flagDelete($dev,'stop');
 					}
-					sr_command_clear((int)$dev);
 				}
 				$answer=0;
 				$request=0;
@@ -1976,20 +2995,16 @@ function autoStop() // Если аппарат простаивает больш
 			if ($row['name']=='cron'){$cron=$row['time'];}
 			if ($row['name']=='stop'){$stop=$row['value'];}
 		}
-
-				if ($answer+30>time() && $request && $request+60<time())
-				{
-					setlog("!!! DEV:".$dev." ANSWER:".$answer." REQUEST:".$request,'com_'.$dev);
-				}
-
-
 	}
 }
 
 function sms_monitor()
 {
 	global $db;
-	if ($result = mysqli_query($db, 'SELECT * FROM `sms_incoming` WHERE `header`<>"" '.$where.' ORDER BY `header`'))
+	$qry='SELECT s.*,c.`email` FROM `sms_incoming` s 
+	LEFT JOIN `cards` c ON c.`number`=s.`number`
+	WHERE s.`header`<>"" ORDER BY s.`header`';
+	if ($result = mysqli_query($db, $qry))
 	{
 		$next=0;
 		$header=array();
@@ -2010,6 +3025,10 @@ function sms_monitor()
 			$part=hexdec($part[5]);
 			$header['id'][$part]=$row['id'];
 			$header['header'][$part]=$row['header'];
+			$header['number'][$part]=$row['number'];
+			$header['email'][$part]=$row['email'];
+			$header['sender'][$part]=$row['sender'];
+			$header['time'][$part]=$row['time'];
 			$header['total'][$part]=$total;
 			$header['txt'][$part]=$row['txt'];
 			$header['modified'][$part]=$row['modified'];
@@ -2021,18 +3040,16 @@ function sms_monitor()
 	}
 }
 
-function log_clear()
-{
-	global $db;
-	mysqli_query($db, 'DELETE FROM `link_incoming` WHERE unix_timestamp(time)+300<'.time());
-}
-
-
 function sms_merge($header)
 {
 	global $db;
 	$c=count($header['id']);
 	$t=$header['total'][1];
+	foreach ($header['modified'] AS $data)
+	{
+		$modified=$data;
+		break;
+	}
 	if (!$t)
 	{
 		foreach ($header['total'] AS $data)
@@ -2040,7 +3057,7 @@ function sms_merge($header)
 			if ($data){$t=$data; break;}
 		}
 	}	
-	if ($c==$t || $header['modified'][$c]+30<time()) // Если 30 секунд прошло, а SMS полностью не получена - склеиваем что есть
+	if ($c==$t || $modified+60<time()) // Если 30 секунд прошло, а SMS полностью не получена - склеиваем что есть
 	{
 		for ($i=0;$i<$t;$i++)
 		{
@@ -2051,6 +3068,10 @@ function sms_merge($header)
 			if (!$id)
 			{
 				$id=$header['id'][$i+1];
+				$number=$header['number'][$i+1];
+				$email=$header['email'][$i+1];
+				$sender=$header['sender'][$i+1];
+				$time=$header['time'][$i+1];
 			}
 			$sms.=$a;
 			if ($header['id'][$i+1] && $id!=$header['id'][$i+1])
@@ -2059,9 +3080,56 @@ function sms_merge($header)
 				mysqli_query($db,$qry);
 			}
 		}
-		$qry='UPDATE `sms_incoming` SET `txt`="'.addslashes(trim($sms)).'",`header`="",`done`=1 WHERE id='.$id;
+		$qry='UPDATE `sms_incoming` SET `txt`="'.mysqli_real_escape_string($db,trim($sms)).'",`header`="",`done`=1 WHERE id='.$id;
 		mysqli_query($db,$qry);
+		sms_notification($number,$email,$sender,$time,trim($sms));
 	}
+// Удаляем старые SMS
+	$qry="DELETE FROM `sms_incoming` WHERE `header`<>'' AND `done`=0 AND `time`<".(time()-86400*2);
+	mysqli_query($db,$qry);
+
+	pool_clear(); // Удаляем старые Пулы
+	flag_clear(); // Удаляем старые Пулы
+}
+
+function sms_save($header,$number,$email,$place,$sender,$time,$txt,$card_id=0)
+{
+	global $db;
+
+	if (trim($header))
+	{
+		$qry="`header`='".trim($header)."',";
+	}
+	else
+	{
+		$qry="`done`=1,";
+	}
+	if ($card_id)
+	{
+		$qry.="`card_id`='".$card_id."',";
+	}
+	if ($place)
+	{
+		$qry.="`place`='".$place."',";
+	}
+	$qry="INSERT INTO `sms_incoming` SET
+	".$qry."
+	`number`='".$number."',
+	`sender`='".$sender."',
+	`time`=".$time.",
+	`modified`=".time().",
+	`txt`='".mysqli_real_escape_string($db,$txt)."'";
+	mysqli_query($db,$qry);
+	if (!trim($header))
+	{
+		sms_notification($number,$email,$sender,$time,$txt);
+	}
+}
+
+function log_clear()
+{
+	global $db;
+	mysqli_query($db, 'DELETE FROM `link_incoming` WHERE unix_timestamp(time)+300<'.time());
 }
 
 // Adding the name of the SIM card
@@ -2088,8 +3156,11 @@ function set_title($dev=0,$curRow='',$place='',$adata='',$operator='',$roaming=0
 
 function sms_out($txt)
 {
-	$txt=preg_replace('!([0-9]{4,20})!','<span class="note" onclick="copy(\'$1\');soundClick();">$1</span>',$txt);
-	return(str_replace('http://https://','https://',str_replace('http://http://','http://',str_replace("\n","<br>",preg_replace("/(([a-z]+:\/\/)?(?:[a-zа-я0-9@:_-]+\.)+[a-zа-я0-9]{2,4}(?(2)|\/).*?)([-.,:]?(?:\\s|\$))/is",'<a href="http://$1" target="_blank">$1</a>$3', $txt)))));
+	$txt=str_replace("\n","<br>",$txt);
+	$txt1=preg_replace('!([0-9-]{4,20})!','<span class="note" onclick="copy(\'$1\');soundClick();">$1</span>',str_replace("\n","<br>",$txt));
+	$txt2=str_replace('http://https://','https://',str_replace('http://http://','http://',preg_replace("/(([a-z]+:\/\/)?(?:[a-zа-я0-9@:_-]+\.)+[a-zа-я0-9]{2,4}(?(2)|\/).*?)([-.,:]?(?:\\s|\$))/is",'<a href="http://$1" target="_blank">$1</a>$3', $txt)));
+	if ($txt2!=$txt){return($txt2);}
+	return($txt1);
 }
 
 function press($dev,$errors=0)
@@ -2099,6 +3170,18 @@ function press($dev,$errors=0)
 	`press`=`press`+1,
 	`errors`=`errors`+".(int)$errors."
 	WHERE `id`=".(int)$dev;
+	mysqli_query($db,$qry);
+}
+
+function pressPlace($dev,$place,$error=0)
+{
+	global $db;
+	$place=remove_zero($place);
+	$qry="INSERT INTO `devices_press` SET
+	`time`=".time().",
+	`place`='".$place."',
+	`device`='".$dev."',
+	`error`=".(int)$error;
 	mysqli_query($db,$qry);
 }
 
@@ -2118,4 +3201,62 @@ function getSerial($dev,$time)
 		}
 	}
 }
+
+function getOnline($numbers=array()) // Получение номеров которые Online
+{
+	global $db;
+	$places=array();
+	if ($result = mysqli_query($db, 'SELECT d.*,m.modems FROM `devices` d 
+	LEFT JOIN `modems` m ON m.device=d.id'));            
+	{
+		while ($row = mysqli_fetch_assoc($result))
+		{
+			$m=unserialize($row['modems']);
+			if (strpos($row['model'],'Nano')!==false)
+			{
+				if ($m[0])
+				{
+					$places[]='(`device`='.$row['id'].' AND `place`="'.$m[0].'")';
+				}
+			}
+			elseif (strpos($row['model'],'Train')!==false)
+			{
+				foreach ($m AS $mk => $md)
+				{
+					$places[]='(`device`='.$row['id'].' AND `place`="'.$md[0].'-'.$mk.'")';
+				}
+			}
+			elseif (strpos($row['model'],'Box')!==false || strpos($row['model'],'Organizer')!==false)
+			{
+				foreach ($m AS $mk => $md)
+				{
+					$places[]='(`device`='.$row['id'].' AND `place`="'.chr($mk+64).$md[0].'")';
+				}
+			}
+		}
+	}
+	$out=array();
+	if (count($places))
+	{
+		if (count($numbers))
+		{
+			$numbers='`number` IN ("'.implode('","',$numbers).'") AND ';
+		}
+		else
+		{
+			$numbers='';
+		}
+		$qry='SELECT * FROM `cards` c 
+		WHERE '.$numbers.' ('.implode(' OR ',$places).')';
+		if ($result = mysqli_query($db, $qry));            
+		{       	
+			while ($row = mysqli_fetch_assoc($result))
+			{
+				$out[]=$row['number'];						
+			}
+		}
+	}
+	return($out);
+}
+
 ?>

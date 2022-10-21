@@ -2,7 +2,7 @@
 // ===================================================================
 // Sim Roulette -> SR-Box functions
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -20,12 +20,12 @@ function sim_link($dev, $data, $curRow, $modems, $actId, $func, $adata)
 
 	global $root,$db;
 	setlog('[sim_link:'.$dev.'] Start');
-	$max_row=$data['rows'];
+
 	$time_limit=time()+$data['time_limit'];
 	sr_answer_clear($dev);
-	$connect=time();
-	$reconnect=0; // The count of reconnections | Счетчик переподключений
-	$modem_shift=0; // The shift of the modems on the 3rd row forwards/backwards | Сдвиг модемов на 3 ряда вперед/назад
+
+	setlog(print_r($modems,1),'link_'.$dev);
+
 	$mod=explode(',',trim($modems,','));
 	$progress=0;
 	sort($mod);
@@ -34,6 +34,7 @@ function sim_link($dev, $data, $curRow, $modems, $actId, $func, $adata)
 	{
 		$mod[$key]=array();
 	}
+
 	for ($i=1;$i<9;$i++)
 	{
 		if (!isset($mod[$i]))
@@ -41,83 +42,138 @@ function sim_link($dev, $data, $curRow, $modems, $actId, $func, $adata)
 			$mod[$i]['status']=2;
 		}
 	}
-	// The choice of the row, connecting contacts and enabling the modem | Выбор ряда, подключение контактов и включение модемов
-	if ($curRow==0){$otherRow=$curRow+1;} else {$otherRow=$curRow-1;}
-	sr_command($dev,'modem>on');
+
+
+	setlog('>>>'.print_r($mod,1),'link_'.$dev);
+
+//	setlog('[sim_link:'.$dev.'] '.print_r($modems,1),'link_'.$dev);
+//	setlog('[sim_link:'.$dev.'] '.print_r($mod,1),'link_'.$dev);
+
+	// Выбираем ряд
+	sr_command($dev,'modem>fix:0&&modem>on');
+//	sleep(10);
 
 	while ($time_limit>time())
 	{
-		setlog('[sim_link:'.$dev.'] Cicle -> Reconnect:'.$reconnect.', Remaining time:'.($time_limit-time()).' sek.');
+		setlog('[sim_link:'.$dev.'] Remaining time:'.($time_limit-time()).' sek.');
 		br($dev,'act_'.$actId.'_stop');
 
 		$error='';
 		setlog('[sim_link:'.$dev.'] Getting information about operators');
-		$step=sr_command($dev,'modem>pack:AT+COPS?##ALL##1'); // Getting information about operators | Запрос информации об операторах 
-		$answer=explode('#1#',sr_answer($dev,$step,30));
+		$step=sr_command($dev,'modem>pack:AT+CREG?##ALL##1'); // Getting information about operators | Запрос информации об операторах 
+		$answer=explode('#1#',sr_answer($dev,$step,50));
 		for ($i=0;$i<count($answer);$i++)
 		{
+setlog($answer[$i].'-------------->','link_'.$dev);
 			if (strpos($answer[$i],'##'))
 			{
 				$a=explode('##',$answer[$i]);
-		                preg_match('!"(.*)"!Us', $a[1], $test);
-				if ($a[0] && $test[1])
+				preg_match('!:(.*)OK!Uis', $a[1], $test);
+				$test=trim($test[1]);
+				if ($mod[$a[0]]['status']!=2 && $test[2]!=2){$mod[$a[0]]['status']=$test[2];}
+				if (($test[2]==0 || $test[2]==4) && $mod[$a[0]]['status']!=2)
 				{
-					$mod[$a[0]]['operator']=$test[1];
-					if ($mod[$a[0]]['status']!=2){$mod[$a[0]]['status']=1;}
-				}
-				elseif ($a[0])
-				{
-					$mod[$a[0]]['operator']=$test[1];
-					if ($mod[$a[0]]['status']!=2)
-					{
-						$mod[$a[0]]['status']=0;
-						if ((int)$a[0])
-						{
-							$error.=$a[0].';';
-						}
-					}
+					$error.=$a[0].';';
 				}
 			}
 		}
+
+		if ($error)// && $connect+10<time())
+		{
+			setlog('[sim_link:'.$dev.'] Restarting the modem: '.$error);
+			sr_command($dev,'modem>pack:AT+CFUN=1,1##'.$error.'##1'); // Перезапуск модемов 
+		}
+
+		setlog(print_r($mod,1),'link_'.$dev);
+
 		$restart=1;
 		$test=count($mod);
 		foreach ($mod AS $key=>$data)
 		{
 			br($dev,'act_'.$actId.'_stop'); // Checking the early exit flag | Проверка флага досрочного выхода
-			setlog('[sim_link:'.$dev.'] Modem:'.$key.', Operator:'.$data['operator'].', Status:'.$data['status']);
-			if ($data['status']==1) // The modem is ready to work | Модем готов к работе
+			br($dev);
+			setlog('[sim_link:'.$dev.'] Modem:'.$key.', Status:'.$data['status']);
+
+			$a=explode(';',$func);
+			if ($data['status']==1 || $data['status']==5)
 			{
-				if ($restart && $error)
+				for ($k=0;$k<count($a);$k++)
 				{
-					setlog('[sim_link:'.$dev.'] Restarting the modem: '.$error);
-					sr_command($dev,'modem>pack:AT+CFUN=1,1##'.$error.'##1'); // Перезапуск модемов 
-					$reconnect++;
-					$restart=0;
-				}
-				$a=explode(';',$func);
-				if ($data['status']==1)
-				{
-					for ($k=0;$k<count($a);$k++)
+					$f=$a[$k]; 
+					setlog('[sim_link:'.$dev.'] The start of the function: '.$f); // Запуск функции
+//					$r=$curRow;
+					sr_command($dev,'modem>select:'.$key);
+//setlog(">>>>>>>>>>>>>>>>>".print_r($data,1),'log_'.$dev);
+					$answer=$f($dev,'SR-Box-8',0,chr($key+64),$adata);//,$data['operator']);
+//					sr_command($dev,'place:'.chr($key+64).$curRow);
+//					$answer=$f($dev,$curRow,$key,$adata);//,$data['operator']);
+					setlog('[sim_link:'.$dev.'] The function is executed with the result: '.$answer);
+					if ($answer)
 					{
-						$f=$a[$k]; 
-						setlog('[sim_link:'.$dev.'] The start of the function: '.$f); // Запуск функции
-						$m=$key;
-						$r=$curRow;
-						sr_command($dev,'modem>select:'.$key);
-						$answer=$f($dev,$r,$m,$adata);//,$data['operator']);
-						setlog('[sim_link:'.$dev.'] The function is executed with the result: '.$answer);
-						if ($answer)
-						{
-							$test--;
-							$mod[$key]['status']=2;
-							mysqli_query($db, 'UPDATE `actions` SET `progress`=`progress`+1,`success`=`success`+1 WHERE `id`='.(int)$actId); 
-							$progress++;
-						}
-						setlog('[sim_link:'.$dev.'] The function is executed with the result: '.$answer);
-					}			
-				}
+						$mod[$key]['status']=2;
+						mysqli_query($db, 'UPDATE `actions` SET `progress`=`progress`+1,`success`=`success`+1 WHERE `id`='.(int)$actId); 
+						$progress++;
+						unset($errorReport[$key-1]);
+					}
+					else
+					{
+						$errorReport[$key-1]=chr($key+64).$curRow[$key-1].':11';
+					}
+
+
+					setlog('[sim_link:'.$dev.'] The function is executed with the result: '.$answer);
+				}			
 			}
-			if ($data['status']==2) // Модем обработан
+			else if ($data['status']==3 && $GLOBALS['set_data']['code_block']==2)
+			{
+				setlog('[sim_link:'.$dev.'] SIM card is blocked!'); // СИМ-карта заблокирована
+				// Clearing a place in the database | Очищаем место в БД
+				$qry="DELETE FROM `cards` WHERE
+				`place`='".chr($key+64)."'";
+				mysqli_query($db,$qry);
+				setlog('[sim_link:'.$dev.'] '.$qry,'link_'.$dev);
+
+				if ($result = mysqli_query($db, "SELECT `id` FROM `cards` WHERE `place`='".chr($key+64)."' AND `device`=".$dev)) 
+				{
+					// Saving the information | Сохраняем информацию о блокировке
+					if ($resRow = mysqli_fetch_assoc($result))
+					{
+						$qry="UPDATE `cards` SET
+						`number`='".chr($key+64)."',
+						`place`='".chr($key+64)."',
+						`device`=".(int)$dev.",
+						`operator`=0,
+						`time_number`='".time()."',
+						`time`='".time()."'
+						WHERE `id`=".$resRow['id'];
+						mysqli_query($db,$qry);
+					}
+					else
+					{
+						$qry="REPLACE INTO `cards` SET
+						`number`='".chr($key+64)."',
+						`place`='".chr($key+64)."',
+						`device`=".(int)$dev.",
+						`operator`=0,
+						`time_number`='".time()."',
+						`time`='".time()."'";
+						mysqli_query($db,$qry);
+					}
+				}
+
+				setlog('[sim_link:'.$dev.'] '.$qry,'link_'.$dev);
+				$test--;
+
+				mysqli_query($db, 'UPDATE `actions` SET `progress`=`progress`+1,`success`=`success`+1 WHERE `id`='.(int)$actId); 
+				$progress++;
+				$mod[$key]['status']=2;
+			} 
+			elseif ($data['status']==0 || $data['status']==4)
+			{
+				$errorReport[$key-1]=chr($key+64).$curRow[$key-1].':'.(int)$data['status'];
+			}
+
+			if ($mod[$key]['status']==2) // Модем обработан
 			{
 				setlog('[sim_link:'.$dev.'] Modem processed, left: '.$test);
 				$test--;
@@ -127,84 +183,110 @@ function sim_link($dev, $data, $curRow, $modems, $actId, $func, $adata)
 					return;
 				}				
 			}	
-
-		}
-		if ($restart && $error && $connect+40<time())
-		{
-			setlog('[sim_link:'.$dev.'] Restarting the modem: '.$error);
-			sr_command($dev,'modem>pack:AT+CFUN=1,1##'.$error.'##1'); // Перезапуск модемов 
-			$reconnect++;
-			$restart=0;
-			$connect=time();
+	
 		}
 	}
 	$total=count($mod);
-	if ($progres<$total)
+setlog('Progress:'.$progress.' Total:'.$total.' Errors:'.implode(',',$errorReport),'link_'.$dev); 
+	if ($progress<$total)
 	{
-		mysqli_query($db, 'UPDATE `actions` SET `progress`=`progress`+'.($total-$progress).',`errors`=`errors`+'.($total-$progress).' WHERE `id`='.(int)$actId); 
+//			$qry='UPDATE `actions` SET `progress`=`progress`+1,`errors`=`errors`+1,`report`=CONCAT(`report`," '.remove_zero($place).':'.$activation[0].'") WHERE `id`='.(int)$actId;
+		setlog(print_r($errorReport,1),'link_'.$dev);
+		$qry='UPDATE `actions` SET `progress`=`progress`+'.($total-$progress).',`errors`=`errors`+'.($total-$progress).',`report`=CONCAT(`report`,"'.implode(',',$errorReport).',") WHERE `id`='.(int)$actId;
+		setlog($qry,'link_'.$dev);
+		mysqli_query($db, $qry); 
+//		mysqli_query($db, 'UPDATE `actions` SET `progress`=`progress`+'.($total-$progress).',`errors`=`errors`+'.($total-$progress).' WHERE `id`='.(int)$actId); 
 	}
 	setlog('[sim_link:'.$dev.'] The time limit is reached!'); // Лимит времени исчерпан
 }
 
 // Online mode: Connect to the selected modems for receiving SMS in a loop
 // Онлайн-режим: Подключение выбранных модемов, прием SMS в цикле
-function online_mode($dev, $curRow, $modems, $devData)
+function online_mode($dev, $curRow, $modems, $modemTime, $devData)
+//function online_mode($dev, $modems, $modemTime, $devData)
 {
 //	$dev		Device ID
 //	$curRow	        Panel row for positioning 1 modem line
 //	$modems	        List of modems to process
-	global $pdu,$db;
+	global $db,$pdu;
 
-	setlog('[online_mode:'.$dev.'] Start');
-	$max_row=19;
-	$modems=trim($modems,',');
-	$modems=str_replace(',','--',$modems);
+	setlog('[online_mode:'.$dev.'] Start','link_'.$dev);
 	$smsTime=array();
-	$getCops=4;
-	$mod=explode('--',$modems);
 	sr_answer_clear($dev);
-	if ($curRow==0){$r=$curRow+1;} else {$r=$curRow-1;}
+	$com=array();
 
-	sr_command($dev,'modem>on');
-	$mm=array();
+	$new=0;
+	$modems=array(); // !!! Не смотрим какие модемы выбраны
+	for ($i=1;$i<9;$i++)
+	{
+		if ($modems[$i][1]==-3)
+		{
+			$modems[$i][1]=-1;
+			$new++;
+			$m=$i;
+		}
+	}
+	if ($new!=1)
+	{
+		for ($i=1;$i<9;$i++)
+		{
+			$modems[$i][1]=-1;
+		}
+		$com[]='modem>fix:0&&modem>on';
+		$com[]='answer>clear';
+	}
 
+	$qry="UPDATE `modems` SET `modems`='".serialize($modems)."' WHERE `time`=".$modemTime." AND `device`=".$dev;
+	mysqli_query($db, $qry);
+
+	sr_command($dev,implode('&&',$com)); 
+	setlog('[1] -> '.print_r($modems,1).'link_'.$dev);
+	$connect=time();
+	$getCops=1;
+	$mmBuf=serialize($modems);
 	while (1)
 	{
-		foreach ($mod AS $data)
-		{
-			if ($mm[$data][1]!=-2)
-			{
-				$mm[$data]=array($curRow,1);
-			}
-		}
 		$step=sr_command($dev,'modem>sms:0');
 		$answer=sr_answer($dev,$step,30);
 		$smsBuf=$answer=explode('#3#',$answer);
 		$error="";
-		if ($answer!="1")
+		if ($answer!="1" || $getCops<=0)
 		{
 			if ($getCops<=0)
 			{
 				setlog('[online_mode:'.$dev.'] Monitoring the connection to the cellular network');
-				$step=sr_command($dev,'modem>pack:AT+COPS?##ALL##1'); // Мониторинг подключения к сотовой сети
+				$step=sr_command($dev,'modem>pack:AT+CREG?##ALL##1'); // Getting information about operators | Запрос информации об операторах 
 				$answer=explode('#1#',sr_answer($dev,$step,30));
-				foreach ($mod AS $data)
-				{
-					$mm[$data][1]=-2;
-				}
+
+				$modems[1][1]=-2;
+				$modems[2][1]=-2;
+				$modems[3][1]=-2;
+				$modems[4][1]=-2;
+				$modems[5][1]=-2;
+				$modems[6][1]=-2;
+				$modems[7][1]=-2;
+				$modems[8][1]=-2;
+
+				$getCops=5;
 				for ($i=0;$i<count($answer);$i++)
 				{
-					$a=explode('##',$answer[$i]);
-			                preg_match('!"(.*)"!Us', $answer[$i], $test);
-					if ($a[0] && $test[1])
+					if (strpos($answer[$i],'##'))
 					{
-						$mm[$a[0]][1]=1;
-					}
-					elseif ($a[1])
-					{
-						if ((int)$a[0])
+						$a=explode('##',$answer[$i]);
+						preg_match('!:(.*)OK!Uis', $a[1], $test);
+						$test=trim($test[1]);
+						if ($test[2]==0 || $test[2]==2  || $test[2]==3  || $test[2]==4)
+						{
+							$getCops=2;
+						}
+						if ($test[2]==0 || $test[2]==4  || ($test[2]==2 && $connect+60<time()))
 						{
 							$error.=$a[0].';';
+						}
+//						elseif ($a[0] && $test[2]!=2 && $test[2]!=3)
+						if ($a[0])
+						{
+							$modems[$a[0]][1]=(int)$test[2];
 						}
 					}
 				}
@@ -212,73 +294,74 @@ function online_mode($dev, $curRow, $modems, $devData)
 				{
 					setlog('[online_mode:'.$dev.'] Restarting the modem: '.$error);
 					sr_command($dev,'modem>on&&modem>pack:AT+CFUN=1,1##'.$error.'##1'); // Перезапуск модемов 
-
+					$connect=time();
 				}
-				$getCops=4;
 			}
 			$getCops--;
 			foreach ($smsBuf AS $data)
 			{
 				$data=explode('##',$data);
-				$m=$data[0];
+				$m=$data[0][0];
 				if ($data[1]=='E') // Ошибка
 				{
-					if ($mm[$m][1]!=-2){$mm[$m][1]=0;}
+//					$modems[$a[0]][1]=9;
 					setlog('[online_mode:'.$dev.'] Error receiving SMS!');
 				}
 				else
 				{
 					for ($i=1;$i<count($data);$i++)
 					{
-						if (in_array($m,$mod))
-						{
+//						if (in_array($m,$mod))
+//						{
 							$sms='';
-							setlog('[online_mode:'.$dev.'] RAW SMS received: '.$data[$i]); // Получена SMS
+							setlog('[online_mode:'.$dev.'] RAW SMS received: '.$data[$i],'link_'.$dev); // Получена SMS
 							if ($data[$i])
 							{
 								$smsNum=explode(',',$data[$i]);
 								$smsNum=$smsNum[0];
-								setlog('[online_mode:'.$dev.'] SMSnum: '.$smsNum); // Подготовка SMS
-					
+								setlog('[online_mode:'.$dev.'] SMSnum: '.$smsNum,'link_'.$dev); // Подготовка SMS
+						
 								$raw=explode("\n",$data[$i]);
 								$sms=$pdu->pduToText($raw[1]);
-								setlog('[online_mode:'.$dev.'] SMS: '.print_r($sms,1)); // Подготовка SMS
-				
-								if ($result = mysqli_query($db, "SELECT * FROM `cards` WHERE `place`='".$curRow."-".$m."' AND `device`=".$dev)) 
+								setlog('[online_mode:'.$dev.'] SMS: '.print_r($sms,1),'link_'.$dev); // Подготовка SMS
+
+   								if (trim($sms['userDataHeader']))
+								{
+									$smsNum=0;
+								}
+
+								if ($result = mysqli_query($db, "SELECT * FROM `cards` WHERE `place`='".chr($m+64).$modems[$m][0]."' AND `device`=".$dev)) 
 								{
 									if ($row = mysqli_fetch_assoc($result))
 									{
-                       								if (trim($sms['userDataHeader']))
-										{
-											$qry="`header`='".$sms['userDataHeader']."'";
-											$smsNum=0;
-										}
-										else
-										{
-											$qry="`done`=1";
-										}
-						        	
 										// Saving to the database | Сохранение в БД
-										$qry="INSERT INTO `sms_incoming` SET
-										`number`='".$row['number']."',
-										`sender`='".$sms['number']."',
-										`time`=".$sms['unixTimeStamp'].",
-										`modified`=".time().",
-										`txt`='".$sms['message']."',
-										".$qry;
-										mysqli_query($db,$qry);
-										setlog('[online_mode:'.$dev.'] '.$qry);
-										setlog('[online_mode:'.$dev.'] SMS saved'); // SMS сохранена
-							    			if ($GLOBALS['set_data']['email'])
-										{
-											setlog('[online_mode:'.$dev.'] SMS sent to E-mail'); // SMS отправлена на E-mail
-										}
+										sms_save($sms['userDataHeader'],$row['number'],$row['email'],'',$sms['number'],$sms['unixTimeStamp'],$sms['message'],$row['id']);
 									}
-								}
-								else
-								{
-									setlog('[online_mode:'.$dev.'] SIM card not found in the database!'); // СИМ-карта не найдена в БД
-									return($out);
+									else
+									{
+										// Добавляем новую карту
+										$qry2="INSERT INTO `cards` SET
+										`place`='".chr($m+64).$modems[$m][0]."',
+										`device`=".$dev.",
+										`operator`=0,
+										`time_number`='".time()."',
+										`time`='".time()."'";
+										setlog('[online_mode:'.$dev.'] '.$qry,'link_'.$dev);
+										mysqli_query($db,$qry2);
+										$cardId=mysqli_insert_id($db);
+
+									setlog('[online_mode:'.$dev.'] '.$qry2,'link_'.$dev);
+
+										// Saving to the database | Сохранение в БД
+
+										sms_save($sms['userDataHeader'],$row['number'],$row['email'],'',$sms['number'],$sms['unixTimeStamp'],$sms['message'],$cardId);
+									}
+									setlog('[online_mode:'.$dev.'] '.$qry,'link_'.$dev);
+									setlog('[online_mode:'.$dev.'] SMS saved','link_'.$dev); // SMS сохранена
+						    			if ($GLOBALS['set_data']['email'])
+									{
+										setlog('[online_mode:'.$dev.'] SMS sent to E-mail'); // SMS отправлена на E-mail
+									}
 								}
 							}
 							setlog('[online_mode:'.$dev.'] SMS counter: '.$smsNum.', Time: '.(time()-$smsTime[$m]).', Status: '.$place[1]);
@@ -288,7 +371,7 @@ function online_mode($dev, $curRow, $modems, $devData)
 								sr_command($dev,'modem>select:'.$m.'&&modem>send:AT+CMGDA=5'); // Удаление всех SMS с SIM-карты
 								$smsNum=0;
 							}
-						}
+//						}
 					}
 				}
 			}
@@ -297,47 +380,69 @@ function online_mode($dev, $curRow, $modems, $devData)
 				setlog('[online_mode:'.$dev.'] Errors: '.$error);
 			}
 		}
-		if ($result = mysqli_query($db, "SELECT time FROM `modems` WHERE `device`=".$dev)) 
+		if ($mmBuf!=serialize($modems))
 		{
-			if ($row = mysqli_fetch_assoc($result))
-			{
-				if ($row['time']<time()-30)
-				{
-					mysqli_query($db, "UPDATE `modems` SET `modems`='".serialize($mm)."' WHERE `device`=".$dev);
-				}
-			}
-			else
-			{
-				if (flagGet($dev,'stop'))
-				{
-					flagDelete($dev,'stop');
-				}
-				setlog('[online_mode:'.$dev.'] Early exit!'); // Досрочный выход
-				exit();
-			}			
+			$mmBuf=serialize($modems);
+			mysqli_query($db, "UPDATE `modems` SET `modems`='".serialize($modems)."' WHERE `time`=".$modemTime." AND `device`=".$dev);
 		}
+		if (flagGet($dev,'stop'))
+		{
+			flagDelete($dev,'stop');
+			setlog('[online_mode:'.$dev.'] Early exit!','com_'.$dev); // Досрочный выход
+			exit();
+		}			
 		br($dev);
 	}
 }
 
-function dev_init($dev)
+function dev_init($dev, $actId)
 {
 //	$dev		Device ID
 	global $db;
+	sr_command($dev,'modem>off&&modem>fix:0&&display=16::C::64::20::Инициализация агрегатора&&modem>on');
 	$map=sr_command($dev,'modem>map',30);
 	if (strpos($map,'error:')===false)
 	{
-		if ($result = mysqli_query($db, "SELECT `data` FROM `devices` WHERE `id`=".$dev)) 
+		if ($result = mysqli_query($db, "SELECT `title`,`data` FROM `devices` WHERE `id`=".$dev)) 
 		{
 			if ($row = mysqli_fetch_assoc($result))
 			{
 				$data=unserialize($row['data']);
 				if ($map=='NULL'){$map=0;$model='SR-Box-8';} else {$model='SR-Box-Bank';} 
 				$data['map']=$map;
+				$modems='1,2,3,4,5,6,7,8';
 
-				$qry="UPDATE `devices` SET `title`=`model`,`model`='".$model."',`init`=".time().",`data`='".serialize($data)."' WHERE `id`=".$dev;
+				sr_command($dev,'display=24::C::64::25::10%&&dev:mode=navigator');		
+				mysqli_query($db, 'UPDATE `actions` SET `count`=100,`progress`=10 WHERE `id`='.(int)$actId);
+				sr_command($dev,'save',30);		
+				$p=10;
+ 				for ($i=1;$i<9;$i++)
+				{
+	                                $p=10+$i*10;
+					sr_command($dev,'modem>select:'.$i.'&&display=24::C::64::25::'.$p.'%');		
+					mysqli_query($db, 'UPDATE `actions` SET `progress`=`progress`+10 WHERE `id`='.(int)$actId);
+					sleep(12);
+					sr_command($dev,'AT+CLIP=1');		
+					sleep(12);
+					sr_command($dev,'AT+CMGF=0');		
+					sleep(12);
+					sr_command($dev,'AT&W0');		
+				}
+				sr_command($dev,'sound:beep&&sound:beep');		
+				mysqli_query($db, 'UPDATE `actions` SET `progress`=99 WHERE `id`='.(int)$actId);
+				sr_command($dev,'display=16::C::64::25::Готов к работе!',30);		
+
+				mysqli_query($db, 'UPDATE `actions` SET `count`=1,`progress`=1,`success`=1 WHERE `id`='.(int)$actId);
+				if ($row['title']=='[init]')
+				{
+					$qry="UPDATE `devices` SET `title`='".$model."',`model`='".$model."',`modems`='".$modems."',`init`=".time().",`data`='".serialize($data)."' WHERE `id`=".$dev;
+				}
+				else
+				{
+					$qry="UPDATE `devices` SET `model`='".$model."',`modems`='".$modems."',`init`=".time().",`data`='".serialize($data)."' WHERE `id`=".$dev;
+				}
 				mysqli_query($db,$qry);
-				sr_command($dev,'dev:mode=navigator&&save&&sound:beep');		
+
 				return(1);
 			}
 		}			

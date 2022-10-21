@@ -43,7 +43,7 @@
 	animation: fade .8s;
 }
 .dm-modal .dm-head {
-	background: #ffbb00;	
+	background: #ff9f4c;	
 	padding: 12px 20px 12px 20px;
 }
 .dm-modal .dm-head h3 {
@@ -80,13 +80,13 @@
 }
 .dm-modal .dm-close {
 	cursor: pointer;
-	font-size: 30px; 
+	font-size: 17px; 
 	float:right; 
-	margin-right: -14px;
-	margin-top: -26px;
+	margin-right: -7px;
+	margin-top: -19px;
 }
-.but_win {
+.but_win,.but_nowin {
 	color: #1d57ad;
-	border-bottom: 1px solid #91a6c4;
+/*	border-bottom: 1px solid #91a6c4; */
 	cursor: pointer;
 }

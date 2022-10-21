@@ -1,7 +1,7 @@
 <?
 // ===================================================================
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -58,18 +58,15 @@ ORDER BY a.`id` DESC'))
 	}
 }
 
-if ($_GET['device']){$where=' AND id='.(int)$where;} else {$where='';}
+if ($_GET['device']){$where=' WHERE id='.(int)$where;} else {$where='';}
 	
-if ($result = mysqli_query($db, 'SELECT * FROM `devices` WHERE 1=1'.$where.' ORDER BY `title`')) 
+if ($result = mysqli_query($db, 'SELECT * FROM `devices`'.$where.' ORDER BY `title`')) 
 {
 	while ($row = mysqli_fetch_assoc($result))
 	{
 		$devices[$row['id']]=$row['title'];
 	}
 }
-?>
-<br>
-<? 
 if (count($devices)>1)
 {
 ?>
@@ -102,7 +99,7 @@ if (count($table))
 <? if (count($devices)>1){?>
 				<th>Агрегатор</th>
 <? } ?>
-				<th class="sidebar">Места</th>
+				<th class="sidebar">Позиции</th>
 				<th class="sidebar">Начало</th>
 				<th class="sidebar">Окончание</th>
 				<th><span class="sidebar">Выполнение</span><span class="extinfo">Время</span></th>
@@ -132,15 +129,13 @@ if (count($table))
 <br>
 
 <a href="reports.php?mode=clear" class="link" style="background: #FF0000;">Очистить список</a>
-<br>
 <?
 }
 else
 {
 ?>
-<em>— Список пуст!</em>
+<div class="tooltip">— Список отчетов пуст!</div>
 <?
 }
-
 sr_footer();
 ?>

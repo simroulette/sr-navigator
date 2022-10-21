@@ -2,28 +2,34 @@
 // ===================================================================
 // Sim Roulette -> AJAX
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2022 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
 include("_func.php");
-$actions=array('contSms|Отправить SMS','contCall|Набрать номер');
-if ($_GET['action'])
+$actions=array('contSms|Отправить SMS','contCall|Набрать номер или ввести USSD-команду');
+if ((int)$_GET['number'] && $result = mysqli_query($db, 'SELECT `model` FROM `devices` WHERE `id`='.(int)$_GET['dev'].' AND (`model`="SR-Box-8" OR `model`="SR-Box-Bank" OR `model`="SR-Board" OR `model`="SR-Train")')) 
 {
-	$a=explode('|',$actions[trim($_GET['action'],'a')]);
-	if (action_card_create($_GET['id'],$a[0]))
+	if ($row = mysqli_fetch_assoc($result))
 	{
-		echo 'Действие запущено...';
-		exit();
-	}
-	else
-	{
-		echo 'Ошибка!';
-		exit();
+		if ($_GET['inc'])
+		{
+			$actions=array('contIncomingCall|Закончить прием вызовов','contSms|Отправить SMS','contCall|Набрать номер или ввести USSD-команду');
+			$_GET['modem']=0;
+			$_GET['number']='000';
+		}
+		else
+		{
+			$actions=array('contIncomingCall|Принять входящий вызов','contSms|Отправить SMS','contCall|Набрать номер или ввести USSD-команду');
+		}
 	}
 }
 ?>
-Действие
+<u>Действие</u>
+<script>
+var cModem=<?=urldecode($_GET['modem'])?>;
+var cNumber='<?=$_GET['number']?>';
+</script>
 <select id="actionSelect" onchange="onlineCard()">
 <option value="-1">— Выберите действие —</option>
 <?
@@ -39,12 +45,12 @@ if ($_GET['action'])
 <div id="contSms" style="display:none;">
 <div class="sidebar">
 <br>
-Номер получателя
+<u>Номер получателя</u>
 </div>
 <input type="text" id="phone" maxlength="15" placeholder="Номер получателя">
 <div class="sidebar">
 <br>
-Текст SMS
+<u>Текст SMS</u>
 </div>
 <input type="text" id="txt" maxlength="500" placeholder="Текст SMS">
 <br>
@@ -54,9 +60,11 @@ if ($_GET['action'])
 <div id="contCall" style="display:none;">
 <div class="sidebar">
 <br>
-Номер или команда
+<u>Номер или команда USSD</u><br>
+<u>для выбора пункта из USSD-меню используйте "|", например: *111*6#|1</u><br>
+<u>для отправки USSD-команды посредством вызова добавьте в конце ";"</u>
 </div>
-<input type="text" id="phone2" maxlength="30" placeholder="Номер">
+<input type="text" id="phone2" maxlength="30" placeholder="Номер или Команда">
 <br>
 <br>
 <input type="button" onclick="onlineCommand(<?=$_GET['modem']?>,'call',document.getElementById('phone2').value,'');" value="Набрать номер" style="padding: 10px; margin-top: 5px">

@@ -1,14 +1,12 @@
 <?
 // ===================================================================
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
 include("_func.php");
 $status=1;
-
-if ($_GET['noadmin']){$_COOKIE['triforce_direct']=0;$noadmin='?noadmin=1';}
 
 if ($_POST['submit']) // Save the settings | Сохранение настроек
 {
@@ -17,15 +15,18 @@ if ($_POST['submit']) // Save the settings | Сохранение настрое
 	mysqli_query($db,$qry);
 	foreach ($_POST as $key => $value)
 	{
-		$qry="INSERT `values` SET `name`='".$key."',`value`='".$value."'";
-		mysqli_query($db,$qry);
+		if (strpos($key,'_check')===false)
+		{
+			if ($_POST[$key.'_check']==2){$value=$_POST[$key.'_check'];}
+			$qry="INSERT `values` SET `name`='".$key."',`value`='".$value."'";
+			mysqli_query($db,$qry);
+		}
 	}
-	header('location: setup.php'.$noadmin);
+	header('location: setup.php');
 	exit();
 }
 sr_header("Настройки"); // Output page title and title | Вывод титул и заголовок страницы
 ?>
-<br>
 <form method="post">
 <? 
 $a=explode("\n",$GLOBALS['sets']);
@@ -60,7 +61,7 @@ for ($i=0; $i<count($a);$i++)
 		}
 		else
 		{
-			echo auto_field($b[1],$name,$b[2],$b[0],$data,$b[3]);
+			echo auto_field($b[1],$name,$b[2],$b[0],$data,$b[3]).'<br>';
 		}
 	}
 }

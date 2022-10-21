@@ -2,7 +2,7 @@
 // ===================================================================
 // Sim Roulette -> Functions
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2022 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
@@ -10,174 +10,14 @@ Error_Reporting(~E_ALL & ~E_NOTICE & ~E_DEPRECATED);
 
 include($root.'_config.php');
 include($root.'_hardware.php');
+include($root.'_ext.php');
 require($root.'pdu/Pdu/Pdu.php'); 
 require($root.'pdu/Utf8/Utf8.php'); 
 require($root.'pdu/Exception/InvalidArgumentException.php');
 $pdu = Application\Pdu\Pdu::getInstance();
 $set_data['flags']=array();
 
-// Connecting to a database | Подключение к БД
-if ($host && $username && $userpass && $dbname)
-{
-	$db = mysqli_connect(
-	$host,  
-	$username,
-	$userpass,
-	$dbname); 
-}
-
-mysqli_set_charset($db, 'utf8');
-
-if (!$db) 
-{
-	if (file_exists('_install.php'))
-	{
-		include('_install.php');
-	}
-	else
-	{
-		printf("Unable to connect to the database. Error code: %s\n", mysqli_connect_error()); // Невозможно подключиться к базе данных.
-	}
-	exit;
-}
-
-$qry="SELECT * FROM `values`";
-$result = mysqli_query($db,$qry);
-while ($row = mysqli_fetch_array($result))
-{
-	$GLOBALS['set_data'][$row['name']]=$row['value'];
-}
-
-// Logout of an authorized user | Выход авторизованного пользователя
-if ($_GET['mode']=='logout')
-{
-	SetCookie("srlogin", "", 0, "/");
-	SetCookie("srpass", "", 0, "/");
-	header('location:index.php');
-	exit();
-}
-// Authorization | Авторизация
-if ($_SERVER['DOCUMENT_ROOT'] && $GLOBALS['set_data']['admin_login'] && ($_COOKIE['srlogin']!=$GLOBALS['set_data']['admin_login'] || $_COOKIE['srpass']!=md5($GLOBALS['set_data']['admin_pass'])))
-{
-	$qry="SELECT `id`,`name`,`pool`,`login` FROM `staff` WHERE `login`='".$_COOKIE['srlogin']."' AND md5(`pass`) = '".$_COOKIE['srpass']."'";
-	if ($result = mysqli_query($db, $qry))
-	{ 
-		if ($row = mysqli_fetch_array($result))
-		{
-			$GLOBALS['sv_owner_id']=$row['login'];
-			$GLOBALS['sv_pool']=$row['pool'];
-			$GLOBALS['sv_user_id']=1;
-			$GLOBALS['sv_staff_id']=$row['id'];
-			$GLOBALS['sv_realname']=$row['name'];
-
-			if (strpos($_SERVER['REQUEST_URI'],'online.php')===false && strpos($_SERVER['REQUEST_URI'],'ajax')===false)
-			{
-				header('location:online.php');
-				exit();
-			}
-		}
-		else
-		{
-			include('_login.php');
-			exit();
-		}
-	}
-	else
-	{
-		include('_login.php');
-		exit();
-	}
-}
-
-// Output of the header WEB page
-// Вывод верха страницы
-function sr_header($title,$win='')
-{
-//	$title		Page title
-//	$win		Modal window
-
-	global $db;
-	if ($result = mysqli_query($db, 'SELECT login FROM `users`')) 
-	{
-		while ($row = mysqli_fetch_assoc($result))
-		{
-        		$user=$row['login'];
-		}
-	}
-?><html>
-<meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/>
-<meta content="width=device-width, initial-scale=1.0, user-scalable=no" name="viewport"><meta name="theme-color" content="#2b60b7">
-<title><?=$title?></title>
-<link rel="stylesheet" type="text/css" href="sr/style.css" />
-<link rel="stylesheet" type="text/css" href="sr/modal.css" />
-<link rel="stylesheet" type="text/css" href="sr/font.css" />
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
-<script src="sr/main.js" type="text/javascript"></script>
-<body>
-
-<div class="dm-overlay"<? if ($win){?> id="<?=$win?>"<? } ?>>
-    <div class="dm-table">
-        <div class="dm-cell">
-            <div class="dm-modal">
-                <div class="dm-head">
-                <h3></h3>
-                <i class="icon-cancel dm-close win-close"></i>
-		</div>
-                <div class="dm-body">
-        	    <div class="dm-content">
-
-	            </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="menu_cont"></div>
-<table height="100%" width="100%">
-<tr class="status"><td width="1%" style="background:#171717;border-bottom: 1px solid #505050;" class="sidebar"></td><td id="status"></td></tr><tr><td bgcolor="#363636" class="sidebar"><a href="index.php"><img src="sr/logo.gif" class="logo" title="На главную страницу"></a></td><td class="head"><div class="mobilemenu" id="m" onclick="menuToggle(this)"><div class="bar1"></div><div class="bar2"></div><div class="bar3"></div></div><? if ($GLOBALS['set_data']['admin_login']){?><div class="sidebar" style="float: right; margin-right: 50px;"><?=($GLOBALS['sv_owner_id']?$GLOBALS['sv_owner_id']:$GLOBALS['set_data']['admin_login'])?> [<a href="index.php?mode=logout">выход</a>]</div><? } ?></td></tr><tr><td height=99% class="sidebar panel" valign="top">
-
-<div id="menu">
-<?
-	if (!$GLOBALS['sv_owner_id'])
-	{
-		$menu=explode("\n",$GLOBALS['set_data']['main_menu']);
-		$m=array();
-		foreach ($menu as $data)
-		{
-			$a=explode(' - ',$data);
-			$m[$a[0]]=$a[1];
-		}
-		foreach ($m as $name=>$link)
-		{
-			$link=explode(';',trim($link));
-			$url=explode('?',$link[0]);
-			if (strpos($_SERVER['REQUEST_URI'],$url[0])!==false){$a=' active';} else {$a='';}
-			if ($link[1] && $a){$link[1]='class="'.$link[1].$a.'" ';} elseif ($link[1]){$link[1]='class="'.$link[1].'" ';} elseif ($a){$link[1]='class="'.$a.'" ';}
-			echo '<div '.$link[1].'onclick="document.location=\''.$link[0].'\';">'.trim($name).'</div>';
-		}
-	}
-?>
-</div>
-</div></td><td valign="top" style="position: relative;"><em class="help" title="Помощь" onclick="help();"></em>
-<h1><?=$title?></h1>
-<?
-}
-
-// Output of the footer WEB page
-// Вывод низа страницы
-function sr_footer()
-{
-?><br></td></tr>
-<tr><td class="bottom sidebar">© <a href="http://x0.ru">X0 Systems</a>, 2016 — <?=srdate('Y')?></td>
-<td class="bottom" align="right"><? if ($GLOBALS['set_data']['admin_login']){?><div class="extinfo" style="float: left;"><?=($GLOBALS['sv_owner_id']?$GLOBALS['sv_owner_id']:$GLOBALS['set_data']['admin_login'])?> [<a href="index.php?mode=logout">выход</a>]</div><? } ?></td>
-</tr>
-</table>
-</body>
-</html><?
-}
-
-function statusAtr($dev,$status)
+function statusAtr($dev,$status,$callOnly=0)
 {
 	// Проверка на Online
 	$access=flagGet($dev,'answer',1);
@@ -202,45 +42,65 @@ function statusAtr($dev,$status)
 		$color='000';
 		if ($status==-3)
 		{
-			$st='выключен';
+			$st='ожидание';
 			$bg='CCCCCC';
 		}
 		elseif ($status==-2)
 		{
-			$st='неактивен';
-			$bg='FF9900';
+			$st='инициализация';
+			$bg='b0b5fd';
 		}
 		elseif ($status==-1)
 		{
 			$st='включение';
 			$bg='99CCFF';
 		}
+		elseif ($status==0)
+		{
+			$st='неактивна <span>0</span>';
+			$bg='ff8600';
+		}
+		elseif ($status==1 && !$callOnly)
+		{
+			$st='активна';
+			$bg='82b013';
+		}
 		elseif ($status==1)
 		{
-			$st='активен';
-			$bg='82b013';
+			$st='SMS недоступны';
+			$bg='ff5db4';
 		}
 		elseif ($status==2)
 		{
-			$st='регистрация';
+			$st='регистрация <span>2</span>';
 			$bg='eab50e';
 		}
 		elseif ($status==3)
 		{
-			$st='сеть недоступна';
+			$st='заблокирована <span>3</span>';
 			$bg='FF0000';
+			$color='fff';
 		}
 		elseif ($status==4)
 		{
-			$st='ошибка';
-			$bg='FF0000';
-			$color='FFF';
+			$st='неактивна <span>4</span>';
+			$bg='FF9900';
 		}
-		elseif ($status==0)
+		elseif ($status==5)
 		{
-			$st='ошибка';
-			$bg='FF0000';
-			$color='FFF';
+			$st='активна <span>R</span>';
+			$bg='82b013';
+		}
+		elseif ($status==6)
+		{
+			$st='[пусто]';
+			$bg='000000';
+			$color='fff';
+		}
+		elseif ($status==9)
+		{
+			$st='SMS недоступны';
+			$bg='ff5db4';
 		}
 	}
 	return(array($color,$bg,$st));
@@ -256,15 +116,15 @@ function statusAtrApi($dev,$status)
 	}
 	else
 	{
-		if ($status==-3 || $status==-1 || $status==2)
+		if ($status==-3 || $status==-1 || $status==2 || $status==-2)
 		{
 			$st='CONNECTING';
 		}
-		elseif ($status==-2 || $status==3 || $status==4 || !$status)
+		elseif ($status==3 || $status==4 || !$status)
 		{
 			$st='ERROR';
 		}
-		elseif ($status==1)
+		elseif ($status==1 || $status==5)
 		{
 			$st='WAIT_SMS';
 		}
@@ -286,53 +146,39 @@ function onlineTable($dev,$hide=0)
 		{
 			if ($row = mysqli_fetch_assoc($result))
 			{
-				$oper=array();
-				$operators=array();
-				if ($result2 = mysqli_query($db, 'SELECT * FROM `operators`')) 
-				{
-					while ($row2 = mysqli_fetch_assoc($result2))
-					{
-						$oper[$row2['name']]=$row2['title'];
-					}
-				}
-
 				$modems=unserialize($row['modems']);
-
 
 				if ($row['model']=='SR-Train')
 				{
 					foreach ($modems AS $key => $status)
 					{
-						$curRow=$status[0];
-
-                                                $ar=statusAtr($dev,$status[1]);
-					        $color=$ar[0];
-						$bg=$ar[1];
-						$st=$ar[2];
-						
-						$realPlace=$place=$status[0].'-'.$key;
+						$place=$status[0].'-'.$key;
 						if ($key>8){$place=($status[0]+3).'-'.($key-8);}
 						$places[]="'".$place."'";
-						$table[$key]=array(
-						'num'=>$key,
-						'place'=>$place,
-						'status'=>$st,
-						'bg'=>$bg,
-						'color'=>$color,
-						);
 					}
 					if (count($places))
 					{
-						if ($result = mysqli_query($db, 'SELECT c.* FROM `cards` c WHERE c.`device`='.$row['device'].' AND c.`place` IN ('.implode(',',$places).') ORDER BY c.`place`')) 
+						if ($result2 = mysqli_query($db, 'SELECT c.*, o1.`title` AS `operator_name` FROM `cards` c 
+						LEFT JOIN `operators` o1 ON o1.`name` LIKE CONCAT("%;",c.`operator`,";%") 
+						WHERE c.`device`='.$row['device'].' AND c.`place` IN ('.implode(',',$places).') ORDER BY c.`place`')) 
+						if ($result2 = mysqli_query($db, $qry)) 
 						{
 							$no=1;
-							while ($row = mysqli_fetch_assoc($result))
+							while ($row2 = mysqli_fetch_assoc($result2))
 							{
 								$no=0;
-								$numbers[$row['place']]=$row['number'];
-								$operators[$row['place']]=$oper[$row['operator']];
-								$names[$row['place']]=$row['title'];
-								$numb[]='"'.$row['number'].'"';
+								$ids[$row2['place']]=$row2['id'];
+								$numbers[$row2['place']]=$row2['number'];
+								$operators[$row2['place']]=$row2['operator_name'];
+								$names[$row2['place']]=$row2['title'];
+								if ($row2['number'])
+								{
+									$numb[]='"'.$row2['number'].'"';
+								}
+								else
+								{
+									$numb[]='"'.$row2['place'].'"';
+								}
 							}
 							if ($no)
 							{
@@ -340,7 +186,34 @@ function onlineTable($dev,$hide=0)
 							}
 						}
 					}
+					$places=array();		
+					foreach ($modems AS $key => $status)
+					{
+						$curRow=$status[0];
+						
+						$realPlace=$place=$status[0].'-'.$key;
+						if ($key>8){$place=($status[0]+3).'-'.($key-8);}
+						$places[]="'".$place."'";
+
+						if ($row['incoming'] && $numbers[$place]==$row['incoming']){$incoming=1;$callOnly=0;} 
+						elseif (!$row['incoming']){$incoming='';$callOnly=0;}
+						else {$incoming='';$callOnly=1;}
+                                                $ar=statusAtr($dev,$status[1],$callOnly);
+					        $color=$ar[0];
+						$bg=$ar[1];
+						$st=$ar[2];
+
+						$table[$key]=array(
+						'num'=>$key,
+						'incoming'=>$incoming,
+						'place'=>$place,
+						'status'=>$st,
+						'bg'=>$bg,
+						'color'=>$color,
+						);
+					}
 				}
+
 				else if ($row['model']=='SR-Organizer')
 				{
 					$n=1;
@@ -383,17 +256,167 @@ function onlineTable($dev,$hide=0)
 					}
 					if (count($places))
 					{
-						$qry='SELECT c.* FROM `cards` c WHERE c.`device`='.$row['device'].' ORDER BY c.`place`';
+						$qry='SELECT c.*, o1.`title` AS `operator_name` FROM `cards` c 
+						LEFT JOIN `operators` o1 ON o1.`name` LIKE CONCAT("%;",c.`operator`,";%") 
+						WHERE c.`device`='.$row['device'].' ORDER BY c.`place`';
 						if ($result = mysqli_query($db, $qry)) 
 						{
 							$no=1;
 							while ($row = mysqli_fetch_assoc($result))
 							{
 								$no=0;
+								$ids[$row['place']]=$row['id'];
 								$numbers[$row['place']]=$row['number'];
-								$operators[$row['place']]=$oper[$row['operator']];
+								$operators[$row['place']]=$row['operator_name'];
 								$names[$row['place']]=$row['title'];
-								$numb[]='"'.$row['number'].'"';
+								if ($row['number'])
+								{
+									$numb[]='"'.$row['number'].'"';
+								}
+								else
+								{
+									$numb[]='"'.$row['place'].'"';
+								}
+							}
+							if ($no)
+							{
+								$numb=1;
+							}
+						}
+					}
+				}
+
+				else if ($row['model']=='SR-Organizer-Smart')
+				{
+					$dt=unserialize($row['data']);
+					$n=1;
+
+					for ($i=1;$i<9;$i++)
+					{
+						$table[$i]=array(
+						'num'=>$i,
+						'place'=>'A'.$i,
+						'status'=>'B',
+						'bg'=>'DDD',
+						'color'=>'000000',
+						);
+					}
+					for ($i=1;$i<9;$i++)
+					{
+						$table[8+$i]=array(
+						'num'=>(8+$i),
+						'place'=>'B'.$i,
+						'status'=>'B',
+						'bg'=>'DDD',
+						'color'=>'000000',
+						);
+					}
+					if ($dt['lines']==3)
+					{
+						for ($i=1;$i<9;$i++)
+						{
+							$table[16+$i]=array(
+							'num'=>(16+$i),
+							'place'=>'C'.$i,
+							'status'=>'B',
+							'bg'=>'DDD',
+							'color'=>'000000',
+							);
+						}
+					}	
+					$m=array(-10,-10,-10);
+					$c=array();
+					if ($result_smart = mysqli_query($db, 'SELECT * FROM `devices_state` WHERE `device_id`='.$dev)) 
+					{
+						while ($row_smart = mysqli_fetch_assoc($result_smart))
+						{
+							$d=unserialize($row_smart['data']);
+							if ($row_smart['dev']=='modem1'){$m[0]=$row_smart['result'];$c[0]=$d->card;}
+							if ($row_smart['dev']=='modem2'){$m[1]=$row_smart['result'];$c[1]=$d->card;}
+							if ($row_smart['dev']=='modem3'){$m[2]=$row_smart['result'];$c[2]=$d->card;}
+						}
+					}
+					if ($m[0]!=-10)
+					{
+                                                $ar=statusAtr($dev,$m[0]);
+					        $color=$ar[0];
+						$bg=$ar[1];
+						$st=$ar[2];
+						$place='A'.$c[0];
+						$places[]="'".$place."'";
+						$table[($n-1)*8+$c[0]]=array(
+						'num'=>((($n-1)*8)+$c[0]),
+						'place'=>$place,
+						'status'=>$st,
+						'bg'=>$bg,
+						'color'=>$color,
+						);
+						$n++;
+					}
+					if ($dt['modems']==3)
+					{
+						if ($m[1]!=-10)
+						{
+                	                                $ar=statusAtr($dev,$m[1]);
+						        $color=$ar[0];
+							$bg=$ar[1];
+							$st=$ar[2];
+							$place='B'.$c[1];
+							$places[]="'".$place."'";
+							$table[($n-1)*8+$c[1]]=array(
+							'num'=>((($n-1)*8)+$c[1]),
+							'place'=>$place,
+							'status'=>$st,
+							'bg'=>$bg,
+							'color'=>$color,
+							);
+							$n++;
+						}
+					}
+					if ($dt['modems']==3)
+					{
+						if ($m[2]!=-10)
+						{
+                	                                $ar=statusAtr($dev,$m[2]);
+						        $color=$ar[0];
+							$bg=$ar[1];
+							$st=$ar[2];
+							$place='C'.$c[2];
+							$places[]="'".$place."'";
+							$table[($n-1)*8+$c[2]]=array(
+							'num'=>((($n-1)*8)+$c[2]),
+							'place'=>$place,
+							'status'=>$st,
+							'bg'=>$bg,
+							'color'=>$color,
+							);
+							$n++;
+						}
+					}
+					if (count($places))
+					{
+						$qry='SELECT c.*, o1.`title` AS `operator_name` FROM `cards` c 
+						LEFT JOIN `operators` o1 ON o1.`name` LIKE CONCAT("%;",c.`operator`,";%") 
+						WHERE c.`device`='.$row['device'].' ORDER BY c.`place`';
+
+						if ($result = mysqli_query($db, $qry)) 
+						{
+							$no=1;
+							while ($row = mysqli_fetch_assoc($result))
+							{
+								$no=0;
+								$ids[$row['place']]=$row['id'];
+								$numbers[$row['place']]=$row['number'];
+								$operators[$row['place']]=$row['operator_name'];
+								$names[$row['place']]=$row['title'];
+								if ($row['number'])
+								{
+									$numb[]='"'.$row['number'].'"';
+								}
+								else
+								{
+									$numb[]='"'.$row['place'].'"';
+								}
 							}
 							if ($no)
 							{
@@ -406,15 +429,363 @@ function onlineTable($dev,$hide=0)
 				{
 					$n=1;
 					$d=unserialize($row['data']);
-					if (!$d['map'] || $d['map']==1)
+					if (!$d['map'] || (strlen($d['map'])==1 && $d['map']==1))
 					{
 						for ($k=0;$k<8;$k++)
 						{
 							for ($i=1;$i<9;$i++)
 							{
+								if ($i==8){$subsection=1;} else {$subsection='';}
 								$table[($k*8)+$i]=array(
 								'num'=>($k*8)+$i,
-								'place'=>($k+1).'-'.$i,
+								'place'=>chr(64+$i).($k+1),
+								'subsection'=>$subsection,
+								'status'=>'B',
+								'bg'=>'DDD',
+								'color'=>'000000',
+								);
+							}
+						}
+					}
+					else 
+					{
+						for ($j=0;$j<8;$j++)
+						{
+							if ($d['map'][$j])
+							{
+								if ($row['model']!='SR-Board')
+								{
+									$section=($j+1).' банк';
+								}
+								for ($k=$j*8;$k<$j*8+8;$k++)
+								{
+									for ($i=1;$i<9;$i++)
+									{
+										if ($i==8){$subsection=1;} else {$subsection='';}
+										if ($k-$j*8!=$k)
+										{
+											$explane='<span class="explane">'.($k-$j*8+1).'</span>';
+										}
+										else
+										{
+											$explane='';
+										}
+										$table[($k*8)+$i]=array(
+										'num'=>($k*8)+$i,
+										'place'=>chr(64+$i).($k+1),
+										'explane'=>$explane,
+										'status'=>'B',
+										'section'=>$section,
+										'subsection'=>$subsection,
+										'bg'=>'DDD',
+										'color'=>'000000',
+										);
+										$section='';
+									}
+								}
+							}
+						}
+					}
+
+					$qry='SELECT c.*, o1.`title` AS `operator_name` FROM `cards` c 
+					LEFT JOIN `operators` o1 ON o1.`name` LIKE CONCAT("%;",c.`operator`,";%") 
+					WHERE c.`device`='.$row['device'].' ORDER BY c.`place`';
+
+					if ($result2 = mysqli_query($db, $qry)) 
+					{
+						$no=1;
+						while ($row2 = mysqli_fetch_assoc($result2))
+						{
+							$no=0;
+							if ($row2['number']!=$row2['place'])
+							{
+								$ids[$row2['place']]=$row2['id'];
+								$numbers[$row2['place']]=$row2['number'];
+							}
+							$operators[$row2['place']]=$row2['operator_name'];
+							$names[$row2['place']]=$row2['title'];
+							if ($row2['number'])
+							{
+								$numb[]='"'.$row2['number'].'"';
+							}
+							else
+							{
+								$numb[]='"'.$row2['place'].'"';
+							}
+						}
+						if ($no)
+						{
+							$numb=1;
+						}
+					}
+					foreach ($modems AS $key => $status)
+					{
+						$place=chr(64+$n).($status[0]);
+						$places[]="'".$place."'";
+						if ($n==8){$subsection=1;} else {$subsection='';}
+						if ($row['incoming'] && $numbers[$place]==$row['incoming']){$incoming=1;$callOnly=0;} 
+						elseif (!$row['incoming']){$incoming='';$callOnly=0;}
+						else {$incoming='';$callOnly=1;}
+                                                $ar=statusAtr($dev,$status[1],$callOnly);
+					        $color=$ar[0];
+						$bg=$ar[1];
+						$st=$ar[2];
+						$table[($status[0]-1)*8+$n]=array(
+						'num'=>(($status[0]-1)*8+$n),
+						'section'=>$table[($status[0]-1)*8+$n]['section'],
+						'subsection'=>$subsection,
+						'incoming'=>$incoming,
+						'explane'=>$table[($status[0]-1)*8+$n]['explane'],
+						'place'=>$place,
+						'status'=>$st,
+						'bg'=>$bg,
+						'color'=>$color,
+						);
+						$n++;
+					}
+					if (!count($places))
+					{
+						$numb='';
+					}
+				}
+				else if ($row['model']=='SR-Board')
+				{
+					$n=1;
+					$d=unserialize($row['data']);
+
+					for ($j=0;$j<8;$j++)
+					{
+						if (!$hide){$section='<a name="modem'.chr(65+$j).'"></a>Модем '.chr(65+$j).' &nbsp; ('.(($j*4)+1).'-'.(($j*4)+4).') &nbsp;&nbsp; <a href="#modems">↑</a>';}
+						for ($k=1;$k<65;$k++)
+						{
+							$nn=($k%16);
+							if (!$nn){$nn=16;}
+							if ($nn<10){$nn="0".$nn;}
+							$nn=ceil($k/16).'-'.$nn;
+							if ($k==16 || $k==32 || $k==48){$subsection=1;} else {$subsection='';}
+							$table[$j*64+$k]=array(
+							'num'=>$nn,
+							'place'=>chr(65+$j).$k,
+							'status'=>'B',
+							'section'=>$section,
+							'subsection'=>$subsection,
+							'bg'=>'DDD',
+							'color'=>'000000',
+							);
+							$section='';
+						}
+					}
+
+					$qry='SELECT c.*, o1.`title` AS `operator_name` FROM `cards` c 
+					LEFT JOIN `operators` o1 ON o1.`name` LIKE CONCAT("%;",c.`operator`,";%") 
+					WHERE c.`device`='.$row['device'].' ORDER BY c.`place`';
+
+					if ($result2 = mysqli_query($db, $qry)) 
+					{
+						$no=1;
+						while ($row2 = mysqli_fetch_assoc($result2))
+						{
+							$no=0;
+							if ($row2['number']!=$row2['place'])
+							{
+								$ids[$row2['place']]=$row2['id'];
+								$numbers[$row2['place']]=$row2['number'];
+							}
+							$operators[$row2['place']]=$row2['operator_name'];
+							$names[$row2['place']]=$row2['title'];
+							if ($row2['number'])
+							{
+								$numb[]='"'.$row2['number'].'"';
+							}
+							else
+							{
+								$numb[]='"'.$row2['place'].'"';
+							}
+						}
+						if ($no)
+						{
+							$numb=1;
+						}
+					}
+					foreach ($modems AS $key => $status)
+					{
+						$place=chr(64+$n).($status[0]);
+						$places[]="'".$place."'";
+						if ($n==64){$subsection=1;} else {$subsection='';}
+						if ($row['incoming'] && $numbers[$place]==$row['incoming']){$incoming=1;$callOnly=0;} 
+						elseif (!$row['incoming']){$incoming='';$callOnly=0;}
+						else {$incoming='';$callOnly=1;}
+                                                $ar=statusAtr($dev,$status[1],$callOnly);
+					        $color=$ar[0];
+						$bg=$ar[1];
+						$st=$ar[2];
+						if (!$hide)
+						{
+        						$nn=($n%16);
+							if (!$nn){$nn=16;}
+							if ($nn<10){$nn="0".$nn;}
+							$nn=ceil($n/16).'-'.$nn;
+						}
+						else
+						{
+							$nn=$n;
+						}
+							
+						$table[($n-1)*64+$status[0]]=array(
+						'num'=>($nn),
+						'section'=>$table[($n-1)*64+$status[0]]['section'],
+						'subsection'=>$subsection,
+						'incoming'=>$incoming,
+						'explane'=>$table[($status[0]-1)*8+$n]['explane'],
+						'place'=>$place,
+						'status'=>$st,
+						'bg'=>$bg,
+						'color'=>$color,
+						);
+						$n++;
+					}
+					if (!count($places))
+					{
+						$numb='';
+					}
+				}
+				else if ($row['model']=='SR-Box-8-Smart')
+				{
+					$dt=unserialize($row['data']);
+					$n=1;
+
+					for ($k=0;$k<8;$k++)
+					{
+						for ($i=1;$i<9;$i++)
+						{
+							$table[$i+(8*$k)]=array(
+							'num'=>$i+(8*$k),
+							'place'=>chr(65+$k).$i,
+							'status'=>'B',
+							'bg'=>'DDD',
+							'color'=>'000000',
+							);
+						}
+					}
+					$m=array(-10,-10,-10,-10,-10,-10,-10,-10);
+					$c=array();
+					if ($result_smart = mysqli_query($db, 'SELECT * FROM `devices_state` WHERE `device_id`='.$dev)) 
+					{
+						while ($row_smart = mysqli_fetch_assoc($result_smart))
+						{
+							$d=unserialize($row_smart['data']);
+							if ($row_smart['dev']=='modem1'){$m[0]=$row_smart['result'];$c[0]=$d->card;}
+							if ($row_smart['dev']=='modem2'){$m[1]=$row_smart['result'];$c[1]=$d->card;}
+							if ($row_smart['dev']=='modem3'){$m[2]=$row_smart['result'];$c[2]=$d->card;}
+							if ($row_smart['dev']=='modem4'){$m[3]=$row_smart['result'];$c[3]=$d->card;}
+							if ($row_smart['dev']=='modem5'){$m[4]=$row_smart['result'];$c[4]=$d->card;}
+							if ($row_smart['dev']=='modem6'){$m[5]=$row_smart['result'];$c[5]=$d->card;}
+							if ($row_smart['dev']=='modem7'){$m[6]=$row_smart['result'];$c[6]=$d->card;}
+							if ($row_smart['dev']=='modem8'){$m[7]=$row_smart['result'];$c[7]=$d->card;}
+						}
+					}
+					for ($k=0;$k<8;$k++)
+					{
+						if ($m[0]!=-10)
+						{
+                	                                $ar=statusAtr($dev,$m[$k]);
+						        $color=$ar[0];
+							$bg=$ar[1];
+							$st=$ar[2];
+							$place=chr(65+$k).$c[$k];
+							$places[]="'".$place."'";
+							$table[($n-1)*8+$c[$k]]=array(
+							'num'=>((($n-1)*8)+$c[$k]),
+							'place'=>$place,
+							'status'=>$st,
+							'bg'=>$bg,
+							'color'=>$color,
+							);
+							$n++;
+						}
+					}
+/*
+					if ($m[1]!=-10)
+					{
+               	                                $ar=statusAtr($dev,$m[1]);
+					        $color=$ar[0];
+						$bg=$ar[1];
+						$st=$ar[2];
+						$place='B'.$c[1];
+						$places[]="'".$place."'";
+						$table[($n-1)*8+$c[1]]=array(
+						'num'=>((($n-1)*8)+$c[1]),
+						'place'=>$place,
+						'status'=>$st,
+						'bg'=>$bg,
+						'color'=>$color,
+						);
+						$n++;
+					}
+					if ($m[2]!=-10)
+					{
+               	                                $ar=statusAtr($dev,$m[2]);
+					        $color=$ar[0];
+						$bg=$ar[1];
+						$st=$ar[2];
+						$place='C'.$c[2];
+						$places[]="'".$place."'";
+						$table[($n-1)*8+$c[2]]=array(
+						'num'=>((($n-1)*8)+$c[2]),
+						'place'=>$place,
+						'status'=>$st,
+						'bg'=>$bg,
+						'color'=>$color,
+						);
+						$n++;
+					}
+*/
+					if (count($places))
+					{
+						$qry='SELECT c.*, o1.`title` AS `operator_name` FROM `cards` c 
+						LEFT JOIN `operators` o1 ON o1.`name` LIKE CONCAT("%;",c.`operator`,";%") 
+						WHERE c.`device`='.$row['device'].' ORDER BY c.`place`';
+						if ($result = mysqli_query($db, $qry)) 
+						{
+							$no=1;
+							while ($row = mysqli_fetch_assoc($result))
+							{
+								$no=0;
+								$ids[$row['place']]=$row['id'];
+								$numbers[$row['place']]=$row['number'];
+								$operators[$row['place']]=$row['operator_name'];
+								$names[$row['place']]=$row['title'];
+								if ($row['number'])
+								{
+									$numb[]='"'.$row['number'].'"';
+								}
+								else
+								{
+									$numb[]='"'.$row['place'].'"';
+								}
+							}
+							if ($no)
+							{
+								$numb=1;
+							}
+						}
+					}
+				}
+				else if ($row['model']=='SR-Box-2-Bank')
+				{
+					$n=1;
+					$d=unserialize($row['data']);
+					if (!$d['map'] || (strlen($d['map'])==1 && $d['map']==1))
+					{
+						for ($k=0;$k<8;$k++)
+						{
+							for ($i=1;$i<9;$i++)
+							{
+								if ($i==8){$subsection=1;} else {$subsection='';}
+								$table[($k*8)+$i]=array(
+								'num'=>($k*8)+$i,
+								'place'=>chr(64+$i).($k+1),
+								'subsection'=>$subsection,
 								'status'=>'B',
 								'bg'=>'DDD',
 								'color'=>'000000',
@@ -433,6 +804,7 @@ function onlineTable($dev,$hide=0)
 								{
 									for ($i=1;$i<9;$i++)
 									{
+										if ($i==8){$subsection=1;} else {$subsection='';}
 										if ($k-$j*8!=$k)
 										{
 											$explane='<span class="explane">'.($k-$j*8+1).'</span>';
@@ -443,10 +815,11 @@ function onlineTable($dev,$hide=0)
 										}
 										$table[($k*8)+$i]=array(
 										'num'=>($k*8)+$i,
-										'place'=>($k+1).'-'.$i,
+										'place'=>chr(64+$i).($k+1),
 										'explane'=>$explane,
 										'status'=>'B',
 										'section'=>$section,
+										'subsection'=>$subsection,
 										'bg'=>'DDD',
 										'color'=>'000000',
 										);
@@ -456,85 +829,132 @@ function onlineTable($dev,$hide=0)
 							}
 						}
 					}
-					foreach ($modems AS $key => $status)
+
+					$qry='SELECT c.*, o1.`title` AS `operator_name` FROM `cards` c 
+					LEFT JOIN `operators` o1 ON o1.`name` LIKE CONCAT("%;",c.`operator`,";%") 
+					WHERE c.`device`='.$row['device'].' ORDER BY c.`place`';
+
+					if ($result2 = mysqli_query($db, $qry)) 
 					{
-                                                $ar=statusAtr($dev,$status[1]);
-					        $color=$ar[0];
-						$bg=$ar[1];
-						$st=$ar[2];
-						$place=$status[0].'-'.$n;
-						$places[]="'".$place."'";
-						$table[($status[0]-1)*8+$n]=array(
-						'num'=>(($status[0]-1)*8+$n),
-						'section'=>$table[($status[0]-1)*8+$n]['section'],
-						'explane'=>$table[($status[0]-1)*8+$n]['explane'],
-						'place'=>$place,
-						'status'=>$st,
-						'bg'=>$bg,
-						'color'=>$color,
-						);
-						$n++;
-					}
-					if (count($places))
-					{
-						$qry='SELECT c.* FROM `cards` c WHERE c.`device`='.$row['device'].' ORDER BY c.`place`';
-						if ($result = mysqli_query($db, $qry)) 
+						$no=1;
+						while ($row2 = mysqli_fetch_assoc($result2))
 						{
-							$no=1;
-							while ($row = mysqli_fetch_assoc($result))
+							$no=0;
+							if ($row2['number']!=$row2['place'])
 							{
-								$no=0;
-								$numbers[$row['place']]=$row['number'];
-								$operators[$row['place']]=$oper[$row['operator']];
-								$names[$row['place']]=$row['title'];
-								$numb[]='"'.$row['number'].'"';
+								$ids[$row2['place']]=$row2['id'];
+								$numbers[$row2['place']]=$row2['number'];
 							}
-							if ($no)
+							$operators[$row2['place']]=$row2['operator_name'];
+							$names[$row2['place']]=$row2['title'];
+							if ($row2['number'])
 							{
-								$numb=1;
+								$numb[]='"'.$row2['number'].'"';
+							}
+							else
+							{
+								$numb[]='"'.$row2['place'].'"';
 							}
 						}
+						if ($no)
+						{
+							$numb=1;
+						}
+					}
+					foreach ($modems AS $key => $status)
+					{
+						$place=chr(64+$n).($status[0]);
+						$places[]="'".$place."'";
+						if ($n==8){$subsection=1;} else {$subsection='';}
+						if ($row['incoming'] && $numbers[$place]==$row['incoming']){$incoming=1;$callOnly=0;} 
+						elseif (!$row['incoming']){$incoming='';$callOnly=0;}
+						else {$incoming='';$callOnly=1;}
+						if ($status[1]>-4)
+						{
+	                                                $ar=statusAtr($dev,$status[1],$callOnly);
+						        $color=$ar[0];
+							$bg=$ar[1];
+							$st=$ar[2];
+							$table[($status[0]-1)*8+$n]=array(
+							'num'=>(($status[0]-1)*8+$n),
+							'section'=>$table[($status[0]-1)*8+$n]['section'],
+							'subsection'=>$subsection,
+							'incoming'=>$incoming,
+							'explane'=>$table[($status[0]-1)*8+$n]['explane'],
+							'place'=>$place,
+							'status'=>$st,
+							'bg'=>$bg,
+							'color'=>$color,
+							);
+						}
+						$n++;
+					}
+					if (!count($places))
+					{
+						$numb='';
 					}
 				}
 				else if ($row['model']=='SR-Box-8')
 				{
 					foreach ($modems AS $key => $status)
 					{
-						$curRow=$status[0];
-
-                                                $ar=statusAtr($dev,$status[1]);
-					        $color=$ar[0];
-						$bg=$ar[1];
-						$st=$ar[2];
-						
-						$realPlace=$place=$status[0].'-'.$key;
-						$places[]="'".$place."'";
-						$table[$key]=array(
-						'num'=>$key,
-						'place'=>$place,
-						'status'=>$st,
-						'bg'=>$bg,
-						'color'=>$color,
-						);
+						$places[]="'".chr($key+64)."'";
 					}
 					if (count($places))
 					{
-						if ($result = mysqli_query($db, 'SELECT c.* FROM `cards` c WHERE c.`device`='.$row['device'].' AND c.`place` IN ('.implode(',',$places).') ORDER BY c.`place`')) 
+						$qry='SELECT c.*, o1.`title` AS `operator_name` FROM `cards` c 
+						LEFT JOIN `operators` o1 ON o1.`name` LIKE CONCAT("%;",c.`operator`,";%") 
+						WHERE c.`device`='.$row['device'].' AND c.`place` IN ('.implode(',',$places).') ORDER BY c.`place`';
+						if ($result2 = mysqli_query($db, $qry)) 
 						{
 							$no=1;
-							while ($row = mysqli_fetch_assoc($result))
+							while ($row2 = mysqli_fetch_assoc($result2))
 							{
 								$no=0;
-								$numbers[$row['place']]=$row['number'];
-								$operators[$row['place']]=$oper[$row['operator']];
-								$names[$row['place']]=$row['title'];
-								$numb[]='"'.$row['number'].'"';
+								if ($row2['number']!=$row2['place'])
+								{
+									$ids[$row2['place']]=$row2['id'];
+									$numbers[$row2['place']]=$row2['number'];
+								}
+								$operators[$row2['place']]=$row2['operator_name'];
+								$names[$row2['place']]=$row2['title'];
+								if ($row2['number'])
+								{
+									$numb[]='"'.$row2['number'].'"';
+								}
+								else
+								{
+									$numb[]='"'.$row2['place'].'"';
+								}
 							}
 							if ($no)
 							{
 								$numb=1;
 							}
 						}
+					}
+					$places=array();
+					foreach ($modems AS $key => $status)
+					{
+						$curRow=$status[0];
+						$realPlace=$place=chr($key+64);
+						$places[]="'".$place."'";
+						if ($row['incoming'] && $numbers[$place]==$row['incoming']){$incoming=1;$callOnly=0;} 
+						elseif (!$row['incoming']){$incoming='';$callOnly=0;}
+						else {$incoming='';$callOnly=1;}
+                                                $ar=statusAtr($dev,$status[1],$callOnly);
+					        $color=$ar[0];
+						$bg=$ar[1];
+						$st=$ar[2];
+
+						$table[$key]=array(
+						'num'=>$key,
+						'place'=>$place,
+						'incoming'=>$incoming,
+						'status'=>$st,
+						'bg'=>$bg,
+						'color'=>$color,
+						);
 					}
 				}
 				else
@@ -552,14 +972,24 @@ function onlineTable($dev,$hide=0)
 					'color'=>$color,
 					);
 
-					if ($result = mysqli_query($db, 'SELECT c.* FROM `cards` c WHERE c.`device`='.$row['device']." AND c.`place`='".$modems[0]."'")) 
+					if ($result = mysqli_query($db, 'SELECT c.*, o1.`title` AS `operator_name` FROM `cards` c 
+					LEFT JOIN `operators` o1 ON o1.`name` LIKE CONCAT("%;",c.`operator`,";%") 
+					WHERE c.`device`='.$row['device']." AND c.`place`='".$modems[0]."'")) 
 					{
 						if ($row = mysqli_fetch_assoc($result))
 						{
+							$ids[$row['place']]=$row['id'];
 							$numbers[$row['place']]=$row['number'];
-							$operators[$row['place']]=$oper[$row['operator']];
+							$operators[$row['place']]=$row['operator_name'];
 							$names[$row['place']]=$row['title'];
-							$numb[]='"'.$row['number'].'"';
+							if ($row['number'])
+							{
+								$numb[]='"'.$row['number'].'"';
+							}
+							else
+							{
+								$numb[]='"'.$row['place'].'"';
+							}
 						}
 						else
 						{
@@ -572,58 +1002,102 @@ function onlineTable($dev,$hide=0)
 		}
 		if (count($table))
 		{
-			$s='
+			$ss='';
+			if ($row['model']=='SR-Board' && !$hide)
+			{
+				$ss.='<a name="modems"></a>&nbsp;&nbsp;Модемы: <a href="#modemA">A</a> <a href="#modemB">B</a> <a href="#modemC">C</a> <a href="#modemD">D</a> <a href="#modemE">E</a> <a href="#modemF">F</a> <a href="#modemG">G</a> <a href="#modemH">H</a>';
+			}
+			$ss.='
 <table class="table table_small">
 <tr>
 	<th class="sidebar">№</th>
 	<th class="sidebar">Имя</th>
-	<th style="text-align:center;">Место</th>
-	<th style="text-align:center;">Номер</th>
+	<th style="text-align:center; width: ';
+	if ($row['model']=='SR-Board'){$ss.='80';} else {$ss.='60';} 
+	$ss.='px;">Место</th>
+	<th>Номер</th>
 	<th class="sidebar">Оператор</th>
-	<th style="text-align:center;width: 90px;">Статус</th>
+	<th style="text-align:center;width: 135px;">Статус</th>
 </tr>';         
 			$n=0;
 			foreach ($table as $key=>$data)
 			{
-				if (!$numbers[$data['place']]){$numbers[$data['place']]='—';} else 
+				$s='';				
+				if (!$numbers[$data['place']]){$nt=$numbers[$data['place']]='—';} else 
 				{
+					$nt='';
 					$prefix='+'.substr($numbers[$data['place']],0,1);
 					$num=substr($numbers[$data['place']],1,255);
 					$numbers[$data['place']]='<span class="note2 light" onclick="copy(\''.$numbers[$data['place']].'\');soundClick();">'.$prefix.'</span><span class="note2" onclick="copy(\''.$num.'\');soundClick();">'.$num.'</span>';
 				}
 
-				if ($data['section']){$s.='<td colspan="6" class="section">'.$data['section'].'</td></tr>';}
+				if ($data['section']){$s.='<tr><td colspan="6" class="section">'.$data['section'].'</td></tr>';}
+
+				if ($data['subsection'] && $data['incoming'] && !$hide){$class=' incoming subsection';} 
+				elseif ($data['incoming']){$class=' incoming';} 
+				elseif ($data['subsection'] && !$hide){$class=' subsection';} else {$class='';}
 
 				if (($data['status']!='—' && $data['status']!='B') || !$hide)
 				{
-					$s.='<tr class="rowhide">';
-
-	$s.='<td class="sidebar" align="right">'.$data['num'].'</td>
+					$s.='<tr class="rowhide'.$class.'">';
+					$s.='<td class="sidebar" align="right">'.$data['num'].'</td>
 	<td class="sidebar">'.($names[$data['place']]?$names[$data['place']]:'—').'</td>
 	<td align="center">';
-	if ($data['status']=='—')
-	{
-		$s.=$data['place'].'</td>';
-	}
-	elseif ($data['status']=='B')
-	{
-		$data['status']='—';
-		$s.='<span onclick="onlineCreateCom('.$dev.',\'place:'.$data['place'].'\');soundClick();" class="but_win">'.$data['place'].'</span>';
-	}
-	else
-	{
-		$s.='<span onclick="winOpen(this)" class="but_win sel" data-id="win_action" data-title="Управление номером '.strip_tags($numbers[$data['place']]).'" data-type="ajax_online_card_action.php?number='.strip_tags($numbers[$data['place']]).'&modem='.$key.'" data-height="400" data-width="600">'.$data['place'].'</span>';
-	}
-	$s.=$data['explane'].'</td><td align="center">'.$numbers[$data['place']].'</td>
+
+					$a=$data['place'];
+					$ad=$marker=(ord($a[0])-64)*4-3;
+					$a=substr($a,1,255);
+					$as=$a%16;
+					$ab=ceil($a/16);
+					if (!$as){$as=16;}
+					$marker+=$ab-1;
+					$marker.=','.$as;
+
+
+					if ($data['status']=='—')
+					{
+						$s.=$data['place'].'</td>';
+					}
+					elseif ($data['status']=='B')
+					{
+						$data['status']='—';
+						$s.='<span onclick="onlineCreateCom('.$dev.',\'place:'.$data['place'].'\');soundClick();" class="but_nowin">'.$data['place'].'</span>';
+						if ($row['model']=='SR-Board' && !$GLOBALS['sv_staff_id']){$s.=' <a href="javascript:void();" onclick="eject('.$dev.',\'marker:'.$marker.'\');"><i class="icon-eject"></i></a>';}
+					}
+					else
+					{
+						$nn=$nc=strip_tags($numbers[$data['place']]);
+						if ($nn=='—')
+						{		
+							$nn=$data['place'];
+							$nc='картой '.$data['place'];
+						}
+						else
+						{
+							$nc='номером '.$nc;
+						}
+						if ($key>8 && ord($data['place'][0])>57)
+						{
+							$key=$key%8;
+							if ($key==0){$key=8;}
+						}
+						if ($row['model']=='SR-Board'){$key=ord($data['place'][0])-64;}
+						$s.='<span onclick="winOpen(this)" class="but_win sel" data-id="win_action" data-title="Управление '.$nc.'" data-type="ajax_online_card_action.php?cardId='.strip_tags($ids[$data['place']]).'&number='.urlencode($nn).'&inc='.(int)$data['incoming'].'&dev='.$dev.'&modem='.$key.'" data-height="400" data-width="600">'.$data['place'].'</span>';
+						if ($row['model']=='SR-Board' && !$GLOBALS['sv_staff_id']){$s.=' <a href="javascript:void();" onclick="eject('.$dev.',\'marker:'.$marker.'\');"><i class="icon-eject"></i></a>';}
+					}
+
+					$s.=$data['explane'].'</td><td>'.$numbers[$data['place']].'<br><div class="legend extinfo">'.$names[$data['place']].'</div></td>
 	<td class="sidebar" align="center">'.($operators[$data['place']]?$operators[$data['place']]:'—').'</td>
-	<td id="status_'.$data['num'].'"';
+	<td class="onlineStatus" id="status_'.$data['num'].'"';
 	if ($data['color']){$s.=' style="color: #'.$data['color'].';background:#'.$data['bg'].'"';} 
 	$s.=' align="center">'.$data['status'].'</td>
 </tr>';
+
+					if (!$nt || !$sv_staff_id){$ss.=$s;}
 				}
 			}
-$s.='</table>';
-			return(array($s,$numb,$curRow,count($table)));
+$ss.='</table>';
+			return(array($ss,$numb,$curRow,count($table)));
 		}
 	}
 }
@@ -635,16 +1109,28 @@ function onlineView($numb)
 //	$numb		Array with phone numbers to receive SMS for
 
 	global $db;
-	if ($result = mysqli_query($db, 'SELECT * FROM `sms_incoming` WHERE `number` IN ('.implode(',',$numb).') AND `done`=1 ORDER BY `id` DESC LIMIT 10')) 
+
+	$qry='SELECT s.*,c.place,c.title AS `ctitle` FROM `sms_incoming` s 
+	INNER JOIN `cards` c ON (c.`place` IN ('.implode(',',$numb).') OR c.`number` IN ('.implode(',',$numb).')) AND (c.id=s.card_id OR c.number=s.number)
+	WHERE s.`done`=1 
+	ORDER BY s.`id` DESC LIMIT 10';
+	if ($result = mysqli_query($db, $qry)) 
 	{
 		while ($row = mysqli_fetch_assoc($result))
 		{
-			$number='+'.$row['number'];
+			if ($row['number'])
+			{
+				$number='+'.$row['number'].'<div class="answer_head">'.trim($row['ctitle'].' '.$row['place']).'</div>';
+			}
+			else
+			{
+				$number=trim($row['ctitle'].' '.$row['place'].'');
+			}
 			$txt=sms_out($row['txt']);
 			$time=$row['time'];
 			$sender=$row['sender'];
 			if (!$id){$id=$row['id']+1;}
-			$s.='<div class="term_answer_item"><div class="answer_left answer_head" style="width: 120px;">'.srdate('H:i:s d.m',$time).'</div><div class="answer_head">'.$sender.'</div><div class="answer_left answer_fix">'.$number.'</div><div style="margin-left: 140px;">'.$txt.'</div></div>';
+			$s.='<div class="term_answer_item"><div class="answer_left answer_head" style="width: 120px;">'.srdate('H:i:s d.m',$time).'</div><div class="answer_head">'.$sender.'</div><div class="answer_left answer_fix">'.$number.'</div><div class="list_txt">'.$txt.'</div></div>';
 		}
 	}
 	return(array($s,$id));
@@ -747,8 +1233,8 @@ function auto_field($title,$name,$type,$desc='',$data='',$comment='')
 	}
 	elseif ($type=='check')
 	{
-		$str.= '<input type="checkbox" id="'.$name.'" name="'.$name.'" class="make-switch" value="1" data-on-color="success" data-off-color="danger"';
-		if ($data){$str.= 'checked';}
+		$str.= '<input type="hidden" value="1" name="'.$name.'"><input type="checkbox" id="'.$name.'" name="'.$name.'_check" class="make-switch" value="2" data-on-color="success" data-off-color="danger"';
+		if ($data==2){$str.= 'checked';}
 		$str.= '>';
 	}
 	$str.= '</div>';
@@ -782,6 +1268,16 @@ function br($dev,$file='stop')
 		flagDelete($dev,'cron');
 		exit();
 	}
+}
+
+// Check for the flag
+// Проверка наличия флага
+function ts($dev,$file='stop')
+{
+//	$dev		Device ID
+//	$file		Filename
+
+	setlog('Вызов отмененной функции ts','error');
 }
 
 // Preparing the balance
@@ -832,6 +1328,17 @@ function setlog($data,$file='sr')
 		}
 		file_put_contents($root.'logs/'.$file.'.log',$t);
 	}
+	$f=fopen($root.'logs/'.$file.'.log', "a"); 
+	fwrite($f,date('H:i:s d.m.Y').' '.$data."\n");
+	fclose($f);
+}
+
+function setlog_full($data,$file='sr')
+{
+//	$data		Text string
+//	$file		Filename
+
+	global $root;
 	$f=fopen($root.'logs/'.$file.'.log', "a"); 
 	fwrite($f,date('H:i:s d.m.Y').' '.$data."\n");
 	fclose($f);
@@ -951,7 +1458,7 @@ function operator_select()
 			$name=$row['name'];
 		}
 	}
-	if ($result = mysqli_query($db, 'SELECT c.`id`,c.`operator` FROM `cards` c')) 
+	if ($result = mysqli_query($db, 'SELECT `id`,`operator` FROM `cards`')) 
 	{
 		while ($row = mysqli_fetch_assoc($result))
 		{
@@ -979,7 +1486,7 @@ function trim_number($number)
 function trim_balance($balance)
 {
 	setlog($balance,'balance');
-        preg_match('!(минус|minus)!i', $balance, $minus);
+        preg_match('!(инус|inus)!i', $balance, $minus);
 	$minus=$minus[0];
         preg_match('!([0-9]{1,5})([\.|\,])*([0-9]{1,2})*!', $balance, $test);
 	$a=strpos($balance,$test[1]);
@@ -991,9 +1498,352 @@ function trim_balance($balance)
 		} 
 	}
 	$balance=str_replace(',','.',trim(trim($test[1].$test[2].$test[3],'.')));
-	setlog($balance,'balance');
 	if ($minus){$balance=$balance*-1;}
-	setlog($balance,'balance');
 	return($balance);
 }
+
+function get_values($user_id=0)
+{
+	global $db;
+	$qry="SELECT * FROM `values`";
+	$result = mysqli_query($db,$qry);
+	while ($row = mysqli_fetch_array($result))
+	{
+		$GLOBALS['set_data'][$row['name']]=$row['value'];
+	}
+}
+
+function nullto0($txt)
+{
+	if ($txt=='NULL'){$txt=0;}
+	return($txt);
+}
+
+// Отправка писем пользователям
+function email2user($email,$title,$text,$name='',$action='',$greeting='',$photos='',$file='', $email_from='') 
+{
+	$txt=$text;
+	$mtemp=mail_template_out($title,$text);
+
+	if (!$greeting && $name){$greeting='Здравствуйте, '.$name.'.';}
+	elseif (!$greeting){$greeting='Здравствуйте';}
+
+	if (!$action){$action=$title;}
+
+	$headers  = "Content-type: text/html; charset=UTF-8 \r\n"; 
+	$headers .= "From: ".$GLOBALS['set_data']['sitemail']."\r\n"; 
+	$mtemp['body']=str_replace('{title}',$action,$mtemp['body']);
+	$mtemp['body']=str_replace('{greeting}',$greeting,$mtemp['body']);
+	$mtemp['body']=str_replace('{content}',$text,$mtemp['body']);
+
+	$photos_preview='';
+
+	if ($photos)
+	{
+		$str='
+				<tr>
+					<td style="padding: 0 30px 30px 30px;">
+			                	<table border="0" cellspacing="0" cellpadding="0">
+							<tbody>
+								<tr>
+';
+		$a=explode(';',$photos);
+		for ($i=0;$i<count($a);$i++)
+		{
+			$photos_preview.=tri_image_output($a[$i],0,150,300,300,'','',1).';';
+			$str.='
+									<td align="left">
+					                  			<table border="0" cellspacing="0" cellpadding="0">
+											<tbody>
+												<tr>
+													<td>
+														<img style="color: rgb(255, 255, 255); font-size: 36px; font-weight: bold;" src="cid:pic'.($i+1).'" border="0" />
+													</td>
+							                                        </tr>
+											</tbody>
+										</table>
+									</td>
+									<td width="16"></td>
+
+';
+
+		}
+		$str.='
+									<td width="96" height="96" align="center" style=\'color: rgb(159,177,187); line-height: 96px; font-family: "Trebuchet MS","Helvetica CY","DejaVu Sans",serif; font-size: 36px;\' bgcolor="#e9f0f4">
+				                        	        	...
+                                					</td>
+								</tr>
+							</tbody>
+						</table>
+					</td>
+				</tr>
+';
+	}
+
+	$mtemp['body']=str_replace('{photos}',$str,$mtemp['body']);
+
+	$text=$mtemp['body'];
+	$text=str_replace('{begin}',$mtemp["begin"],$text);
+	$text=str_replace('{end}',$mtemp["end"],$text);
+
+	$site_mail=$GLOBALS['set_data']['sysmail'];
+	$site_title='SIM Roulette';
+	$site_adv_image='';
+
+	if (!$email_from)
+	{
+		mailer($title,$site_mail,$site_title,$text,$email,$name,'mail/logo.png;'.$photos_preview,$file,$site_adv_image);
+	} 
+	else 
+	{
+		mailer($title,$email_from,$site_title,$text,$email,$name,'mail/logo.png;'.$photos_preview,$file,$site_adv_image);
+	}
+}
+
+function mail_template_out($title,$text) 
+{
+	$mtemp=array();
+	$mtemp["body"]='<table width="100%" bgcolor="#f1f5f8" border="0" cellspacing="0" cellpadding="0" style="border: 50px solid #f1f5f8; border-bottom: 10px solid #f1f5f8;">
+<tbody>
+<tr>
+	<td style="padding: 15px; font-size: 15px;" bgcolor="#003663">
+		<a href="'.$GLOBALS['set_data']['siteurl'].'"><img src="cid:pic0" border="0" alt="'.$GLOBALS['set_data']['sitename'].'" style="margin: 8px 0 2px 18px;"></a>
+	</td>
+</tr>
+<tr>
+	<td bgcolor="#dae1e5" border="0" cellspacing="0" cellpadding="0" style="padding: 20px 30px; color: rgb(52,52,52); text-transform: uppercase; font-family: Tahoma,Geneva CY,sans-serif; font-size: 16px;">
+		{title}
+	</td>
+</tr>
+<tr>
+	<td style="border-bottom-color: rgb(223,230,235); border-bottom-width: 1px; border-bottom-style: solid;">
+		<table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#FFFFFF">
+			<tbody>
+				<tr>
+					<td style="padding: 20px 30px; color: rgb(52,52,52); text-transform: uppercase; font-family: Tahoma,Geneva CY,sans-serif; font-size: 19px; font-weight: bold;">
+                                            {greeting}                                    
+					</td>
+			      	</tr>
+				<tr>
+					<td style="padding: 0 30px 25px 30px; color: rgb(52,52,52); font-family: Tahoma,Geneva CY,sans-serif; font-size: 15px;">
+                                            {content}<br />
+					</td>
+			      	</tr>
+				{photos}
+			</tbody>
+		</table>
+	</td>
+</tr>
+<tr>
+	<td bgcolor="#efe8e1" border="0" cellspacing="0" cellpadding="0" style="padding: 10px 30px; color: rgb(52,52,52); font-family: Tahoma,Geneva CY,sans-serif; font-size: 16px;">
+		<table width="100%" border="0" cellspacing="0" cellpadding="0">
+			<tbody>
+				<tr>
+					<td width="50">
+<!--                                            <div style="margin-right: 20px; padding-top: 3px;"><a href="'.$GLOBALS['set_data']['letter_advert_url'].'"><img src="cid:adv" border="0"></a></div> -->
+					</td>
+					<td>
+                                            <em>'.$GLOBALS['set_data']['letter_advert_txt'].'</em>
+					</td>
+			      	</tr>
+			</tbody>
+		</table>
+	</td>
+</tr>
+</tbody>
+</table>
+';
+
+	$mtemp["begin"]='
+<br /><br /><table align="center" border="0" width="100%" cellspacing="0" cellpadding="0" style="border: 10px solid #dae1e5;">
+	<tbody>
+		<tr>
+			<td style="padding: 20px;">
+';
+	$mtemp["end"]='
+			</td>
+		</tr>
+	</tbody>
+</table><br />
+';  
+	return($mtemp);
+}
+
+function mailer($title,$revmail,$revname,$letter,$mail,$name,$image,$file,$adv='')
+{
+	global $root;
+	require_once($root.'mail/class.phpmailer.php');
+
+	$letter=str_replace(' ','
+ ',$letter);
+
+	if (strpos($mail,'generate_')!==false)
+	{
+		$mail=substr($mail,18,255);
+	}
+	$mailer = new PHPMailer();      
+	$mailer->priority = 3;
+	$mailer->IsHTML(true);
+	$mailer->CharSet = "UTF-8";
+	$mailer->IsSendmail();
+	$mailer->From = $revmail;
+	$mailer->FromName = $revname;
+	$mailer->Sender = $mailer->From;
+	$mailer->Subject = $title;
+	$mailer->Body = $letter;
+	$mailer->AddAddress($mail, $name);
+
+	if ($file)
+	{
+		$fn=explode('/',$file);
+		$mailer->AddAttachment($root.$file, $fn[count($fn)-1]);
+	}
+
+	if ($adv)
+	{
+		$mailer->AddEmbeddedImage($root.$adv, 'adv', '', 'base64', 'image/jpeg');
+	}
+
+	$a=explode(';',$image);
+	for ($i=0;$i<count($a);$i++)
+	{
+		if ($a[$i])
+		{
+			$mailer->AddEmbeddedImage($root.$a[$i], 'pic'.$i, '', 'base64', 'image/jpeg');
+		}
+	}
+
+	if(!$mailer->Send()){
+		$out=false;
+	} else {
+		$out=true;
+	}
+
+	$mailer->ClearAddresses();
+	$mailer->ClearAttachments();
+	$mailer->IsHTML(true);
+
+	unset($mailer);
+		
+	return($out);
+}
+
+function icon_out($model,$data,$color=1)
+{
+	$data=unserialize($data);
+	$icon=strtolower($model);
+	if (strpos($icon,'-500')!==false){$icon=str_replace('-500','',$icon);}
+	if (strpos($icon,'-1000')!==false){$icon=str_replace('-1000','',$icon);}
+	if (strpos($icon,'-smart')!==false){$sm=1;$icon=str_replace('-smart','',$icon);}
+	if (strpos($icon,'-8')!==false){$icon=str_replace('-8','',$icon);}
+	if (strpos($icon,'-2')!==false){$icon=str_replace('-2','',$icon);}
+	if (strpos($icon,'organizer')!==false && $data['modems']==3){$icon.='-24-3';}
+	elseif (strpos($icon,'organizer')!==false && $data['lines']==3){$icon.='-24-1';}
+	elseif (strpos($icon,'organizer')!==false && ($data['lines']==1 || !$sm)){$icon.='-16-1';}
+	elseif (strpos($icon,'organizer')!==false){$icon.='s';}
+	if (strpos($icon,'box-bank')!==false && $data['map']!=1){$icon.='s';}
+	if (!$color){$c=' class="grayscale"';}
+	return($rev.'<img src="icons/'.$icon.'.svg"'.$c.'>');
+}
+
+function stat_resume($count,$percent)
+{
+	if ($count<100){$color='CCCCCC';$resume="Недостаточно информации...";}
+	else if ($percent<5){$color='9ad840';$resume="Аппарат исправен!";}
+	elseif ($percent<10){$color='bab022';$resume="Есть замечания!";}
+	elseif ($percent<25){$color='e18c44';$resume="Есть небольшие проблемы!";}
+	else {$color='d25743';$resume="Требуется калибровка!";}
+	return(array($resume,$color));
+}
+
+function scrollbar($vsego,$pn,$lim,$value,$url="",$buffer=1,$method="get")
+{
+	if ($vsego<=$lim){return;}
+	global $REQUEST_URI;
+	$buff='
+	<div class="pagination">
+';
+	$method=strtolower($method);
+	$summa=0;
+	$vse=$vsego;
+	while($vsego>0)
+	{
+		$summa++;
+		$vsego=$vsego-$lim;
+	}
+	if ($summa>1)
+	{
+		if (!$url)
+		{
+			$url=$_SERVER['REQUEST_URI'];
+			$url=str_replace("$value=","",$url);
+		}
+		$a=explode('&',str_replace('?','&',$url));
+		$a[]=$value;
+		for ($i=0;$i<count($a);$i++)
+		{
+			if ((int)$a[$i]){unset($a[$i]);}
+		}
+		$url=$a[0].'?';
+		unset($a[0]);
+		$url.=implode('&',$a);
+		
+		if ($method=="get")
+		{
+			if ($pn>1)
+			{
+				$a=$pn-$lim; 
+				$buff.='
+				<a href="'.$url.'='.($pn-1).'"><</a>';
+			}
+			$klm=1;
+			while ($klm<=$summa)
+			{
+				$pn2=($klm-1)*$lim;
+				if ($pn==$klm)
+				{
+					$buff.='
+				<span class="page_active">'.$klm.'</span>';
+				}
+				else
+				{
+					$buff.=' <a href="'.$url.'='.$klm.'">'.$klm.'</a>';
+				}
+				$klm++;
+			}
+			if ($pn<$klm-1)
+			{
+				$buff.=' <a href="'.$url.'='.($pn+1).'">></a>';
+			}
+		}
+	}
+	$buff.='
+	</div>
+';
+	if (!$buffer){echo $buff;} else {return($buff);}
+}
+
+function pool_clear()
+{
+	global $db;
+	$qry='SELECT cp.id FROM `card2pool` cp
+	LEFT JOIN `pools` p ON p.`id`=cp.`pool`
+	WHERE p.`id` IS NULL';
+	if ($result = mysqli_query($db, $qry)) 
+	{
+		while ($row = mysqli_fetch_assoc($result))
+		{
+			$qry="DELETE FROM `card2pool` WHERE `id`=".$row['id'];
+			mysqli_query($db,$qry);
+		}
+	}
+}
+
+function flag_clear()
+{
+	global $db;
+	$qry="DELETE FROM `flags` WHERE `time`<".(time()-86400*7)." AND `name` LIKE '%act_'";
+	mysqli_query($db,$qry);
+}
+
 ?>

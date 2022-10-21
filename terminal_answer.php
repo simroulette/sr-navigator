@@ -2,13 +2,14 @@
 // ===================================================================
 // Sim Roulette -> AJAX
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2022 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
 include("_func.php");
 if ($_GET['step'])
 {
+//	echo $c.'-'.rand(111,999);
 	$dev="-";
 	if ($result = mysqli_query($db, 'SELECT `title`,`step` FROM `devices` WHERE `id`='.(int)$_GET['device'])) 
 	{
@@ -22,7 +23,9 @@ if ($_GET['step'])
 	{
 		$GLOBALS['terminal_mode']=1;
 		sr_command((int)$_GET['device'],$c);
-		echo '<div class="term_item" onclick="document.getElementById(\'command\').value=\''.str_replace('"','&quot;',$c).'\';"><div class="answer_left answer_head">'.srdate('H:i:s').'</div><div class="answer_head">'.$dev.'</div><div class="answer_left" style="text-align: right;">'.$step++.'</div><div>'.$c.'</div></div>'.$str;
+//	echo $c.'+'.rand(111,999); exit();
+//		echo '<div class="term_item" onclick="document.getElementById(\'command\').value=\''.str_replace('"','&quot;',$c).'\';"><div class="answer_left answer_head">'.srdate('H:i:s').'</div><div class="answer_head">'.$dev.'</div><div class="answer_left" style="text-align: right;">'.$step++.'</div><div>'.$c.'</div></div>'.$str;
+		echo '<div class="term_item" onclick="document.getElementById(\'command\').value=\''.str_replace('"','&quot;',$c).'\';"><div class="answer_left answer_head">'.srdate('H:i:s').'</div><div class="answer_head">'.$dev.'</div><div class="answer_left" style="text-align: right;">'.$step++.'</div><div>'.$c.'</div></div>'.$str;//.'#!#'.$_GET['com_id'];
 		exit();
 	}
 	$qry="UPDATE `devices` SET
@@ -34,19 +37,19 @@ if ($_GET['step'])
 $n=0;
 
 // Getting responses from client devices | Получение ответов агрегаторов-клиентов
-if ($result = mysqli_query($db, 'SELECT l.*,unix_timestamp(l.time) AS time, d.title FROM `link_incoming` l INNER JOIN `devices` d ON d.id=l.device ORDER BY l.`id` LIMIT 5')) 
+if ($result = mysqli_query($db, 'SELECT l.*,unix_timestamp(l.time) AS time, d.title FROM `link_incoming` l INNER JOIN `devices` d ON l.id>'.(int)$_GET['com_id'].' AND d.id=l.device ORDER BY l.`id` LIMIT 5')) 
 {
 	while ($row = mysqli_fetch_assoc($result))
 	{
 		if (!$n){echo '#!#';} $n++;
-		mysqli_query($db, 'DELETE FROM `link_incoming` WHERE `id`='.$row['id']); 
+//		mysqli_query($db, 'DELETE FROM `link_incoming` WHERE `id`='.$row['id']); 
 		if (!$answer=$row['answer']){$answer='—';}
 
 		$answer=bbcode($answer);
 
 		if ($answer=='1'){$answer.=' <span class="comment">TRUE</span>';}
 		if ($answer=='NULL'){$answer.=' <span class="comment">FALSE</span>';}
-		echo '<div class="term_answer_item"><div class="answer_left answer_head">'.srdate('H:i:s',$row['time']).'</div><div class="answer_head">'.$row['title'].'</div><div class="answer_left" style="text-align: right;">'.$row['step'].'</div><div>'.$answer.'</div></div>';
+		echo '<div class="term_answer_item"><div class="answer_left answer_head">'.srdate('H:i:s',$row['time']).'</div><div class="answer_head">'.$row['title'].'</div><div class="answer_left" style="text-align: right;">'.$row['step'].'</div><div>'.$answer.'</div></div>#!#'.$row['id'];
 		exit();
 	}
 }
@@ -62,7 +65,7 @@ if ($result = mysqli_query($db, "SELECT `id` FROM `devices` WHERE `type`='server
 			if (!$n){echo '#!#';} $n++;
 			if ($answer=='1'){$answer.=' <span class="comment">TRUE</span>';}
 			if ($answer=='NULL'){$answer.=' <span class="comment">FALSE</span>';}
-			echo '<div class="term_answer_item"><div class="answer_left answer_head">'.srdate('H:i:s',time()).'</div><div class="answer_head">'.$row['title'].'</div><div class="answer_left" style="text-align: right;">'.$row['step'].'</div><div>'.$answer.'</div></div>';
+			echo '<div class="term_answer_item"><div class="answer_left answer_head">'.srdate('H:i:s',time()).'</div><div class="answer_head">'.$row['title'].'</div><div class="answer_left" style="text-align: right;">'.$row['step'].'</div><div>'.$answer.'</div></div>#!#'.$_GET['com_id'];
 		}
 	}
 }

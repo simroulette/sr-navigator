@@ -2,11 +2,12 @@
 // ===================================================================
 // Sim Roulette -> AJAX
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2021 Xzero Systems, http://sim-roulette.com
+// Copyright (c) 2016-2022 Xzero Systems, http://sim-roulette.com
 // Author: Nikita Zabelin
 // ===================================================================
 
 include("_func.php");
+//$com=htmlspecialchars_decode(str_replace('&num;','#',str_replace('&plus;','+',str_replace('!','&',urldecode($_GET['command'])))));
 if ($result = mysqli_query($db, 'SELECT `model`,`data` FROM `devices` WHERE `id`='.(int)$_GET['device'])) 
 {
 	if ($row = mysqli_fetch_assoc($result))
@@ -23,8 +24,13 @@ if ($result = mysqli_query($db, 'SELECT `model`,`data` FROM `devices` WHERE `id`
 				$com=str_replace('clear_sms','modem>send:AT+CMGDA=5',$_GET['command']);
 			}
 		}
+		elseif (strpos($row['model'],'SR-Box-2')!==false)
+		{
+			$com=str_replace('clear_sms','modem>pack:AT+CMGD=0,4',$_GET['command']);
+		}
 		else
 		{
+//			$com=str_replace('clear_sms','modem>pack:AT+CMGDA="DEL ALL"##ALL##1',$_GET['command']);
 			$com=str_replace('clear_sms','modem>pack:AT+CMGDA=5##ALL##1',$_GET['command']);
 		}
 	}
