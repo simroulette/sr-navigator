@@ -213,7 +213,7 @@ else
 	}
 	if ($_GET['operator'])
 	{
-		$where[]="(o1.title LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%' OR o1.`name` LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%' OR o2.title LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%' OR o2.`name` LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%')";
+		$where[]="(o1.title LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%' OR o1.`name` LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%' OR o2.title LIKE '%".mysqli_real_escape_string($db,$_GET['operator'])."%')";
 	}
 	if ($_GET['device'])
 	{
@@ -304,13 +304,12 @@ else
 	$title_td=0;
 	$balance_td=0;
 	$qry='SELECT c.*,o1.`title` AS `operator_name`,o1.`color` AS `color`,d.title AS device_name,m.modems,d.model,IF (pp.`id` IS NOT NULL,count(DISTINCT p.id),0) AS `pools` FROM `cards` c 
-	LEFT JOIN `operators` o1 ON o1.`name` LIKE CONCAT("%;",c.`operator`,";%") 
+	LEFT JOIN `operators` o1 ON o1.`name` LIKE CONCAT("%",c.`operator`,"%") 
 	LEFT JOIN `card2pool` p ON p.`card`=c.`number` 
 	LEFT JOIN `pools` pp ON pp.`id`=p.`pool`
 	LEFT JOIN `devices` d ON c.`device`=d.`id` 
 	LEFT JOIN `modems` m ON m.`device`=d.`id` 
 	WHERE 1'.$where.' GROUP BY c.`id`'.$order.$limit;
-
 	if ($result = mysqli_query($db, $qry)) 
 	{
 		$n=1;
