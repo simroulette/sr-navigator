@@ -128,7 +128,7 @@ DROP TABLE IF EXISTS `devices`;
 CREATE TABLE `devices` (
   `id` int NOT NULL DEFAULT '0',
   `title` varchar(60) NOT NULL DEFAULT '',
-  `model` enum('','','SR-Train','SR-Nano-500','SR-Nano-1000','SR-Box-8','SR-Box-Bank','SR-Organizer','SR-Organizer-Smart','SR-Box-2','SR-Box-2-Bank','SR-Box-8-Smart','SR-Board') NOT NULL DEFAULT '',
+  `model` enum('','SR-Train','SR-Nano-500','SR-Nano-1000','SR-Box-8','SR-Box-Bank','SR-Organizer','SR-Organizer-Smart','SR-Box-2','SR-Box-2-Bank','SR-Box-8-Smart','SR-Board') NOT NULL DEFAULT '',
   `token_local` varchar(5) NOT NULL DEFAULT '',
   `token_remote` varchar(10) NOT NULL DEFAULT '',
   `modems` varchar(64) NOT NULL DEFAULT '',
