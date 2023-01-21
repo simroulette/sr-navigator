@@ -1743,7 +1743,7 @@ function icon_out($model,$data,$color=1)
 	elseif (strpos($icon,'organizer')!==false){$icon.='s';}
 	if (strpos($icon,'box-bank')!==false && $data['map']!=1){$icon.='s';}
 	if (!$color){$c=' class="grayscale"';}
-	return($rev.'<img src="icons/'.$icon.'.svg"'.$c.'>');
+	return($rev.'<img src="icon/'.$icon.'.svg"'.$c.'>');
 }
 
 function stat_resume($count,$percent)
