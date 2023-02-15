@@ -179,7 +179,7 @@ CREATE TABLE `link_incoming` (
   `step` int(11) NOT NULL DEFAULT '0',
   `answer` text NOT NULL,
   `uniq` varchar(8) NOT NULL DEFAULT '',
-  `sign` varchar(16) NOT NULL DEFAULT '',
+  `sign` varchar(16) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Ответы агрегаторов';
 
 DROP TABLE IF EXISTS `link_outgoing`;
