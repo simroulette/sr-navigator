@@ -41,7 +41,7 @@ if ($_GET['mode']=='logout')
 	exit();
 }
 // Authorization | Авторизация
-if (!$_SERVER['DOCUMENT_ROOT'] && ($GLOBALS['set_data']['admin_login'] && ($_COOKIE['srlogin']!=$GLOBALS['set_data']['admin_login'] || $_COOKIE['srpass']!=md5($GLOBALS['set_data']['admin_pass']))))
+if ($_SERVER['DOCUMENT_ROOT'] && ($GLOBALS['set_data']['admin_login'] && ($_COOKIE['srlogin']!=$GLOBALS['set_data']['admin_login'] || $_COOKIE['srpass']!=md5($GLOBALS['set_data']['admin_pass']))))
 {
 	include('_login.php');
 	exit();
