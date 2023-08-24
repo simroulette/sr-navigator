@@ -8,9 +8,9 @@ if ($host && $username && $userpass && $dbname)
 	$username,
 	$userpass,
 	$dbname); 
-}
 
-mysqli_set_charset($db, 'utf8');
+	mysqli_set_charset($db, 'utf8');
+}
 
 if (!$db) 
 {
