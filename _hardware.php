@@ -1706,7 +1706,7 @@ function action_device_create($id,$type)
 
 // Getting ICCID
 // Получение ICCID
-function get_iccid($dev=0,$model,$row='',$place='',$adata='',$operator='',$roaming=0)
+function get_iccid($dev=0,$model='',$row='',$place='',$adata='',$operator='',$roaming=0)
 {
 //	$dev		Device ID
 //	$row	        Panel row for positioning 1 modem line
@@ -1777,7 +1777,7 @@ function get_iccid($dev=0,$model,$row='',$place='',$adata='',$operator='',$roami
 
 // Getting ICCID
 // Получение ICCID
-function get_iccid_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator='',$roaming=0)
+function get_iccid_smart($dev=0,$model='',$modem='',$place='',$iccid='',$adata='',$operator='',$roaming=0)
 {
 //	$dev		Device ID
 //	$row	        Panel row for positioning 1 modem line
@@ -1816,7 +1816,7 @@ function get_iccid_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator=
 
 // Getting a phone number
 // Получение номера телефона
-function get_number($dev=0,$model,$row='',$place='',$adata='',$operator='',$roaming=0)
+function get_number($dev=0,$model='',$row='',$place='',$adata='',$operator='',$roaming=0)
 {
 //	$dev		Device ID
 //	$row	        Panel row for positioning 1 modem line
@@ -1889,6 +1889,15 @@ function get_number($dev=0,$model,$row='',$place='',$adata='',$operator='',$roam
 			return($status);
 		}
 	}		
+
+// Сохраняем оператора в пользовательской таблице
+	if ($operator)
+	{
+		$qry="INSERT INTO `operators_uniq` SET
+		`name`='".strtoupper($operator)."'";
+		mysqli_query($db,$qry);
+	}
+
 	if ($operator)	
 	{
 		// Getting rules for getting a number | Получение правил запроса номера
@@ -1917,13 +1926,6 @@ function get_number($dev=0,$model,$row='',$place='',$adata='',$operator='',$roam
 				return($status);
 			}
 		}
-	}
-// Сохраняем оператора в пользовательской таблице
-	if ($operator)
-	{
-		$qry="INSERT INTO `operators_uniq` SET
-		`name`='".strtoupper($operator)."'";
-		mysqli_query($db,$qry);
 	}
 
 	sr_answer_clear($dev,1); // Clearing the response buffer of the modem | Очистка буфера ответов модема
@@ -2139,7 +2141,7 @@ function get_number($dev=0,$model,$row='',$place='',$adata='',$operator='',$roam
 	return($status);
 }
 
-function get_number_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator='',$roaming=0)
+function get_number_smart($dev=0,$model='',$modem='',$place='',$iccid='',$adata='',$operator='',$roaming=0)
 {
 //	$dev		Device ID
 //	$row	        Panel row for positioning 1 modem line
@@ -2314,7 +2316,7 @@ function get_number_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator
 
 // Getting a balance
 // Получение баланса
-function get_balance($dev=0,$model,$row='',$place='',$adata='',$operator='',$roaming=0)
+function get_balance($dev=0,$model='',$row='',$place='',$adata='',$operator='',$roaming=0)
 {
 //	$dev		Device ID
 //	$row	        Panel row for positioning 1 modem line
@@ -2489,7 +2491,7 @@ function get_balance($dev=0,$model,$row='',$place='',$adata='',$operator='',$roa
 	return($status);
 }
 
-function get_balance_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator='',$roaming=0)
+function get_balance_smart($dev=0,$model='',$modem='',$place='',$iccid='',$adata='',$operator='',$roaming=0)
 {
 //	$dev		Device ID
 //	$row	        Panel row for positioning 1 modem line
@@ -2616,7 +2618,7 @@ function get_balance_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operato
 	return($status);
 }
 
-function get_sms($dev=0,$model,$curRow='',$place='',$adata='',$operator='',$roaming=0)
+function get_sms($dev=0,$model='',$curRow='',$place='',$adata='',$operator='',$roaming=0)
 {
 
 //	$dev		Device ID
@@ -2725,7 +2727,7 @@ function get_sms($dev=0,$model,$curRow='',$place='',$adata='',$operator='',$roam
 	return($out);
 }
 
-function get_sms_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator='',$roaming=0)
+function get_sms_smart($dev=0,$model='',$modem='',$place='',$iccid='',$adata='',$operator='',$roaming=0)
 {
 
 //	$dev		Device ID
@@ -2745,7 +2747,7 @@ function get_sms_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator=''
 
 // Outgoing call from the specified modem
 // Осуществление вызова с указанного модема
-function do_call($dev=0,$model,$curRow='',$place='',$adata='',$operator='',$roaming=0)
+function do_call($dev=0,$model='',$curRow='',$place='',$adata='',$operator='',$roaming=0)
 {
 
 //	$dev		Device ID
@@ -2813,7 +2815,7 @@ function do_call($dev=0,$model,$curRow='',$place='',$adata='',$operator='',$roam
 
 // Outgoing call from the specified modem
 // Осуществление вызова с указанного модема
-function do_call_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator='',$roaming=0)
+function do_call_smart($dev=0,$model='',$modem='',$place='',$iccid='',$adata='',$operator='',$roaming=0)
 {
 
 //	$dev		Device ID
@@ -2875,7 +2877,7 @@ function do_call_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator=''
 	return($status);
 }
 
-function send_sms($dev=0,$model,$curRow='',$place='',$adata='',$operator='',$roaming=0)
+function send_sms($dev=0,$model='',$curRow='',$place='',$adata='',$operator='',$roaming=0)
 {
 
 //	$dev		Device ID
@@ -2920,7 +2922,7 @@ function send_sms($dev=0,$model,$curRow='',$place='',$adata='',$operator='',$roa
 	return(1);
 }
 
-function send_sms_smart($dev=0,$model,$modem,$place,$iccid,$adata='',$operator='',$roaming=0)
+function send_sms_smart($dev=0,$model='',$modem='',$place='',$iccid='',$adata='',$operator='',$roaming=0)
 {
 
 //	$dev		Device ID
