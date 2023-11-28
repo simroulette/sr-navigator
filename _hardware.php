@@ -2351,7 +2351,7 @@ function get_balance($dev=0,$model='',$row='',$place='',$adata='',$operator='',$
 
 	$qry='SELECT c.*,o.`get_balance`,o.`get_balance_type` FROM `cards` c 
 	INNER JOIN `operators` o ON o.`name` LIKE CONCAT("%;",c.`operator`,";%")
-	WHERE c.`device`='.$dev.' AND c.`place`="'.$place.'" DESC LIMIT 1';
+	WHERE c.`device`='.$dev.' AND c.`place`="'.$place.'" LIMIT 1';
 	setlog($qry,'link_'.$dev);
 
 	// Getting balance request rules | Получение правил запроса баланса
