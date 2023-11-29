@@ -15,12 +15,11 @@ if (!$_POST['pool_key'])
 }
 else
 {
-	if ($result = mysqli_query($db, "SELECT `id`,`user_id` FROM `pools` WHERE `key`='".$_POST['pool_key']."'")) 
+	if ($result = mysqli_query($db, "SELECT `id` FROM `pools` WHERE `key`='".$_POST['pool_key']."'")) 
 	{
 		if ($row = mysqli_fetch_assoc($result))
 		{
 			$pool_id=$row['id'];
-			$user_id=$row['user_id'];
 		}
 		else
 		{
@@ -72,9 +71,9 @@ if ($_POST['action']=='getAgregators')
 {
 	$devices=array();
 	$qry="SELECT c.`number`, c.`device`,c.`operator`,d.`model` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
+	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
 	INNER JOIN `devices` d ON d.`id`=c.`device`
-	WHERE p.`pool`='".$pool_id."' AND p.`done`=0 ORDER BY c.`device`,c.`operator`";
+	WHERE p.`pool`='".$pool_id."' ORDER BY c.`device`,c.`operator`";
 
 	if ($result = mysqli_query($db, $qry)) 
 	{
@@ -95,8 +94,8 @@ else if ($_POST['action']=='getOperators')
 {
 	$operators=array();
 	$qry="SELECT c.`number`, c.`device`,c.`operator` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
-	WHERE p.`pool`='".$pool_id."' AND p.`done`=0 ORDER BY c.`operator`";
+	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
+	WHERE p.`pool`='".$pool_id."' ORDER BY c.`operator`";
 
 	if ($result = mysqli_query($db, $qry)) 
 	{
@@ -152,11 +151,11 @@ elseif ($_POST['action']=='poolRestart')
 else if ($_POST['action']=='getNumbers')
 {
 	$numbers=array();
-	$qry="SELECT c.`number`,c.`place`,c.`device` AS `device_id`,d.`model`,c.`operator`,IF (p.`done`,'USED','FREE') AS `status`,m.`row`,m.`modems` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
+	$qry="SELECT c.`number`,c.`place`,c.`device` AS `device_id`,d.`model`,c.`operator`,m.`row`,m.`modems` FROM `card2pool` p 
+	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
 	INNER JOIN `devices` d ON d.`id`=c.`device`
 	LEFT JOIN `modems` m ON m.`device`=c.`device`
-	WHERE p.`pool`='".$pool_id."' ORDER BY p.`done`,c.`device`,CHAR_LENGTH(c.`place`),c.`place`";
+	WHERE p.`pool`='".$pool_id."' ORDER BY c.`device`,CHAR_LENGTH(c.`place`),c.`place`";
 	if ($result = mysqli_query($db, $qry)) 
 	{
 		$dev=0;
@@ -231,11 +230,11 @@ else if ($_POST['action']=='openNumber')
 	}
 
 	$qry="SELECT c.`number`, c.`place`,c.`device`,c.`user_id`,d.`model`,m.`device` AS `busy`,m.`modems` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
+	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
 	INNER JOIN `devices` d ON d.`id`=c.`device`
 	LEFT JOIN `modems` m ON m.`device`=c.`device`
 	WHERE p.`pool`='".$pool_id."'";
-	if (!$_POST['mode']=='repeat'){$qry.=' AND p.`done`=0';}
+	if (!$_POST['mode']=='repeat'){$qry.='';}
 	$qry.=' LIMIT 1';
 	if ($result = mysqli_query($db, $qry)) 
 	{
@@ -294,7 +293,6 @@ else if ($_POST['action']=='openNumber')
 				}
 
 				$_GET['device']=$row['device'];
-				$sv_user_id=$row['user_id'];
 				$card_num=$row['number'];
 				$out=str_replace($_POST['phone_exception'],'',$row['number']);
 
@@ -386,7 +384,6 @@ else if ($_POST['action']=='openNumbers')
 		$count=count($numbers);
 		$numbers=implode(',',$numbers);
 		$_GET['device']=$status['device'];
-		$sv_user_id=$row['user_id'];
 
 		include($root.'ajax_online_create.php');
 
@@ -483,8 +480,8 @@ else if ($_POST['action']=='getSimStatus')
 		$list[$data]=array('number'=>$data,'status'=>'NOT_FOUND');
 		$numbers[]='c.`number` LIKE "%'.$data.'%"';
 	}
-	$qry="SELECT c.`number`, c.`place`,c.`device`,c.`user_id`,d.`model`,d.`msg`,m.`modems`,m.`row` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
+	$qry="SELECT c.`number`, c.`place`,c.`device`,d.`model`,d.`msg`,m.`modems`,m.`row` FROM `card2pool` p 
+	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
 	INNER JOIN `devices` d ON d.`id`=c.`device`
 	LEFT JOIN `modems` m ON m.`device`=c.`device`
 	WHERE p.`pool`='".$pool_id."' AND (".implode(' OR ',$numbers).")";
@@ -582,7 +579,7 @@ else if ($_POST['action']=='getLastSms')
 	}
 	$qry="SELECT s.`id`,s.`txt`,s.`readed` FROM `sms_incoming` s 
 	INNER JOIN `card2pool` c ON c.`card`=s.`number` AND c.`pool`=".$pool_id."
-	WHERE s.`user_id`=".$user_id." AND s.`done`=1 AND s.`number` LIKE '%".(int)$_POST['number']."%'".$where.' ORDER BY s.`time_receive` DESC LIMIT 1';
+	WHERE s.`done`=1 AND s.`number` LIKE '%".(int)$_POST['number']."%'".$where.' ORDER BY s.`time_receive` DESC LIMIT 1';
 
 	if ($result = mysqli_query($db, $qry)) 
 	{
@@ -626,8 +623,8 @@ else if ($_POST['action']=='getSms')
 		$list[$data]=array('number'=>$data,'status'=>'NOT_FOUND_NUMBER','sms_counter'=>'0');
 		$numbers[]='c.`number` LIKE "%'.$data.'%"';
 	}
-	$qry="SELECT c.`number`, c.`place`,c.`device`,c.`user_id`,d.`model`,d.`msg`,m.`modems`,m.`row` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
+	$qry="SELECT c.`number`, c.`place`,c.`device`,d.`model`,d.`msg`,m.`modems`,m.`row` FROM `card2pool` p 
+	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
 	INNER JOIN `devices` d ON d.`id`=c.`device`
 	LEFT JOIN `modems` m ON m.`device`=c.`device`
 	WHERE p.`pool`='".$pool_id."' AND (".implode(' OR ',$numbers).")";
@@ -718,7 +715,7 @@ else if ($_POST['action']=='getSms')
 			$out=array();
 			$qry="SELECT c.`id`,c.`number`,c.`txt`,c.`time`,c.`readed`,c.`sender` FROM `sms_incoming` c 
 			INNER JOIN `card2pool` p ON p.`card`=c.`number` AND p.`pool`=".$pool_id."
-			WHERE c.`user_id`=".$user_id."  AND c.`done`=1 AND (".implode(' OR ',$numbers).")".$where.' ORDER BY c.`time_receive` DESC';
+			WHERE c.`done`=1 AND (".implode(' OR ',$numbers).")".$where.' ORDER BY c.`time_receive` DESC';
 			if ($result = mysqli_query($db, $qry)) 
 			{
 				while ($row = mysqli_fetch_assoc($result))
@@ -802,8 +799,8 @@ else if ($_POST['action']=='getCall')
 		$list[$data]=array('number'=>$data,'status'=>'NOT_FOUND_NUMBER','call_counter'=>'0');
 		$numbers[]='c.`number` LIKE "%'.$data.'%"';
 	}
-	$qry="SELECT c.`number`, c.`place`,c.`device`,c.`user_id`,d.`model`,d.`msg`,m.`modems` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
+	$qry="SELECT c.`number`, c.`place`,c.`device`,d.`model`,d.`msg`,m.`modems` FROM `card2pool` p 
+	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
 	INNER JOIN `devices` d ON d.`id`=c.`device`
 	LEFT JOIN `modems` m ON m.`device`=c.`device`
 	WHERE p.`pool`='".$pool_id."' AND (".implode(' OR ',$numbers).")";
@@ -883,7 +880,7 @@ else if ($_POST['action']=='getCall')
 			$where=' AND c.`time`>'.(time()-$_POST['period']);	
 			$out=array();
 			$qry="SELECT c.`id`,c.`number`,c.`incoming`,c.`time` FROM `call_incoming` c 
-			INNER JOIN `devices` d ON d.`user_id`=".$user_id." AND c.`device`=d.`id`
+			INNER JOIN `devices` d ON c.`device`=d.`id`
 			INNER JOIN `card2pool` p ON p.`card`=c.`number` AND p.`pool`=".$pool_id."
 			WHERE (".implode(' OR ',$numbers).")".$where.' ORDER BY c.`time` DESC';
 			if ($result = mysqli_query($db, $qry)) 
@@ -938,14 +935,14 @@ else if ($_POST['action']=='deleteCall')
 
 function getPoolStatus()
 {
-	global $db,$user_id,$pool_id,$where,$channels;
+	global $db,$pool_id,$where,$channels;
 
 	$places=array();
 	$total=0;
 
 	$numbers=array('total'=>0,'used'=>0,'free'=>0,'channels'=>0);
-	$qry="SELECT c.`number`, c.`place`, c.`device`,c.`operator`,d.`model`,p.`done`,m.`device` AS `dev`,m.`modems` FROM `card2pool` p 
-	INNER JOIN `cards` c ON c.`number`=p.`card` AND c.`user_id`=".$user_id.$where."
+	$qry="SELECT c.`number`, c.`place`, c.`device`,c.`operator`,d.`model`,m.`device` AS `dev`,m.`modems` FROM `card2pool` p 
+	INNER JOIN `cards` c ON c.`number`=p.`card`".$where."
 	INNER JOIN `devices` d ON d.`id`=c.`device`
 	LEFT JOIN `modems` m ON m.`device`=c.`device`
 	WHERE p.`pool`='".$pool_id."' ORDER BY c.`device`,CHAR_LENGTH(c.`place`),c.`place`";
