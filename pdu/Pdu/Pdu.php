@@ -165,7 +165,7 @@ class Pdu  {
         $total = 0;
         $power = $this->parseInt($this->strlen($x))-1;
         for($i=0; $i < $this->strlen($x); $i++){
-            if($x{$i} == '1'){
+            if($x[$i] == '1'){
                 $total = $total + pow(2,$power);
             }
             $power--;
@@ -248,16 +248,16 @@ class Pdu  {
         $i = $this->parseInt($i);
 
         for($j = 0; $j <= 3; $j++){
-            $h .= $this->hex{($i >> ($j * 8 + 4)) & 0x0F} . $this->hex{($i >> ($j * 8)) & 0x0F};
+            $h .= $this->hex[($i >> ($j * 8 + 4)) & 0x0F] . $this->hex[($i >> ($j * 8)) & 0x0F];
         }
         return $this->substring($h,0,2);
     }
 
     private function ToHex($i){
         $out = "";
-        $out = $this->hex{($i & 0xf)};
+        $out = $this->hex[($i & 0xf)];
         $i >>= 4;
-        $out = $this->hex{($i & 0xf)} . $out;
+        $out = $this->hex[($i & 0xf)] . $out;
         return $out;
     }
 
@@ -364,7 +364,7 @@ class Pdu  {
         $out = '';
         for($i=0;$i< $this->strlen($inp);$i=$i+2){
             $temp  = $this->substring($inp,$i,$i+2);
-            $out  .= $this->phoneNumberMap($temp{1}) . $this->phoneNumberMap($temp{0});
+            $out  .= $this->phoneNumberMap($temp[1]) . $this->phoneNumberMap($temp[0]);
         }
         return $out;
     }
@@ -703,7 +703,7 @@ class Pdu  {
         $padding = Utf8::unicodeToUtf8(array(0x0D));
         $info = "";
 
-        if (($septets % 8 == 0 && $len > 0 && $buffer{($len -1)} == $padding) || ($septets % 8 == 1 && $len > 1 && $buffer{($len -1)} == $padding && $buffer{($len -2)} == $padding))
+        if (($septets % 8 == 0 && $len > 0 && $buffer[($len -1)] == $padding) || ($septets % 8 == 1 && $len > 1 && $buffer[($len -1)] == $padding && $buffer[($len -2)] == $padding))
         {
             $buffer = $this->substring($buffer,0, $len -1);
             $info = "<BR><SMALL>( Had $padding which is removed )</SMALL>";
@@ -744,6 +744,7 @@ class Pdu  {
         return $inpString;//"ERROR: Length is not even";
 
         if ($bitSize == 7)
+
             return $this->decodeGSM7bitPacked($inpString, $is_cell_broadcast);
 
         if ($bitSize == 16)
@@ -818,7 +819,7 @@ class Pdu  {
             $result .= $p;
             $p = "";
 
-            switch ($result & 0x0F)
+            switch ((int)$result & 0x0F)
             {
                 case 0:
                     $p = "unknown";
@@ -904,12 +905,22 @@ class Pdu  {
 	$h=$h2=str_replace(' ','',$header);	
 	if (strlen($h)==14)
 	{
-		setlog('------------------------'.print_r($out,1),'sms');
+		setlog_full('------------------------
+'.$inp.'
+'.print_r($out,1),'sms');
 		$h1=substr($h,0,6);
 		$h=$h1.substr($h,8,255);
 		$inp=str_replace($h2,$h,$inp);
-		$out=$this->pduToTextGet($inp);
+		if ($out['encoding'] != 'ASCII')
+		{
+			$out=$this->pduToTextGet($inp);
+		}
 	}
+/*
+		setlog_full('++++++++++++++++++++++++
+'.$inp.'
+'.print_r($out,1),'sms');
+*/
 	return($out);
     }
 
@@ -1114,7 +1125,7 @@ class Pdu  {
                 $userData = $this->getUserMessage16($skip_characters, $this->substr($pduString,$start,$this->strlen($pduString)-$start),$messageLength);
             }
 
-            $userData = $this->substr($userData,0,$messageLength);
+	    $userData = $this->substr($userData,0,$messageLength);
             if ($bitSize==16)
             {
                 $messageLength/=2;
@@ -1254,6 +1265,7 @@ class Pdu  {
                 if ($bitSize==7)
                 {
                     $userData = $this->getUserMessage($skip_characters, $this->substr($pduString,$start,$this->strlen($pduString)-$start),$messageLength);
+		    $messageLength=255;
                 }
                 else if ($bitSize==8)
                 {
@@ -1300,8 +1312,6 @@ class Pdu  {
                 if ($UserDataHeader != ""){
                     $out['userDataHeader'] = $UserDataHeader;
                 }
-
-
 
                 $out['encoding'] = mb_detect_encoding($userData);
                 $out['length']   = $messageLength;
@@ -1386,7 +1396,7 @@ class Pdu  {
 
             }
 
-        $out['message'] = strip_tags($out['message']);
+//        $out['message'] = strip_tags($out['message']); !!! - ХЗ зачем теги вырезать?
         return $out;
     }
 
