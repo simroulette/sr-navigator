@@ -2,8 +2,7 @@
 // ===================================================================
 // Sim Roulette -> Running tasks every minute
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2022 Xzero Systems, http://sim-roulette.com
-// Author: Nikita Zabelin
+// Copyright (c) 2016-2025 Sim Roulette, https://sim-roulette.com
 // ===================================================================
 
 $license='free';

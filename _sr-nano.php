@@ -3,8 +3,7 @@
 // ===================================================================
 // Sim Roulette -> SR-Nano functions
 // License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
-// Copyright (c) 2016-2020 Xzero Systems, http://sim-roulette.com
-// Author: Nikita Zabelin
+// Copyright (c) 2016-2025 Sim Roulette, https://sim-roulette.com
 // ===================================================================
 
 // Container function: Selecting a row, connecting contacts, powering modems, checking connections, and performing the following functions                        
